@@ -6,7 +6,7 @@ validity, and HPC execution**.
 It is built on the SURF Developer Platform golden path and adopts the common stack wherever the
 common stack has an answer. It contains only the parts we could not find anywhere else.
 
-## What this is, in one paragraph
+## The problem it addresses
 
 Agent runs are a fourth execution pattern beside training, fine-tuning and inference: a long-lived
 loop that consumes inference and executes code. They are expensive, hard to reproduce, and easy to
@@ -14,7 +14,7 @@ report wrongly. This service records what actually ran with enough provenance to
 audit it, adjudicates whether a comparison between two configurations is sound enough to publish,
 and drives execution on batch-scheduled HPC where the usual cloud-native answers do not reach.
 
-## What it deliberately does not do
+## Adopted, not written here
 
 It does not ship an agent framework, a tracing backend, a metrics store, a dashboard, an experiment
 tracker, a workflow engine, or an inference server. Every one of those exists and is better than

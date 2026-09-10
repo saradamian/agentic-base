@@ -3,7 +3,7 @@
 Three pages, and then the code. This is not a specification and there is no larger document
 behind it that you are supposed to read first.
 
-## What this is
+## The service, in plain terms
 
 A system of record for agent runs, and a referee for claims made from that record.
 

@@ -66,7 +66,7 @@ because the prompt teaches the model about the injected section and quotes its h
 verdict was implausible enough to be investigated. A less surprising false positive would have
 stood. This is a property of self-documenting systems, not a quirk of one prompt.
 
-## D7: The learning half of this platform is empty on purpose
+## D7: No memory, skill or experience subsystem
 
 There is no memory, skill or experience subsystem here, and the reason is not that it does not
 matter.

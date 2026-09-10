@@ -18,8 +18,6 @@ import ipaddress
 import socket
 from urllib.parse import urlparse
 
-from app.limits import FETCH_MAX_REDIRECTS  # noqa: F401  re-exported for fetch implementations
-
 ALLOWED_SCHEMES = frozenset({"http", "https"})
 DEFAULT_ALLOWED_PORTS = frozenset({80, 443})
 

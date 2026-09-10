@@ -24,7 +24,7 @@ instead of inferred.
 2. **Create the repository in the right group.** Repository and group settings are managed in a
    GitOps fashion through the platform's GitLab configuration repository, so this is a merge
    request there, not a click in the UI. Follow the platform's "managing GitLab repositories"
-   guide. Suggested home: the group that owns the AI Factory work rather than a personal namespace.
+   guide. Suggested home: the group that owns the AI Factory work, not a personal namespace.
 3. **Request a tenant.** Through the self-service form in the developer portal. A tenant creates
    the Kubernetes namespace and access, plus the optional resources this service needs:
    **PostgreSQL** and **S3 object storage**. The platform team reviews the request.

@@ -157,3 +157,8 @@ strict = true # enable strictness options https://docs.pytest.org/en/stable/expl
 branch = true
 source = ["src/"]
 omit = ["tests/*"]
+
+[tool.coverage.report]
+# Ratcheted. tests/test_process.py asserts this is at least MINIMUM_COVERAGE, so lowering the
+# flag alone does not lower the gate.
+fail_under = 88

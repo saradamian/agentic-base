@@ -1,7 +1,7 @@
-# What came from agentic-env, and what was deliberately left
+# What came from agentic-env, and what stayed there
 
-`agentic-env` remains what it is: an experimentation environment where things are tried and
-measured. This project is the production layer, and it starts clean on purpose.
+`agentic-env` stays the experimentation environment, where things get tried and measured. This
+project is the production layer, and it starts from an empty repository.
 
 The governing rule of the extraction:
 
@@ -24,7 +24,7 @@ are the only thing that stops a rebuild reproducing a year of mistakes.
 | energy as an axis beside tokens | `RunRecord.joules` |
 | free-form join keys with no core vocabulary | `RunRecord.extra` |
 
-## Deliberately left behind
+## Left out
 
 Each of these was measured, and the measurement is the reason.
 

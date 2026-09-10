@@ -1,4 +1,4 @@
-# What this repository is, and what the neighbours are
+# Boundaries against the neighbouring efforts
 
 There are four adjacent efforts. Confusing them is easy and expensive, so this names the boundary
 for each one, in the form of what this repository must never do.
@@ -39,7 +39,7 @@ maintains both and splitting early costs more than it saves.
 
 ### The base layer: a library any agent can use
 
-Deliberately not an agent framework. Applications bring their own agent, whether that is a
+This is not an agent framework. Applications bring their own agent, whether that is a
 commercial SDK, a graph library, or a loop they wrote. What they get here:
 
 - **recording**: `app.client`, about ten lines at the call site
