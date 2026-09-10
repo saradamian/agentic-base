@@ -15,6 +15,23 @@ read-only over MCP so someone in a chat client can ask.
 
 That is the whole of it today. It does not run agents, serve models, schedule anything, or train.
 
+## Who it is for
+
+Three consumers exist today, and requirements should come from them.
+
+Willma serves models and is live. Anything here about inference points at Willma.
+
+AI4Science submits and orchestrates jobs on Slurm. It already runs agent jobs, through a template
+script on a shared filesystem, and replacing that seam with a real interface is the first piece of
+work that helps both sides.
+
+The AI Factory is buying a machine whose functional architecture has three verbs and no plane for
+observing or evaluating anything. Its own service catalogue marks the relevant rows as partial or
+absent.
+
+A base layer with no named consumer is a guessing exercise. These three are the answer to what it
+should do next.
+
 ## Why it is shaped this way
 
 Most experiment tooling stores what a run produced. Very little of it stores who decided the run
