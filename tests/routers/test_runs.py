@@ -4,7 +4,7 @@ from app.domain.run_record import LabelSource, RunStatus
 
 
 def _payload(**kwargs) -> dict:
-    body = {"tenant": "hpml", "item": "task-1", "arm": "baseline"}
+    body = {"tenant": "hpml", "code_revision": "abc1234", "item": "task-1", "arm": "baseline"}
     body.update(kwargs)
     return body
 
@@ -66,3 +66,27 @@ def test_the_validity_report_flags_an_arm_correlated_exclusion(test_client) -> N
     assert report["could_have_flagged"] is True
     assert report["sound"] is False
     assert report["flagged"][0]["channel"] == "container_removed"
+
+
+def test_recording_a_run_without_a_code_revision_is_refused(test_client) -> None:
+    """Placement against a later meaning change cannot be recovered, so it is required now."""
+    response = test_client.post("/runs", json={"tenant": "hpml", "item": "x"})
+
+    assert response.status_code == 422
+
+
+def test_recording_an_outcome_without_naming_its_scorer_is_refused(test_client) -> None:
+    """A label whose provenance is unknown can be neither cited nor trained on."""
+    response = test_client.post("/runs", json=_payload(item="task-9", resolved=True))
+
+    assert response.status_code == 422
+    assert "label_source" in response.text
+
+
+def test_recording_an_outcome_with_its_scorer_is_accepted(test_client) -> None:
+    response = test_client.post(
+        "/runs",
+        json=_payload(item="task-10", resolved=True, label_source=LabelSource.OFFICIAL_HARNESS.value),
+    )
+
+    assert response.status_code == 201

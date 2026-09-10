@@ -7,6 +7,7 @@ edit_uri: -/edit/main/docs/
 nav:
   - Home: index.md
   - Readme: include-readme.md
+  - Decisions: decisions.md
   - Architecture:
     - Reuse ledger: architecture/reuse-ledger.md
     - From agentic-env: architecture/from-agentic-env.md

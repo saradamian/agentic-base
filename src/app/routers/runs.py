@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from starlette import status
 
 from app.db import get_session
-from app.domain.run_record import LabelUpdate, RunRecord
+from app.domain.run_record import LabelUpdate, RunRecord, RunRecordCreate
 from app.domain.validity import ChannelSpread, check_comparison
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -67,8 +67,13 @@ class _Observation:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_run(record: RunRecord, session: Session = Depends(get_session)) -> RunRecord:
-    """Record one agent run, transcript and provenance included."""
+def create_run(payload: RunRecordCreate, session: Session = Depends(get_session)) -> RunRecord:
+    """Record one agent run, transcript and provenance included.
+
+    Tenant and code revision are required. An outcome may only be supplied together with the
+    scorer that produced it.
+    """
+    record = payload.to_record()
     session.add(record)
     session.commit()
     session.refresh(record)

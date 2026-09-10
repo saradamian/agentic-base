@@ -38,6 +38,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from pydantic import model_validator
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
@@ -185,3 +186,67 @@ class LabelUpdate(SQLModel):
     label_source: LabelSource
     instrument: str = ""
     degraded: bool = False
+
+
+class RunRecordCreate(SQLModel):
+    """What a caller must supply to record a run.
+
+    Separate from the table model on purpose. SQLModel skips validation on table classes, so a
+    validator written there would look like enforcement and do nothing. Anything the platform
+    genuinely refuses to accept has to be refused here.
+
+    Two fields have no default, and the fact that this is mildly annoying is the point. Optional
+    provenance is never supplied: not through laziness, but through the honest path of least
+    resistance while you are trying to get one thing working. In the project this came from, a
+    corpus of 12,630 outcome rows ended up with 6,842 attributed to a convenience checker, 5,788
+    with no scorer named at all, and none at all attributed to the authoritative one, because
+    attribution was a later step that nobody ran. A scorer cannot be assigned to a verdict after
+    the fact.
+    """
+
+    tenant: str
+    code_revision: str
+    """The revision that produced this run. Without it the record cannot be placed against a
+    later declaration that some field changed meaning, and that placement cannot be recovered."""
+
+    item: str = ""
+    arm: str = ""
+    arm_fingerprint: str = ""
+    system_prompt: str = ""
+    messages: list[dict[str, Any]] = Field(default_factory=list)
+    model: str = ""
+    endpoint: str = ""
+    precision: str = ""
+    status: RunStatus = RunStatus.COMPLETED
+    failure_kind: str = ""
+    resolved: bool | None = None
+    label_source: LabelSource = LabelSource.UNLABELLED
+    degraded: bool = False
+    instrument: str = ""
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    joules: float = 0.0
+    num_steps: int = 0
+    total_tool_calls: int = 0
+    elapsed_ms: float = 0.0
+    extra: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def an_outcome_requires_a_source(self) -> "RunRecordCreate":
+        """Refuse an outcome whose scorer is not named."""
+        if self.resolved is not None and self.label_source is LabelSource.UNLABELLED:
+            raise ValueError(
+                "resolved was supplied without a label_source. Record the run without an outcome "
+                "and attach one later, or name the scorer now."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def a_failure_kind_belongs_to_a_failure(self) -> "RunRecordCreate":
+        """A detail on a completed run is a mislabelled exclusion waiting to happen."""
+        if self.failure_kind and self.status is RunStatus.COMPLETED:
+            raise ValueError("failure_kind was supplied on a run whose status is completed")
+        return self
+
+    def to_record(self) -> RunRecord:
+        return RunRecord(**self.model_dump())
