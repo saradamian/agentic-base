@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     log_plain_traceback: bool = False
     project_name: str = "Agentic Platform"
     metrics_port: int = 9000
-    database_url: str = "sqlite:///./agentic-platform.db"
+    database_url: str = "sqlite:///./agentic-base.db"
     """PostgreSQL in every deployed environment; SQLite locally so the service runs with no infrastructure."""
 
 

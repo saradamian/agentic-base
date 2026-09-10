@@ -1,7 +1,7 @@
-# agentic-platform
+# agentic-base
 
-The platform layer for agentic workloads on SURF infrastructure: run provenance, comparison
-validity, and HPC execution.
+The agentic base layer for SURF: run provenance, comparison validity, and the shared
+primitives an agent needs.
 
 The [readme](include-readme.md) covers the service in a page. After that:
 

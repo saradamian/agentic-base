@@ -1,7 +1,7 @@
 [project]
-name = "agentic-platform"
+name = "agentic-base"
 authors = [{ name = "SURF" }]
-description = "Agentic platform layer: run provenance, comparison validity, and HPC execution for agentic workloads."
+description = "Agentic base layer: run provenance, comparison validity, and shared safety primitives."
 requires-python = ">=3.14"
 dynamic = ["version", "readme"]
 

@@ -31,7 +31,7 @@ from app.domain.validity import check_comparison
 from app.limits import get_limits
 
 PROTOCOL_VERSION = "2025-06-18"
-SERVER_INFO = {"name": "agentic-platform", "version": "0.1.0"}
+SERVER_INFO = {"name": "agentic-base", "version": "0.1.0"}
 
 TOOLS: list[dict[str, Any]] = [
     {

@@ -9,7 +9,7 @@ resulted from making provenance optional.
 
 Usage:
 
-    recorder = RunRecorder("https://the internal platform", tenant="hpml",
+    recorder = RunRecorder("https://agentic-base.example.org", tenant="hpml",
                            code_revision=git_sha())
 
     with recorder.run(item="issue-4312", arm="baseline") as run:

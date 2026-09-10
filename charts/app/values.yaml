@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: the internal registry/templates-agentic-platform/agentic-platform
+  repository: agentic-base
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -193,7 +193,7 @@ affinity:
         podAffinityTerm:
           labelSelector:
             matchLabels:
-              app.kubernetes.io/name: agentic-platform
+              app.kubernetes.io/name: agentic-base
           topologyKey: "kubernetes.io/hostname"
 
 podDisruptionBudget:

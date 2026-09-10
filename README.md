@@ -1,7 +1,7 @@
-# agentic-platform
+# agentic-base
 
-The platform layer for agentic workloads on SURF infrastructure: **run provenance, comparison
-validity, and HPC execution**.
+The agentic base layer for SURF: **run provenance, comparison validity, and the shared
+primitives an agent needs**.
 
 It is built on the SURF Developer Platform golden path and adopts the common stack wherever the
 common stack has an answer. It contains only the parts we could not find anywhere else.

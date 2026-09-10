@@ -1,5 +1,5 @@
 apiVersion: v2
-name: agentic-platform
+name: agentic-base
 description: Python FastAPI template Helm chart for Kubernetes
 maintainers:
   - name: "agentic-base maintainers"
