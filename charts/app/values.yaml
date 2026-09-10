@@ -16,7 +16,9 @@ serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # Automatically mount a ServiceAccount's API credentials?
-  automount: true
+  # False: this workload never calls the Kubernetes API, and a mounted token is the first thing
+  # an agent that has been talked into something reaches for.
+  automount: false
   # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use.
@@ -35,6 +37,8 @@ securityContext:
   capabilities:
     drop:
       - ALL
+  # Writable paths are declared, not inherited. /tmp is mounted as an emptyDir below.
+  readOnlyRootFilesystem: true
   runAsNonRoot: true
   runAsGroup: 1000
   runAsUser: 1000
@@ -62,12 +66,17 @@ ingress:
   #      - chart-example.local
 
 resources:
+  # Memory request equals its limit so the pod is Guaranteed and cannot be evicted under node
+  # pressure caused by a neighbour. The ephemeral-storage limit is the cluster's replacement for
+  # the disk guard we had to write on a shared workstation.
   limits:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 500m
+    memory: 512Mi
+    ephemeral-storage: 2Gi
   requests:
     cpu: 100m
-    memory: 128Mi
+    memory: 512Mi
+    ephemeral-storage: 512Mi
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
     # resources, such as Minikube. If you do want to specify resources, uncomment the following
@@ -98,8 +107,59 @@ autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 5
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  # Utilisation is deliberately absent, and this is a measured position rather than a preference.
+  # On an inference path utilisation is not a weak signal, it is an inverted one: past a critical
+  # concurrency the cache is oversubscribed, the engine evicts in-flight requests and recomputes
+  # their prefill, and the accelerators stay pinned at full while completing less. Measured on one
+  # pool: concurrency 18 gave 16,724 tok/s with no preemptions; concurrency 39 gave 7,024 tok/s
+  # with preemptions accumulating and per-call latency rising from about 11 s to 64-82 s. An
+  # autoscaler reading utilisation sees the degraded state as healthy and scales the wrong way.
+  # Honest limit: two operating points, not a tuning study. The peak was never located.
+  #
+  # Scale on queued work instead, and alert on the preemption counter. The metric name is whatever
+  # the cluster's adapter exposes; this is the shape, not the identifier.
+  metrics:
+    - type: External
+      external:
+        metric:
+          name: inference_requests_waiting
+        target:
+          type: AverageValue
+          averageValue: "4"
+
+lifecycle:
+  # An agent run is long. Kubernetes sends SIGTERM, waits this long, then SIGKILLs, so a grace
+  # period shorter than the longest in-flight request cuts trajectories in half on every rolling
+  # update, scale-down and node drain. This is the same invariant that governed serve drains on
+  # the batch scheduler: any cleanup whose timer is shorter than the work it must outlive destroys
+  # results silently, and the loss is usually recorded as a failure of the work.
+  #
+  # tests/test_chart.py asserts terminationGracePeriodSeconds > longestRequestSeconds +
+  # preStopSleepSeconds, so lowering one without the others fails the build.
+  longestRequestSeconds: 1800
+  # Pod deletion and endpoint removal race. Sleeping first lets the endpoint removal propagate, so
+  # the pod stops receiving new work before it is asked to stop.
+  preStopSleepSeconds: 15
+  terminationGracePeriodSeconds: 1860
+
+networkPolicy:
+  # Default-deny egress. This is where generated code finally meets a real boundary: the
+  # structural filter in app.code_policy is a pre-filter and its own documentation says it is not
+  # an isolation boundary.
+  #
+  # Check with the platform team before relying on this. A namespace-level policy may already
+  # enforce it, in which case this declaration is redundant and still worth keeping, so the chart
+  # describes its own requirements instead of being correct by accident.
+  enabled: true
+  # Egress the service genuinely needs. Everything else is refused.
+  allowDNS: true
+  allowedPorts:
+    - protocol: TCP
+      port: 5432   # PostgreSQL, the tenant database
+    - protocol: TCP
+      port: 9000   # object storage
+    - protocol: TCP
+      port: 443    # model endpoint and platform services
 
 nodeSelector: {}
 
