@@ -1,0 +1,73 @@
+# Snellius (SURF) — H100 GPU nodes and Genoa/Rome CPU nodes, driven over SSH.
+#
+# This file is data. It holds facts about the cluster that the scheduler cannot always report
+# about itself, and nothing that is secret. Credentials are named here by the environment
+# variable that supplies them, never by value.
+#
+# Precedence, low to high: built-in defaults, this file, environment variables, explicit
+# arguments at the call site.
+
+name: snellius
+description: >-
+  SURF Snellius. H100 nodes with the 94 GiB card, Genoa and Rome CPU partitions. Multi-node
+  serving runs Ray over the eno2np0 Ethernet control plane; NCCL uses InfiniBand.
+
+backend: ssh
+ssh_host: snellius              # a Host entry in ~/.ssh/config
+login_hosts: [int4, int5, int6, int7]
+# Access is behind two-factor authentication through a shared ControlMaster. A process left
+# running on one login node survives anything done on the others and does not show up in a
+# process listing there. Sweep all four when looking for something that keeps resubmitting.
+
+access:
+  auth: interactive_2fa
+  # Two-factor, behind a shared ControlMaster socket that a human has to create. An
+  # unattended process cannot re-establish a lost session on its own.
+
+partitions:
+  default: gpu_h100
+  gpu: gpu_h100
+  cpu: genoa
+  allowed: [gpu_h100, genoa, rome, gpu_a100]
+
+hardware:
+  gpu_vendor: nvidia
+  gpu_memory_gb: 94             # the SXM variant, not the 80 GiB card
+  gpus_per_node: 4
+  ray_interface: eno2np0
+
+storage:
+  scratch_base: /scratch-shared/$USER
+  work_dir: /scratch-shared/$USER/agentic-jobs
+  # SQLite over Lustre wedges an async process: concurrent writers on a shared WAL file block
+  # the main thread in the filesystem and the event loop stops. Anything holding a local
+  # database must put it on node-local disk.
+  node_local_cache: /tmp
+
+containers:
+  # User namespaces are set to zero cluster-wide, and the installed Apptainer is not setuid, so
+  # every rootless container start fails. There is no user-side workaround. Workloads that need
+  # a container run somewhere else until this changes.
+  user_namespaces_available: false
+  runtime: null
+
+serving:
+  modules: "2025 Python/3.13.5-GCCcore-14.3.0 cuDNN/9.10.1.4-CUDA-12.8.0"
+  walltime: "01:00:00"
+
+energy:
+  # Slurm's own energy accounting fields are empty here because no gather plugin is configured.
+  # The site facility reports per-job joules and mean node power instead.
+  source: eacct
+  slurm_accounting_has_energy: false
+
+limits:
+  max_gpus: 4
+  max_nodes: 4
+  max_walltime: "02:00:00"
+
+credentials:
+  # Names only. Values come from platform secret management, never from this file.
+  account: SNELLIUS_ACCOUNT
+  ssh_user: SNELLIUS_SSH_USER
+  hf_token: SNELLIUS_HF_TOKEN

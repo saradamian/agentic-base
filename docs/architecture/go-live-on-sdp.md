@@ -1,13 +1,13 @@
 # Going live on the SURF Developer Platform
 
-**Current state: not live.** This is a local repository with no remote and nothing pushed. The
+This project is not live. It is a local repository with no remote and nothing pushed. The
 steps below are the platform's documented onboarding path, read from the platform documentation
-rather than inferred.
+instead of inferred.
 
 ## Already done in this repository
 
 - Built from `sdp/templates/python-fastapi-template`, so the layout, Dockerfile, Helm chart and
-  environment manifests are the golden path rather than our invention.
+  environment manifests are the platform's, not ours.
 - `.gitlab-ci.yml` includes `sdp/components/pipelines/python-application`, which brings build,
   test, lint, container publish, SBOM and deploy.
 - `catalog-info.yaml` registers a Component and an API in Backstage, with a TechDocs reference so
@@ -40,15 +40,19 @@ rather than inferred.
 
 ## Two things to settle before it is genuinely useful
 
-**Where the execution plane lives.** The platform's Kubernetes is the right home for this
-service — the API, the record store, the validity checks. It is *not* where agent runs execute.
+### Where the execution plane lives
+
+The platform's Kubernetes is the right home for this service: the API, the record store, the
+validity checks. It is not where agent runs execute.
 Those run on batch-scheduled HPC. So the service needs an authenticated path from a platform
 namespace to a Slurm cluster, and the shape of that path is the open architectural question:
 Slurm REST with per-user tokens, a bridge service, or a broker. Two internal projects already do
 some of this and should be evaluated before a third is written. This is a conversation with the
 platform team and with the cluster owners, not a decision to make in a repository.
 
-**Secrets never reach a job script.** A user's model credentials and object-store keys must not be
+### Secrets never reach a job script
+
+A user's model credentials and object-store keys must not be
 interpolated into a submitted script or exported into a job environment on a shared filesystem.
 The platform has a secret-management guide; the execution plane has to honour it. This is worth
 settling before there is a service on top, because it is cheap now and expensive later.

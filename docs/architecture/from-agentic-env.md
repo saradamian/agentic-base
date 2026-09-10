@@ -15,7 +15,7 @@ are the only thing that stops a rebuild reproducing a year of mistakes.
 | what | shape here |
 |---|---|
 | the run record, with the system prompt the model actually received | `app.domain.run_record.RunRecord` |
-| outcome-label provenance | `label_source`, with `CITABLE_LABEL_SOURCES` making the distinction structural rather than advisory |
+| outcome-label provenance | `label_source`, with `CITABLE_LABEL_SOURCES` making the distinction structural, not advisory |
 | the degraded flag on automated verdicts | `RunRecord.degraded`, and `citable` refuses a degraded verdict from any source |
 | which instrument actually ran | `RunRecord.instrument` |
 | configuration fingerprinting for an arm | `RunRecord.arm_fingerprint`, so two runs sharing a label but not a configuration can never be pooled |
@@ -45,8 +45,8 @@ Each of these was measured, and the measurement is the reason.
 
 ## Three rules the skill library paid for
 
-They cost a flood of useless entries and two months of unprunable rows, so they are stated as rules
-rather than as code to copy.
+They cost a flood of useless entries and two months of unprunable rows, so they are stated as rules,
+not as code to copy.
 
 1. **Counters are born at zero, with their denominator.** Ours were seeded from how often a pattern
    had been *observed* and recorded that as a success rate, while pruning only reached entries below
@@ -67,9 +67,9 @@ it destroys the finding the store exists to get.
 
 - A guard that cannot fail is worse than no guard, because it gets cited. `tests/domain/test_validity.py`
   opens with a positive control, and that control has been confirmed to fail when the detector is
-  disabled rather than assumed to.
+  disabled, not assumed to.
 - Before believing an absence, check the reader could have produced a presence. `ValidityReport`
   therefore reports how many arms, channels and observations it examined, and `could_have_flagged`
-  is a field rather than something a reader has to infer.
+  is a field, not something a reader has to infer.
 - State whether a number was measured, derived, or guessed. A guessed expected value is an untested
   assertion, not a reference.

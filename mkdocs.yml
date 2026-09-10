@@ -11,6 +11,8 @@ nav:
     - Reuse ledger: architecture/reuse-ledger.md
     - From agentic-env: architecture/from-agentic-env.md
     - Going live on SDP: architecture/go-live-on-sdp.md
+    - Compliance evidence: architecture/compliance.md
+    - Operational traps: architecture/operational-traps.md
 plugins:
   - techdocs-core
 theme:

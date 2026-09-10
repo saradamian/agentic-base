@@ -43,6 +43,6 @@ resource, in every deployed environment.
 
 ## Documentation
 
-- [Reuse ledger](docs/architecture/reuse-ledger.md) — adopt, bridge, or build, with the reason
-- [What came from agentic-env](docs/architecture/from-agentic-env.md) — and what was deliberately left
-- [Going live on SDP](docs/architecture/go-live-on-sdp.md) — the onboarding path and the one open question
+- [Reuse ledger](docs/architecture/reuse-ledger.md): adopt, bridge, or build, with the reason
+- [What came from agentic-env](docs/architecture/from-agentic-env.md): what was extracted and what was left
+- [Going live on SDP](docs/architecture/go-live-on-sdp.md): the onboarding path and the one open question

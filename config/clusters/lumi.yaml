@@ -1,0 +1,74 @@
+# LUMI (CSC) — LUMI-G is AMD MI250X. Not NVIDIA, and that changes most of the file.
+#
+# Consequences worth reading before using this profile:
+#   FP4 and FP8 checkpoints do not run. LUMI serves BF16.
+#   There is no Docker. Singularity only, and user namespaces are disabled, so images run as
+#   user-owned sandboxes rather than as SIFs.
+#   Home is 20 GiB and 100k files. Everything large lives on scratch. The file-count quota bites
+#   before the byte quota, so software goes inside a container image, not into a loose virtualenv.
+#   Accounting is mandatory on every submission.
+
+name: lumi
+description: >-
+  CSC LUMI-G. Four MI250X per node, eight GCDs of 64 GiB, ROCm userspace in a container,
+  Slingshot interconnect. Key-based SSH with no second factor.
+
+backend: ssh
+ssh_host: lumi
+login_hosts: [uan01, uan02, uan03, uan04]
+
+access:
+  auth: key
+  # Key based, no second factor, so an unattended process can reconnect by itself.
+
+partitions:
+  default: standard-g
+  gpu: standard-g               # two-day limit; small-g for four GPUs or fewer; dev-g for tests
+  cpu: standard
+  allowed: [standard-g, small-g, dev-g, standard, small]
+
+hardware:
+  gpu_vendor: amd
+  gpu_memory_gb: 64             # per GCD, which is what Slurm counts as a GPU here
+  gpus_per_node: 8
+  ray_interface: hsn0
+
+storage:
+  # The real path, not the symlink. The symlink is not visible inside a bind mount, and
+  # virtualenv shebangs carry this form.
+  scratch_base: /pfs/lustrep3/scratch/$LUMI_PROJECT/$USER
+  work_dir: /pfs/lustrep3/scratch/$LUMI_PROJECT/$USER/agentic-jobs
+  node_local_cache: /tmp        # nodes are diskless; this is RAM
+  object_store: lumi-o          # billed at a quarter of the parallel filesystem rate
+
+containers:
+  user_namespaces_available: false
+  runtime: singularity
+  # A user-owned sandbox directory rather than a SIF. The stock ROCm vLLM image keeps its
+  # interpreter under a root-only path, which dangles for a non-root user; building a sandbox and
+  # relaxing the permissions fixes it without needing fakeroot.
+  image_kind: sandbox
+  gpu_flag: "--rocm"
+  # Slurm sets ROCR_VISIBLE_DEVICES and Ray refuses to start with it, so the job prologue has to
+  # translate it to HIP_VISIBLE_DEVICES and unset the original.
+  visible_devices_translation: true
+
+serving:
+  modules: ""                   # nothing to load; the container carries the stack
+  walltime: "02:00:00"
+  worker_launch: srun           # compute nodes refuse user SSH
+
+energy:
+  source: unknown               # not yet established on this cluster
+  slurm_accounting_has_energy: false
+
+limits:
+  max_gpus: 32
+  max_nodes: 4
+  max_walltime: "48:00:00"
+
+credentials:
+  account: LUMI_ACCOUNT         # mandatory on every submission
+  project: LUMI_PROJECT
+  ssh_user: LUMI_SSH_USER
+  hf_token: LUMI_HF_TOKEN
