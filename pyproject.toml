@@ -144,7 +144,7 @@ module = "tests.*"
 disallow_untyped_defs = false
 
 [tool.pytest]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 filterwarnings = [
   "error", # Make warnings errors
 ]

@@ -1,0 +1,32 @@
+{{- if and .Values.autoscaling.enabled .Values.autoscaling.alertOnInactive }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "app.fullname" . }}-autoscaling
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  groups:
+    - name: {{ include "app.fullname" . }}.autoscaling
+      rules:
+        # An external metric that nothing publishes does not fail loudly. The autoscaler sets
+        # ScalingActive to false, never scales, and the deployment stays healthy at minReplicas,
+        # so it looks correct while doing nothing. That is worse than scaling on the wrong signal,
+        # because the wrong signal is at least visible.
+        - alert: AutoscalerCannotReadItsMetric
+          expr: |
+            kube_horizontalpodautoscaler_status_condition{
+              horizontalpodautoscaler="{{ include "app.fullname" . }}",
+              condition="ScalingActive",
+              status="false"
+            } == 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ include "app.fullname" . }} autoscaler is not scaling"
+            description: >-
+              The horizontal pod autoscaler reports ScalingActive=false, which usually means its
+              external metric does not resolve. Replica count is pinned at minReplicas and nothing
+              else will report this.
+{{- end }}

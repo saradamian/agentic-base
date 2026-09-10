@@ -120,3 +120,17 @@ def test_egress_is_default_deny_with_a_declared_allowlist(values) -> None:
 
     assert policy["enabled"] is True
     assert policy["allowedPorts"], "default-deny with no allowlist would break the service"
+
+
+def test_an_autoscaler_that_cannot_read_its_metric_raises_an_alert(values) -> None:
+    """An external metric nothing publishes is silent.
+
+    The autoscaler reports ScalingActive false, never scales, and the deployment stays healthy at
+    its minimum. Nothing else surfaces that, so the alert is the only thing standing between a
+    no-op autoscaler and everyone believing it works.
+    """
+    assert values["autoscaling"]["alertOnInactive"] is True
+
+    rule = (VALUES.parent / "templates" / "prometheusrule.yaml").read_text(encoding="utf-8")
+
+    assert "ScalingActive" in rule

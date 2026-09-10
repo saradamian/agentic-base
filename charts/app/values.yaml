@@ -118,6 +118,21 @@ autoscaling:
   #
   # Scale on queued work instead, and alert on the preemption counter. The metric name is whatever
   # the cluster's adapter exposes; this is the shape, not the identifier.
+  # An external metric that nothing publishes is silent, not loud. The autoscaler sets
+  # ScalingActive to false, never scales, and the deployment stays healthy at minReplicas. It
+  # looks correct while doing nothing, which is worse than the utilisation metric it replaced,
+  # because that one at least scaled. The alert below is what makes the absence visible; keep it
+  # on, and confirm the metric resolves in the first environment that enables autoscaling.
+  alertOnInactive: true
+  # The metric name has to match what this cluster's adapter actually publishes. It is written
+  # here vendor-neutrally, which means nothing publishes it until something is configured to.
+  #
+  # The threshold does not travel the way the signal does. Queue depth is comparable across
+  # applications; the work behind one queued request is not. On one model and one benchmark the
+  # prompt-to-generation ratio ran from 42:1 at the shallowest configuration to 123:1 at the
+  # deepest, 66.8:1 token-weighted over 4,186 runs, so the same queue depth can mean roughly
+  # three times the prefill work. A value tuned for one application mis-sizes another by that
+  # factor. Re-tune it; do not copy it.
   metrics:
     - type: External
       external:
