@@ -30,19 +30,32 @@ def test_a_pod_is_given_longer_to_stop_than_its_longest_request_takes(values) ->
 
     A grace period shorter than the longest in-flight request cuts agent runs in half on every
     rolling update, scale-down and node drain, and the loss is recorded as a failure of the run
-    rather than of the deployment. The same invariant governed serve drains on the batch
-    scheduler: a cleanup whose timer is shorter than the work it must outlive destroys results
-    silently.
+    rather than of the deployment.
     """
     lifecycle = values["lifecycle"]
 
-    needed = lifecycle["longestRequestSeconds"] + lifecycle["preStopSleepSeconds"]
-
-    assert lifecycle["terminationGracePeriodSeconds"] > needed, (
-        f"grace period {lifecycle['terminationGracePeriodSeconds']}s does not cover a "
-        f"{lifecycle['longestRequestSeconds']}s request plus a "
-        f"{lifecycle['preStopSleepSeconds']}s preStop"
+    assert lifecycle["marginSeconds"] > 0, (
+        "the derived grace period must exceed the request plus the preStop sleep, not equal it"
     )
+
+
+def test_the_grace_period_is_derived_and_not_written_as_a_literal(values) -> None:
+    """A literal drifts the moment the timeout it was chosen against changes.
+
+    That drift has cost real work three times here, including 229 cells lost to a reaper whose
+    threshold was shorter than the cells it was reaping. The template computes the grace period
+    from the request timeout, so there is nothing to leave behind.
+    """
+    assert "terminationGracePeriodSeconds" not in values.get("lifecycle", {}), (
+        "grace period is a literal again; it must be derived in the template"
+    )
+
+    template = (VALUES.parent / "templates" / "deployment.yaml").read_text(encoding="utf-8")
+    grace_line = next(
+        line for line in template.splitlines() if "terminationGracePeriodSeconds:" in line
+    )
+
+    assert "longestRequestSeconds" in grace_line, f"not derived from the timeout: {grace_line.strip()}"
 
 
 def test_the_pod_waits_before_shutting_down_so_it_stops_receiving_work_first(values) -> None:

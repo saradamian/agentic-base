@@ -134,13 +134,19 @@ lifecycle:
   # the batch scheduler: any cleanup whose timer is shorter than the work it must outlive destroys
   # results silently, and the loss is usually recorded as a failure of the work.
   #
-  # tests/test_chart.py asserts terminationGracePeriodSeconds > longestRequestSeconds +
-  # preStopSleepSeconds, so lowering one without the others fails the build.
+  # The grace period is DERIVED in the template, never written as a literal. A literal drifts the
+  # moment the timeout changes, and that exact drift has cost real work three times: a drain lead
+  # shorter than the cell timeout, a reaper on a fifteen-minute threshold against fifty-minute
+  # cells which lost 229 of them, and a stale literal left from an earlier timeout that killed
+  # roughly a third of all cells for sixty-six hours with nothing in any log.
+  #
+  # Set longestRequestSeconds from the consumer's own request timeout. Everything else follows.
   longestRequestSeconds: 1800
-  # Pod deletion and endpoint removal race. Sleeping first lets the endpoint removal propagate, so
-  # the pod stops receiving new work before it is asked to stop.
+  # Pod deletion and endpoint removal race. Sleeping first lets the removal propagate, so the pod
+  # stops receiving new work before it is asked to stop.
   preStopSleepSeconds: 15
-  terminationGracePeriodSeconds: 1860
+  # Headroom on top of the request and the sleep.
+  marginSeconds: 45
 
 networkPolicy:
   # Default-deny egress. This is where generated code finally meets a real boundary: the

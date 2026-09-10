@@ -31,8 +31,8 @@ Each of these was measured, and the measurement is the reason.
 | what | why |
 |---|---|
 | **the agent framework itself** | the layer is not the product. Applications bring their own agent |
-| **the skill library** | its effect on task success has never been measured. Shipping it transfers a maintenance cost for an unproven benefit, and the recipient inherits the obligation to defend it. What it taught is here instead, as three design rules below |
-| **auto-generated executable "skills"** | a population of callable tools whose body was a list of tool names and a function returning it: a surface advertising execution and delivering a plan |
+| **the skill library** | measured. Of the artifacts its minting loop produced, one is in demonstrable use, and nothing it has ever made cleared promotion: all eleven entries in the shared tier match a human-authored file on disk. Injection of a hand-written skill is a different question and was ablated separately: a null mean over five paired tasks, with two large moves in opposite directions and an identified cause on each side |
+| **auto-generated executable "skills"** | seven were minted and none was ever dispatched. One body is its own source skill as a string literal with no logic, so the surface advertises execution and returns a copy. A second generator mined tool-name sequences: five minted, none dispatched, and it discards arguments, so it cannot tell reading two files from retrying one read |
 | **tree search over reasoning paths** | ran degenerate for an entire campaign because its evaluator defaulted off. A layer whose default configuration does not do the thing the layer is named for is a trap |
 | **read-reject steering** | measured costing several points of task success and buying nothing, by making runs finish empty-handed three to four times more often |
 | **execution-grounded number verification** | a measured negative: the model echoes its own claim in the check it generates |
@@ -47,6 +47,11 @@ Each of these was measured, and the measurement is the reason.
 
 They cost a flood of useless entries and two months of unprunable rows, so they are stated as rules,
 not as code to copy.
+
+These numbers come from a measurement of our own library by another session on 2026-09-10, read
+at source rather than relayed. The reason to state them instead of "unmeasured" is that
+"unmeasured" is an invitation: a later reader can reopen a settled decision with "nobody checked,
+let us try". Numbers close that.
 
 1. **Counters are born at zero, with their denominator.** Ours were seeded from how often a pattern
    had been *observed* and recorded that as a success rate, while pruning only reached entries below

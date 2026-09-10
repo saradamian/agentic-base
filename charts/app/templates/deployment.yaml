@@ -29,7 +29,8 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "app.serviceAccountName" . }}
       automountServiceAccountToken: {{ .Values.serviceAccount.automount }}
-      terminationGracePeriodSeconds: {{ .Values.lifecycle.terminationGracePeriodSeconds }}
+      # Derived, never a literal. See lifecycle in values.yaml for why.
+      terminationGracePeriodSeconds: {{ add .Values.lifecycle.longestRequestSeconds .Values.lifecycle.preStopSleepSeconds .Values.lifecycle.marginSeconds }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
