@@ -1,0 +1,21 @@
+site_name: agentic-platform
+site_description: "Platform layer for agentic workloads: run provenance, comparison validity, and HPC execution."
+
+repo_url: https://the internal GitLab/the internal developer platform/research/hpml/agentic-platform
+edit_uri: -/edit/main/docs/
+
+nav:
+  - Home: index.md
+  - Readme: include-readme.md
+  - Architecture:
+    - Reuse ledger: architecture/reuse-ledger.md
+    - From agentic-env: architecture/from-agentic-env.md
+    - Going live on SDP: architecture/go-live-on-sdp.md
+plugins:
+  - techdocs-core
+theme:
+  name: material
+  font: false
+
+markdown_extensions:
+  - pymdownx.snippets # Needed for the readme include

@@ -1,0 +1,7 @@
+// Rules can be found at: https://github.com/markdownlint/markdownlint/blob/main/docs/RULES.md
+{
+  "config": {
+    // MD013 - Line length | https://github.com/markdownlint/markdownlint/blob/main/docs/RULES.md#md013---line-length
+    "MD013": false
+  }
+}

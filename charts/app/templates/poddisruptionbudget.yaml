@@ -1,0 +1,13 @@
+{{- if eq (include "app.podDisruptionBudget.deploy" .) "true" -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "app.fullname" . }}
+  labels:
+    {{- include "app.labels" . | nindent 4 }}
+spec:
+  {{- include "app.podDisruptionBudget" . | nindent 2 }}
+  selector:
+    matchLabels:
+      {{- include "app.selectorLabels" . | nindent 6 }}
+{{- end }}

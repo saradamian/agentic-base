@@ -1,0 +1,13 @@
+Dockerfile
+**/.git
+**/.gitignore
+**/.gitmodules
+**/.coverage
+**/venv
+**/.venv
+**/.idea
+**/.DS_Store
+**/__pycache__
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
