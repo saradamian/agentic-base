@@ -30,8 +30,11 @@ script to a tested module is real work, but it is not invention and the write-up
 Four things, all small, and three are rules rather than code.
 
 Provenance required at the write path: tenant and code revision have no default, and an outcome
-cannot be recorded without naming its scorer. The corpus that motivated it has 6,842 rows naming a
-convenience checker, 5,788 naming nothing, and none naming the authoritative scorer.
+cannot be recorded without naming its scorer. Measured on 2026-09-11 across all 33 trace stores on
+this workstation, 10,920 rows: 6,178 name a convenience checker, 4,742 name nothing, and **none name
+the authoritative scorer**. An earlier version of this paragraph quoted 6,842 and 5,788 with no
+denominator, and those do not reproduce against any store set. The zero is the robust part and it is
+the part the requirement rests on; quote the other two only with the store count beside them.
 
 The validity check as a library with a positive control confirmed to fail.
 
@@ -53,6 +56,12 @@ specifically, not of the leaves.
 has no internal imports, each is independently revertible, and none forces an interface decision.
 The job-result protocol is already written to be portable, because its emitting half runs inside
 cluster jobs where the package is not installed.
+
+One candidate is **not** a leaf, against the table above. `sandbox/policy.py` imports
+`..config.SandboxConfig`, so moving it drags a configuration module that belongs to the application,
+not to this layer. It needs the dependency inverted first: the policy takes its limits as an
+argument rather than reading a global. That is a behaviour-preserving change on their side, and it
+has to land there before the move, not here afterwards.
 
 **Second, `tools/types.py`.** 109 lines, no internal imports, and 45 files import it. It is the
 root of everything tool-shaped, so the tool subtree cannot move before it.
