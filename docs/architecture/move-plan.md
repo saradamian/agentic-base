@@ -1,12 +1,12 @@
 # Moving the shared primitives here, and having agentic-env import them
 
 The direction is that this repository holds the shared primitives and `agentic-env` imports them,
-rather than the reverse. That gives each primitive one home. It also corrects what I did when
+not the reverse. That gives each primitive one home. It also corrects what I did when
 seeding this repository, which was to rewrite eight modules that already existed, smaller and in
 several cases worse.
 
 Everything below was measured on 2026-09-11 by three sessions working separately, and where they
-disagreed the measurement settles it rather than the argument.
+disagreed the measurement settles it, not the argument.
 
 ## What was reinvented
 
@@ -23,7 +23,7 @@ disagreed the measurement settles it rather than the argument.
 
 Two more were described as new here and were not. The validity check is the campaign's missingness
 script, and the epoch declarations are the boundary logic from the ladder deriver. Promoting a
-script to a tested module is real work; it is not invention, and the write-up should not claim it.
+script to a tested module is real work, but it is not invention and the write-up should not claim it.
 
 ## What is genuinely added, and must survive the move
 
@@ -40,8 +40,7 @@ Epoch declarations, including on a component version, which is what the next sec
 The hash chain over audit fields.
 
 Two behaviour corrections also belong to this repository and not to relocation: the health probe
-asserts a completed trivial completion rather than a non-5xx status, and limits resolve when read
-rather than at import.
+asserts a completed trivial completion rather than a non-5xx status, and limits resolve when read, not at import.
 
 ## Move order
 
@@ -101,10 +100,10 @@ boundary becomes unattributable, which is the mistake the epoch constants exist 
 cannot see the version of imported code, so once `agentic-env` imports from here, two runs can
 share a fingerprint and a revision and still have run different software. `RunRecord` carries
 `component_versions` for this, and `epochs` treats a record with no version for a named component
-as unplaceable rather than guessing. Cheap now, unrecoverable later.
+as unplaceable instead of guessing. Cheap now, unrecoverable later.
 
 ## Before the first import
 
-Re-check that no campaign is running, immediately before rather than hours before. The reading that
+Re-check that no campaign is running, immediately before, not hours before. The reading that
 says it is safe is a point in time, and the action that falsifies it is usually someone else's and
 looks like progress.
