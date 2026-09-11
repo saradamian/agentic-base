@@ -30,6 +30,29 @@ logged a routine restart. Nobody looked for two and a half hours.
 
 Guard every signal path on a positive identifier.
 
+## Killing a process does not stop the work
+
+A chain was stopped by killing four identified processes in dependency order, with a clean unwind
+and a report that it had stopped. It had not. The actual driver was a grandchild, so killing its
+parent reparented it to the session leader and it survived, ran for another forty minutes against
+a serve that no longer existed, and wrote fifteen more results. Eleven were infrastructure
+timeouts at a single step with no output. Booking them would have moved that arm's failure rate by
+nine points, in the direction that supported the hypothesis.
+
+Three properties, all of which the project's own stop script already had before this happened:
+
+Identify orphans by their parent rather than by a remembered list of process identifiers, because
+reparenting is what a kill produces and a remembered list cannot describe it.
+
+Never let the matcher match itself.
+
+Verify by the absence of the work rather than the absence of the processes you happened to know
+about. No containers, no new rows. An absence you could not have contradicted is not evidence,
+which is the same rule that makes an unplaceable record unplaceable rather than assumed.
+
+The lesson is not that reparenting is subtle. It is that the tooling already knew and someone
+hand-rolled around it.
+
 ## Searching for your own pattern
 
 A process search by command line matches the shell running the search. This has killed working
