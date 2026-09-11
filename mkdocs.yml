@@ -9,6 +9,7 @@ nav:
   - Readme: include-readme.md
   - Decisions: decisions.md
   - Architecture:
+    - Layering: architecture/layering.md
     - Boundaries: architecture/boundaries.md
     - Move plan: architecture/move-plan.md
     - Reuse ledger: architecture/reuse-ledger.md
