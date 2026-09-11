@@ -10,6 +10,7 @@ nav:
   - Decisions: decisions.md
   - Architecture:
     - Boundaries: architecture/boundaries.md
+    - Move plan: architecture/move-plan.md
     - Reuse ledger: architecture/reuse-ledger.md
     - From agentic-env: architecture/from-agentic-env.md
     - Going live on SDP: architecture/go-live-on-sdp.md

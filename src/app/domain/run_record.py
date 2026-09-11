@@ -121,6 +121,22 @@ class RunRecord(SQLModel, table=True):
     endpoint: str = Field(default="")
     precision: str = Field(default="")
     code_revision: str = Field(default="")
+    component_versions: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
+    """Resolved version of every component whose change would change behaviour.
+
+    One revision stops being enough the moment an application depends on a library that can move
+    underneath it. A configuration fingerprint governs flags; it cannot see the version of imported
+    code, so two runs can share a fingerprint, share a code revision, and still have run different
+    software.
+
+    That failure has a precedent worth stating: a study was protected by pinning a flag, and the
+    commit that shipped the flag also rewrote the branch the flag selected between. The pin was
+    real and the protection was not.
+
+    So record what actually resolved. `{"agentic-base": "0.2.1", "agentic-env": "0.5.0"}`. A run
+    that cannot name its components is placeable only by date, which is the weakest form of
+    placement there is.
+    """
 
     # --- outcome --------------------------------------------------------------
     status: RunStatus = Field(default=RunStatus.COMPLETED, index=True)
@@ -208,6 +224,14 @@ class RunRecordCreate(SQLModel):
     code_revision: str
     """The revision that produced this run. Without it the record cannot be placed against a
     later declaration that some field changed meaning, and that placement cannot be recovered."""
+
+    component_versions: dict[str, str] = Field(default_factory=dict)
+    """Resolved versions of the libraries that can change behaviour underneath this run.
+
+    Optional rather than required, because an application with no such dependency has nothing to
+    record. It stops being optional the moment one exists, and `epochs` treats a record with no
+    component versions as unplaceable against a boundary declared on a component.
+    """
 
     item: str = ""
     arm: str = ""
