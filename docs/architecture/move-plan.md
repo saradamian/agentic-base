@@ -102,6 +102,23 @@ share a fingerprint and a revision and still have run different software. `RunRe
 `component_versions` for this, and `epochs` treats a record with no version for a named component
 as unplaceable instead of guessing. Cheap now, unrecoverable later.
 
+**And publishing it here does nothing unless the consumer reads it.** Verified on 2026-09-11:
+`agentic-env`'s rung fingerprint digests flags, environment exports and budget, and no code version
+of any kind; its environment capture records that package's own version through package metadata,
+not a dependency's. Several of the modules moving first sit on the execution path, so a version
+bump here would change behaviour while two cells continued to fingerprint identically, and their
+ledger keys cells by fingerprint.
+
+So this is a prerequisite on the consumer's side of the first import, not an improvement on ours.
+Until their fingerprint reads the component version, we can publish it perfectly and they will
+still record two different arms under one identity. It is worse than the in-repository version of
+the same problem, because the code that changed is no longer in their history at all, so a
+suspicious reader cannot reach it with `git log`.
+
+One consequence for them to fix in the same change: that fingerprint's own docstring describes
+itself as a digest of everything that defines a rung. That sentence stops being true on the day
+the dependency lands.
+
 ## Before the first import
 
 Re-check that no campaign is running, immediately before, not hours before. The reading that
