@@ -1,64 +1,53 @@
 # The picture
 
-```mermaid
-flowchart TB
-    subgraph apps["Applications: people's own work"]
-        AE["agentic-env<br/><i>experiments, papers, products</i>"]
-        MW["pipeline triage<br/><i>pipeline troubleshooting</i>"]
-        OTH["other SURF teams"]
-    end
+Three ways to read the same diagram. The text one below needs nothing installed.
+`picture.svg` next to this file opens in any browser or in VS Code directly.
+The mermaid block at the bottom needs a mermaid-capable viewer.
 
-    subgraph ctrl["Control plane: who may run what, where"]
-        AI4["AI4Science<br/><i>jobs, tenancy, datasets, orchestration</i>"]
-    end
+## The stack, in text
 
-    subgraph caps["Capabilities, published to agents"]
-        R["runs"]
-        H["hpc"]
-        D["data"]
-        S["software"]
-        K["knowledge"]
-    end
+```text
+  APPLICATIONS            people's own work, each brings its own agent
+  ┌──────────────────┬──────────────────────┬────────────────────┐
+  │ agentic-env      │ pipeline triage       │ other SURF teams   │
+  │ experiments      │ pipeline triage      │                    │
+  └──────────────────┴──────────────────────┴────────────────────┘
+                              │
+  CONTROL PLANE               │   who may run what, and where
+  ┌───────────────────────────▼────────────────────────────────┐
+  │ AI4Science   jobs, tenancy, datasets, orchestration        │
+  └───────────────────────────┬────────────────────────────────┘
+                              │
+  CAPABILITIES                │   one per system, curated surface
+  ┌──────────┬───────┬────────▼──┬──────────┬───────────┐
+  │ runs     │ hpc   │ data      │ software │ knowledge │
+  │ (new)    │       │           │          │           │
+  └──────────┴───┬───┴───────────┴────┬─────┴─────┬─────┘
+                 │                    │           │
+  agentic-base   │  THIS REPOSITORY   │           │
+  ┌──────────────▼────────────────────▼───────────▼────────────┐
+  │ tool contract │ span vocabulary │ recording seam │ prims   │
+  ├────────────────────────────────────────────────────────────┤
+  │ run record · label provenance · validity · epochs          │
+  └────────────────────────────────────────────────────────────┘
 
-    subgraph base["agentic-base: the bottom"]
-        C1["tool contract"]
-        C2["span vocabulary"]
-        C3["recording seam"]
-        C4["run record + validity + epochs"]
-        C5["primitives<br/><i>url safety, code filter,<br/>retry, job result</i>"]
-    end
-
-    subgraph sys["Systems that already exist"]
-        W["Willma<br/><i>serves models</i>"]
-        SL["Slurm clusters"]
-        CF["Confluence"]
-        EB["EasyBuild"]
-    end
-
-    AE --> caps
-    MW --> caps
-    OTH --> caps
-    AI4 --> caps
-    caps --> base
-    H --> SL
-    H --> W
-    K --> CF
-    S --> EB
-    D --> AI4
-    R --> C4
-
-    style base fill:#e8f0fe,stroke:#4285f4
-    style caps fill:#fef7e0,stroke:#f9ab00
+  ALREADY EXIST, not ours to rebuild
+  ┌────────────┬────────────────┬────────────┬───────────┐
+  │ Willma     │ Slurm clusters │ Confluence │ EasyBuild │
+  │ serves     │ Snellius, LUMI │            │           │
+  │ models     │ AI Factory     │            │           │
+  └────────────┴────────────────┴────────────┴───────────┘
+   each is published as exactly one capability above
 ```
 
 ## Reading it in one paragraph
 
-The systems at the bottom right already exist and are not ours to rebuild. Each is published to
-agents as one capability with a curated surface. Those capabilities all stand on the same
-contracts, which is what this repository is. Applications sit on top and bring their own agent.
+The systems at the bottom already exist and are not ours to rebuild. Each is published to agents as
+one capability with a curated, read-only-by-default surface. Those capabilities all stand on the
+same contracts, which is what this repository is. Applications sit on top and bring their own agent.
 
-The only capability without an existing system behind it is **runs**, which is why the record
-lives here and the rest do not.
+The only capability with no existing system behind it is **runs**, which is why the record lives
+here and the rest do not.
 
 ## What "moving things" would actually mean
 
@@ -87,3 +76,48 @@ in three groups.
 
 Until then the work here is building the capability so the move is a deletion on the other side
 rather than a migration.
+
+## The same thing as mermaid
+
+```mermaid
+flowchart TB
+    subgraph apps[Applications - each brings its own agent]
+        AE[agentic-env]
+        MW[pipeline triage]
+        OTH[other SURF teams]
+    end
+    subgraph ctrl[Control plane - who may run what and where]
+        AI4[AI4Science]
+    end
+    subgraph caps[Capabilities - published to agents]
+        R[runs]
+        H[hpc]
+        D[data]
+        S[software]
+        K[knowledge]
+    end
+    subgraph base[agentic-base - this repository]
+        C1[tool contract]
+        C2[span vocabulary]
+        C3[recording seam]
+        C4[run record and validity and epochs]
+        C5[primitives]
+    end
+    subgraph sys[Systems that already exist]
+        W[Willma]
+        SL[Slurm clusters]
+        CF[Confluence]
+        EB[EasyBuild]
+    end
+    AE --> caps
+    MW --> caps
+    OTH --> caps
+    AI4 --> caps
+    caps --> base
+    H --> SL
+    H --> W
+    K --> CF
+    S --> EB
+    D --> AI4
+    R --> C4
+```
