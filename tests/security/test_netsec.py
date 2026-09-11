@@ -101,3 +101,133 @@ def test_validate_url_raises_for_an_unsafe_target() -> None:
 
 def test_validate_url_is_silent_for_a_safe_target() -> None:
     assert netsec.validate_url("https://93.184.216.34/") is None
+
+
+# --- fetching -------------------------------------------------------------------------------
+
+import httpx  # noqa: E402
+
+from app.security.netsec import FetchResult, pin_target, safe_fetch_text  # noqa: E402
+
+
+def _client(handler) -> httpx.Client:
+    """A client whose transport is a function, so no socket is ever opened."""
+    return httpx.Client(transport=httpx.MockTransport(handler), follow_redirects=False)
+
+
+def _public(monkeypatch) -> None:
+    monkeypatch.setattr(netsec, "resolve", lambda h: [ipaddress.ip_address("93.184.216.34")])
+
+
+def test_pinning_connects_to_the_address_while_still_addressing_the_host() -> None:
+    """The check and the connection must reach the same machine.
+
+    Resolving twice lets a host answer the first lookup with a public address and the second with
+    a private one, so the fetch goes to the address that was actually approved.
+    """
+    target = pin_target("https://example.com/a/b?c=1", "93.184.216.34")
+
+    assert target.connect_url == "https://93.184.216.34/a/b?c=1"
+    assert target.host_header == "example.com"
+    assert target.sni_hostname == "example.com"
+
+
+def test_pinning_preserves_a_non_default_port() -> None:
+    target = pin_target("https://example.com:443/x", "93.184.216.34")
+
+    assert target.connect_url == "https://93.184.216.34:443/x"
+    assert target.host_header == "example.com:443"
+
+
+def test_pinning_brackets_an_ipv6_address() -> None:
+    target = pin_target("https://example.com/x", "2606:2800:220:1:248:1893:25c8:1946")
+
+    assert target.connect_url.startswith("https://[2606:")
+
+
+def test_pinning_keeps_the_hostname_for_certificate_validation() -> None:
+    """Connecting by address without this would fail, or worse be silenced by disabling checks."""
+    assert pin_target("https://example.com/", "1.2.3.4").sni_hostname == "example.com"
+
+
+def test_a_fetch_returns_the_body(monkeypatch) -> None:
+    _public(monkeypatch)
+    client = _client(
+        lambda r: httpx.Response(200, text="hello", headers={"content-type": "text/plain"})
+    )
+
+    result = safe_fetch_text("https://example.com/", client=client)
+
+    assert isinstance(result, FetchResult)
+    assert result.content == "hello"
+    assert result.content_type == "text/plain"
+
+
+def test_the_request_carries_the_original_host_not_the_address(monkeypatch) -> None:
+    _public(monkeypatch)
+    seen: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["host"] = request.headers.get("host", "")
+        seen["url"] = str(request.url)
+        return httpx.Response(200, text="ok")
+
+    safe_fetch_text("https://example.com/p", client=_client(handler))
+
+    assert seen["host"] == "example.com"
+    assert "93.184.216.34" in seen["url"]
+
+
+def test_a_redirect_to_an_internal_address_is_refused(monkeypatch) -> None:
+    """A permitted first hop redirecting inward is the same attack with one more step."""
+
+    def _resolve(host: str):
+        return [ipaddress.ip_address("93.184.216.34" if host == "example.com" else "10.0.0.5")]
+
+    monkeypatch.setattr(netsec, "resolve", _resolve)
+    client = _client(lambda r: httpx.Response(302, headers={"location": "https://internal.test/"}))
+
+    with pytest.raises(netsec.URLSafetyError, match="disallowed address"):
+        safe_fetch_text("https://example.com/", client=client)
+
+
+def test_a_redirect_loop_stops_at_the_hop_limit(monkeypatch) -> None:
+    _public(monkeypatch)
+    client = _client(lambda r: httpx.Response(302, headers={"location": "https://example.com/n"}))
+
+    with pytest.raises(netsec.URLSafetyError, match="redirects"):
+        safe_fetch_text("https://example.com/", max_redirects=2, client=client)
+
+
+def test_a_redirect_without_a_location_is_refused(monkeypatch) -> None:
+    _public(monkeypatch)
+
+    with pytest.raises(netsec.URLSafetyError, match="location"):
+        safe_fetch_text("https://example.com/", client=_client(lambda r: httpx.Response(302)))
+
+
+def test_the_body_is_capped(monkeypatch) -> None:
+    """An unbounded read is a memory exhaustion the caller never asked for."""
+    _public(monkeypatch)
+    client = _client(lambda r: httpx.Response(200, text="x" * 5000))
+
+    result = safe_fetch_text("https://example.com/", max_bytes=100, client=client)
+
+    assert len(result.content) == 100
+
+
+def test_an_unsafe_url_is_refused_before_anything_is_opened() -> None:
+    """Validation comes first, so a refused URL never reaches the network layer."""
+
+    def explode(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("a request was made for a URL that should have been refused")
+
+    with pytest.raises(netsec.URLSafetyError):
+        safe_fetch_text("http://127.0.0.1/", client=_client(explode))
+
+
+def test_a_non_success_response_raises(monkeypatch) -> None:
+    _public(monkeypatch)
+
+    with pytest.raises(httpx.HTTPStatusError):
+        safe_fetch_text("https://example.com/", client=_client(lambda r: httpx.Response(404)))
