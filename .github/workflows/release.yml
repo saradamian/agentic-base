@@ -1,0 +1,28 @@
+# A tag `vX.Y.Z` on main produces a release. The version inside the built distribution comes
+# from that same tag through setuptools-scm, so the two cannot disagree. Nothing is published to
+# a package index from here; that is a separate decision with its own owner.
+name: release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv build
+      - name: the built version must equal the tag
+        run: |
+          built=$(ls dist/*.tar.gz | sed -E 's|.*/agentic_base-(.*)\.tar\.gz|\1|')
+          test "v$built" = "${GITHUB_REF_NAME}" || { echo "built $built, tag ${GITHUB_REF_NAME}"; exit 1; }
+      - run: gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes --verify-tag
+        env:
+          GH_TOKEN: ${{ github.token }}

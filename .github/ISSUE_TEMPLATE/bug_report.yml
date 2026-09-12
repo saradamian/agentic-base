@@ -1,0 +1,29 @@
+name: Bug report
+description: Something behaves differently from what its documentation or its tests say.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what should have happened
+      description: The observed behaviour and the expected one. Quote the assertion or the documented claim it contradicts.
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: The smallest input that shows it. A failing test is the best form.
+      render: python
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Version and Python
+      placeholder: "agentic-base 0.1.0, Python 3.10.12"
+    validations: { required: true }
+  - type: checkboxes
+    id: warnings
+    attributes:
+      label: Verification
+      options:
+        - label: I ran the suite without `-W ignore`.

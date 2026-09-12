@@ -1,0 +1,10 @@
+# Dependabot and Renovate split the work rather than both doing it. Dependabot owns security
+# alerts and their fixes, and the workflow actions, because it is native here. Renovate owns
+# ordinary version updates and lock-file maintenance, and its config disables the actions manager
+# so the two never open the same pull request.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    labels: [dependencies]

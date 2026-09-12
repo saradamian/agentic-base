@@ -1,0 +1,14 @@
+# How generated release notes are grouped. Labels are applied to pull requests; the conventional
+# commit prefix is what the pre-commit hook checks, the label is what the notes read.
+changelog:
+  categories:
+    - title: Breaking
+      labels: [breaking]
+    - title: Features
+      labels: [feat, enhancement]
+    - title: Fixes
+      labels: [fix, bug]
+    - title: Dependencies
+      labels: [dependencies]
+    - title: Other
+      labels: ["*"]

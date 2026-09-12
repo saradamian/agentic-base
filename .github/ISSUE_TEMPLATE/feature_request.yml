@@ -1,0 +1,20 @@
+name: Feature request
+description: Something the base layer should carry, with the consumer that needs it.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: consumer
+    attributes:
+      label: Which consumer needs this, and what does it do today instead
+      description: A base layer only carries what more than one consumer would otherwise write separately. Name the consumer.
+    validations: { required: true }
+  - type: textarea
+    id: existing
+    attributes:
+      label: What already exists that does this
+      description: Reuse, then buy, then build. Say what was checked and why it does not fit, or say nothing was found.
+    validations: { required: true }
+  - type: textarea
+    id: shape
+    attributes:
+      label: Proposed shape

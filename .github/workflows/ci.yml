@@ -2,13 +2,20 @@
 # decoration: it is the floor a consumer of this library runs on, and the portable-surface guards
 # mean nothing unless something executes them there.
 #
-# This file lives in the internal tree so the public mirror carries it; GitLab ignores it.
+# Actions are pinned to commit hashes, not tags. A tag can be moved; a hash cannot.
 name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check:
@@ -18,8 +25,9 @@ jobs:
       matrix:
         python: ["3.10", "3.14"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv lock --check
       - run: uv sync --python ${{ matrix.python }} --group dev --extra service
       - run: .venv/bin/ruff check src tests
       - run: .venv/bin/ruff format --check src tests

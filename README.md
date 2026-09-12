@@ -1,5 +1,10 @@
 # agentic-base
 
+[![ci](https://github.com/saradamian/agentic-base/actions/workflows/ci.yml/badge.svg)](https://github.com/saradamian/agentic-base/actions/workflows/ci.yml)
+[![licence: EUPL-1.2](https://img.shields.io/badge/licence-EUPL--1.2-blue.svg)](LICENSE)
+[![python](https://img.shields.io/badge/python-3.10%20to%203.14-blue.svg)](pyproject.toml)
+[![cite](https://img.shields.io/badge/cite-CITATION.cff-green.svg)](CITATION.cff)
+
 The agentic base layer for SURF: **run provenance, comparison validity, and the shared
 primitives an agent needs**.
 
@@ -46,3 +51,25 @@ resource, in every deployed environment.
 - [Reuse ledger](docs/architecture/reuse-ledger.md): adopt, bridge, or build, with the reason
 - [What came from agentic-env](docs/architecture/from-agentic-env.md): what was extracted and what was left
 - [Going live on SDP](docs/architecture/go-live-on-sdp.md): the onboarding path and the one open question
+
+## Where development happens
+
+Here. Changes land on `main` through pull requests that the gate has passed on both ends of the
+supported Python range. SURF's own deployment of this service, the environment overlays and the
+internal pipeline definition, is kept apart from this repository because it describes where the
+software runs rather than what it does.
+
+## Versioning and releases
+
+Semantic versioning, with the version taken from the git tag. While the major version is `0`, a
+minor bump may change the public interface, and the import name of the package is one of the
+things that may change before `1.0`. Releases are tagged `vX.Y.Z` and each carries generated
+notes and a built distribution. See `CONTRIBUTING.md` for the release procedure.
+
+## Citation
+
+Cite the repository using `CITATION.cff`; GitHub renders it under *Cite this repository*.
+
+## Licence
+
+European Union Public Licence v. 1.2. See `LICENSE`.

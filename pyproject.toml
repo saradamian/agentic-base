@@ -3,7 +3,22 @@ name = "agentic-base"
 authors = [{ name = "SURF" }]
 description = "Agentic base layer: run provenance, comparison validity, and shared safety primitives."
 requires-python = ">=3.10"
+license = "EUPL-1.2"
+license-files = ["LICENSE"]
 dynamic = ["version", "readme"]
+keywords = ["agents", "provenance", "reproducibility", "evaluation", "mcp", "opentelemetry", "hpc", "slurm"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Typing :: Typed",
+]
 
 # The library half. Anything a consumer imports must be satisfiable by this list alone.
 #
@@ -34,6 +49,12 @@ service = [
   "psycopg[binary]==3.2.12",
 ]
 
+[project.urls]
+Homepage = "https://github.com/saradamian/agentic-base"
+Repository = "https://github.com/saradamian/agentic-base"
+Issues = "https://github.com/saradamian/agentic-base/issues"
+Changelog = "https://github.com/saradamian/agentic-base/releases"
+
 [dependency-groups]
 dev = [
   "httpx2",
@@ -52,10 +73,18 @@ dev = [
 ]
 
 [tool.setuptools.dynamic]
-readme = { file = ["README.md"] }
+readme = { file = ["README.md"], content-type = "text/markdown" }
+
+# The version is the git tag. `v0.1.0` builds 0.1.0; an untagged commit builds a dev version
+# after the last tag; a source archive with no git history builds the fallback, which is
+# deliberately not a real version so it can never be mistaken for a release.
+[tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "node-and-date"
+fallback_version = "0.0.0"
 
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools>=77", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.ruff]
