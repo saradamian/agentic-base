@@ -61,3 +61,13 @@ fabric.properties
 
 # mkdocs
 site
+
+# Local databases. The service defaults to `sqlite:///./agentic-base.db` and the pipeline uses
+# `./ci.db`, so both land in the working directory. The only `.db` entries here were Windows
+# thumbnail caches by exact name, which meant a local run followed by `git add -A` could commit
+# a database. Names, not just the two we happen to create today.
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
