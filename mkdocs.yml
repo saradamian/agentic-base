@@ -12,6 +12,7 @@ nav:
   - Architecture:
     - The picture: architecture/picture.md
     - Blocks and layers: architecture/blocks.md
+    - Logging, security, safety and compliance: architecture/cross-cutting.md
     - Layering: architecture/layering.md
     - Boundaries: architecture/boundaries.md
     - Move plan: architecture/move-plan.md

@@ -76,6 +76,7 @@ resource, in every deployed environment.
 
 - [Blocks and layers](docs/architecture/blocks.md): the design, what exists behind each block, the order to build
 - [Reuse ledger](docs/architecture/reuse-ledger.md): adopt, bridge, or build, with the reason
+- [Logging, security, safety and compliance](docs/architecture/cross-cutting.md): where each lives, the obligations, and what the vision should say
 - [Observability](docs/OBSERVABILITY.md): what the service emits and where to point it
 - [What came from agentic-env](docs/architecture/from-agentic-env.md): what was extracted, what was left, what the first consumer found
 - [Going live on SDP](docs/architecture/go-live-on-sdp.md): the deployment repository and the two open questions

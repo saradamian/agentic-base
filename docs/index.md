@@ -8,6 +8,7 @@ The [readme](include-readme.md) covers the service in a page. After that:
 
 - [Blocks and layers](architecture/blocks.md): the design, what exists behind each block, and the order to build
 - [Reuse ledger](architecture/reuse-ledger.md): what is adopted, bridged, or built, and why
+- [Logging, security, safety and compliance](architecture/cross-cutting.md): where each lives, the obligations, what the vision should say
 - [The engineering standard](ENGINEERING.md): what each rule cost, and the test that enforces it
 - [Observability](OBSERVABILITY.md): what the service emits and where to point it
 - [From agentic-env](architecture/from-agentic-env.md): what was extracted, what was left, what the first consumer found
