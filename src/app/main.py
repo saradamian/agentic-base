@@ -12,7 +12,7 @@ from prometheus_client import start_http_server
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import get_settings
-from app.db import init_db
+from app.db import get_engine, init_db
 from app.routers.health import health_api_prefix
 from app.routers.health import router as health_router
 from app.routers.runs import router as runs_router
@@ -37,7 +37,9 @@ def get_app() -> FastAPI:
         """
         await logger.adebug({"settings": settings.model_dump()})
         yield
-        # Here you close the database connection
+        # Close pooled connections. Python 3.13+ reports a sqlite connection that is
+        # garbage-collected open, and under warnings-as-errors that is a failure.
+        get_engine().dispose()
 
     app = FastAPI(
         openapi_url="/openapi.json",

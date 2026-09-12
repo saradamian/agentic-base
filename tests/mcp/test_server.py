@@ -43,6 +43,7 @@ def session():
         )
         s.commit()
         yield s
+    engine.dispose()
 
 
 def test_initialize_announces_the_tool_capability(session) -> None:
