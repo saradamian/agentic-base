@@ -22,8 +22,11 @@ The mermaid block at the bottom needs a mermaid-capable viewer.
   ┌───────┬──────────┬──────────┬──────────┬──────┬──────────┬──────────┐
   │ runs  │ hpc      │inference │knowledge │ data │ software │ artifacts│
   │ (here)│          │          │          │      │          │          │
-  └───┬───┴────┬─────┴────┬─────┴────┬─────┴──┬───┴────┬─────┴────┬─────┘
-      │  scoped by IDENTITY (SURFconext, SRAM) · billed by ACCOUNTING     │
+  ├───────┼──────────┼──────────┼──────────┴──────┴──────────┴──────────┤
+  │ code  │ execute  │ web      │ channels     what an agent DOES        │
+  └───┬───┴────┬─────┴────┬─────┴────┬─────────┬────────┬───────────┬───┘
+      │  scoped by IDENTITY and DELEGATED CREDENTIALS · billed by ACCOUNTING │
+      │  started by TRIGGERS · gated by HUMAN APPROVAL                       │
       │                    │          │          │        │          │
   CONTRACTS   │  THIS REPOSITORY   │          │          │        │
   ┌───────────▼────────────▼──────────▼──────────▼────────▼──────────▼────┐
@@ -101,10 +104,15 @@ flowchart TB
         D[data]
         S[software]
         A[artifacts]
+        CO[code]
+        EX[execute]
+        WB[web]
+        CH[channels]
     end
     subgraph scope[Every block is scoped and billed]
-        ID[identity: SURFconext, SRAM]
+        ID[identity and delegated credentials: SURFconext, SRAM]
         AC[accounting: GPU-seconds, storage, joules]
+        TR[triggers and human approval]
     end
     subgraph base[Contracts - this repository]
         C1[tool contract]
@@ -119,6 +127,8 @@ flowchart TB
         EB[EasyBuild and EESSI]
         ST[object stores, dCache, iRODS, Yoda, Research Drive]
         RG[GitLab, Harbor, MLflow registries]
+        GL[GitLab and GitHub]
+        MX[Matrix, Microsoft 365]
     end
     AE --> blocks
     MW --> blocks
@@ -132,5 +142,7 @@ flowchart TB
     S --> EB
     D --> ST
     A --> RG
+    CO --> GL
+    CH --> MX
     R --> C4
 ```
