@@ -9,6 +9,12 @@
 # A prefix that maps to nothing is not an error. `chore`, `ci`, `test` and `refactor` belong under
 # "Other", and this says so rather than failing.
 #
+# The derivation RECONCILES rather than adds. A title edited from `feat:` to `fix:` re-fires this
+# workflow, and an add-only version would leave both labels in place; the notes then file the
+# entry under whichever category matches first, which is the stale one. So each label this
+# workflow can derive is either applied or removed on every run, and only those: a label a person
+# added by hand, `enhancement` or `good first issue`, is never touched.
+#
 # `pull_request_target` is used because a fork's `pull_request` token cannot write labels. It runs
 # with a writable token against the BASE repository, so this workflow deliberately checks out no
 # code at all and reads the title through the environment rather than interpolating it into the
@@ -53,15 +59,31 @@ jobs:
           [ -n "$breaking" ] && wanted="$wanted $breaking"
 
           if [ -z "$wanted" ]; then
-            echo "prefix '$prefix' maps to no grouping label; the notes file this under Other"
-            exit 0
+            echo "prefix '$prefix' derives no grouping label; the notes file this under Other"
           fi
 
-          # A JSON body on stdin, not `-f 'labels[]=x'`: that form is not understood by every
-          # gh version and returns 422 where it is not, which would make this step fail for a
-          # reason that has nothing to do with the label.
-          for name in $wanted; do
-            printf '{"labels":["%s"]}' "$name" |
-              gh api "repos/$REPO/issues/$NUMBER/labels" --input - --silent
-            echo "applied $name"
+          # Everything this workflow is allowed to decide. A label outside this set belongs to
+          # whoever put it there. There is no early exit above: an empty derivation still has to
+          # REMOVE a label an earlier title produced.
+          managed="breaking dependencies documentation feat fix"
+          held=" $(gh api "repos/$REPO/issues/$NUMBER/labels" --jq '.[].name' | tr '\n' ' ')"
+
+          for name in $managed; do
+            case " $wanted " in *" $name "*) want=1 ;; *) want=0 ;; esac
+            case "$held"     in *" $name "*) have=1 ;; *) have=0 ;; esac
+
+            if [ "$want" = 1 ] && [ "$have" = 0 ]; then
+              # A JSON body on stdin, not `-f 'labels[]=x'`: that form is not understood by
+              # every gh version and 422s where it is not, failing this step for a reason that
+              # has nothing to do with the label.
+              printf '{"labels":["%s"]}' "$name" |
+                gh api "repos/$REPO/issues/$NUMBER/labels" --input - --silent
+              echo "added $name"
+            elif [ "$want" = 0 ] && [ "$have" = 1 ]; then
+              gh api -X DELETE "repos/$REPO/issues/$NUMBER/labels/$name" --silent
+              echo "removed $name, which the title no longer derives"
+            fi
           done
+
+          set -- $managed
+          echo "reconciled $# derivable labels against the title"
