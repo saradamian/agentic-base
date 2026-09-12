@@ -99,6 +99,10 @@ try:  # pragma: no cover
     GEN_AI_SYSTEM_INSTRUCTIONS = _G.GEN_AI_SYSTEM_INSTRUCTIONS
     GEN_AI_USAGE_INPUT_TOKENS = _G.GEN_AI_USAGE_INPUT_TOKENS
     GEN_AI_USAGE_OUTPUT_TOKENS = _G.GEN_AI_USAGE_OUTPUT_TOKENS
+    GEN_AI_EVALUATION_NAME = _G.GEN_AI_EVALUATION_NAME
+    GEN_AI_EVALUATION_SCORE_VALUE = _G.GEN_AI_EVALUATION_SCORE_VALUE
+    GEN_AI_EVALUATION_SCORE_LABEL = _G.GEN_AI_EVALUATION_SCORE_LABEL
+    GEN_AI_EVALUATION_EXPLANATION = _G.GEN_AI_EVALUATION_EXPLANATION
 except Exception:  # pragma: no cover
     GEN_AI_REQUEST_MODEL = "gen_ai.request.model"
     GEN_AI_AGENT_NAME = "gen_ai.agent.name"
@@ -108,6 +112,10 @@ except Exception:  # pragma: no cover
     GEN_AI_SYSTEM_INSTRUCTIONS = "gen_ai.system_instructions"
     GEN_AI_USAGE_INPUT_TOKENS = "gen_ai.usage.input_tokens"
     GEN_AI_USAGE_OUTPUT_TOKENS = "gen_ai.usage.output_tokens"
+    GEN_AI_EVALUATION_NAME = "gen_ai.evaluation.name"
+    GEN_AI_EVALUATION_SCORE_VALUE = "gen_ai.evaluation.score.value"
+    GEN_AI_EVALUATION_SCORE_LABEL = "gen_ai.evaluation.score.label"
+    GEN_AI_EVALUATION_EXPLANATION = "gen_ai.evaluation.explanation"
 
 
 SPAN_KINDS: dict[str, str] = {
