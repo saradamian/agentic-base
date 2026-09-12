@@ -1,4 +1,4 @@
-# agentic-base
+# surf-agentic-base
 
 The agentic base layer for SURF: run provenance, comparison validity, and the shared
 primitives an agent needs.

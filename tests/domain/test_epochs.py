@@ -86,7 +86,7 @@ def _component_change() -> MeaningChange:
         subject="validity threshold",
         description="the default spread ratio changed",
         effective_at=LANDED,
-        component="agentic-base",
+        component="surf-agentic-base",
         min_version="0.3.0",
     )
 
@@ -99,14 +99,14 @@ def _with_versions(**versions: str) -> RunRecord:
 
 def test_a_run_on_an_older_component_version_is_placed_before() -> None:
     assert (
-        classify(_with_versions(**{"agentic-base": "0.2.9"}), _component_change())
+        classify(_with_versions(**{"surf-agentic-base": "0.2.9"}), _component_change())
         is Epoch.BEFORE
     )
 
 
 def test_a_run_on_the_first_changed_version_is_placed_after() -> None:
     assert (
-        classify(_with_versions(**{"agentic-base": "0.3.0"}), _component_change())
+        classify(_with_versions(**{"surf-agentic-base": "0.3.0"}), _component_change())
         is Epoch.AFTER
     )
 
@@ -127,15 +127,15 @@ def test_a_version_that_cannot_be_read_yields_no_placement_rather_than_a_guess()
     None
 ):
     assert (
-        classify(_with_versions(**{"agentic-base": "main"}), _component_change())
+        classify(_with_versions(**{"surf-agentic-base": "main"}), _component_change())
         is Epoch.UNKNOWN
     )
 
 
 def test_component_runs_that_straddle_a_version_boundary_may_not_be_pooled() -> None:
     records = [
-        _with_versions(**{"agentic-base": "0.2.9"}),
-        _with_versions(**{"agentic-base": "0.3.1"}),
+        _with_versions(**{"surf-agentic-base": "0.2.9"}),
+        _with_versions(**{"surf-agentic-base": "0.3.1"}),
     ]
 
     assert not check_poolable(records, _component_change()).poolable

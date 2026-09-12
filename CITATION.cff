@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it using the metadata from this file."
 type: software
-title: "agentic-base"
+title: "surf-agentic-base"
 abstract: >-
   A base layer for agentic work on research infrastructure. It records what actually ran with the
   provenance needed to replay and audit it, adjudicates whether a comparison between two agent
@@ -11,7 +11,7 @@ authors:
   - family-names: Podareanu
     given-names: Damian
     affiliation: SURF
-version: 0.2.0
+version: 0.3.0
 date-released: "2026-09-12"
 license: EUPL-1.2
 repository-code: "https://github.com/saradamian/agentic-base"

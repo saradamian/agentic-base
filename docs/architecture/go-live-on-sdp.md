@@ -31,7 +31,7 @@ instead of inferred.
 4. **Accept the SURFconext invite role** that arrives with team membership, then set up `kubectl`
    with the kubelogin plugin to reach the namespace.
 5. **Set the pipeline inputs.** `project_name`, `tenant_namespace` and `helm_release_name` in
-   `.gitlab-ci.yml` currently read `agentic-base` / `services-agentic-base`. They must match
+   `.gitlab-ci.yml` currently read `surf-agentic-base` / `services-surf-agentic-base`. They must match
    the tenant that is actually granted.
 6. **Point `database_url` at the tenant PostgreSQL** through the platform's secret management, and
    add an Alembic migration step. The SQLite default is for local development only.

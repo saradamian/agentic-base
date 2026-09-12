@@ -24,7 +24,7 @@ The mermaid block at the bottom needs a mermaid-capable viewer.
   │ (new)    │       │           │          │           │
   └──────────┴───┬───┴───────────┴────┬─────┴─────┬─────┘
                  │                    │           │
-  agentic-base   │  THIS REPOSITORY   │           │
+  surf-agentic-base   │  THIS REPOSITORY   │           │
   ┌──────────────▼────────────────────▼───────────▼────────────┐
   │ tool contract │ span vocabulary │ recording seam │ prims   │
   ├────────────────────────────────────────────────────────────┤
@@ -96,7 +96,7 @@ flowchart TB
         S[software]
         K[knowledge]
     end
-    subgraph base[agentic-base - this repository]
+    subgraph base[surf-agentic-base - this repository]
         C1[tool contract]
         C2[span vocabulary]
         C3[recording seam]

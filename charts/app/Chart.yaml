@@ -1,8 +1,8 @@
 apiVersion: v2
-name: agentic-base
+name: surf-agentic-base
 description: Python FastAPI template Helm chart for Kubernetes
 maintainers:
-  - name: "agentic-base maintainers"
+  - name: "surf-agentic-base maintainers"
 
 # A chart can be either an 'application' or a 'library' chart.
 #

@@ -19,7 +19,7 @@ body:
     id: version
     attributes:
       label: Version and Python
-      placeholder: "agentic-base 0.1.0, Python 3.10.12"
+      placeholder: "surf-agentic-base 0.1.0, Python 3.10.12"
     validations: { required: true }
   - type: checkboxes
     id: warnings

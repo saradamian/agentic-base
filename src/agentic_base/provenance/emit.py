@@ -24,7 +24,7 @@ EXTRA = "provenance"
 def _need(module: str) -> None:
     raise ImportError(
         f"{module} is not installed; provenance emission needs the {EXTRA!r} extra: "
-        f"pip install 'agentic-base[{EXTRA}]'"
+        f"pip install 'surf-agentic-base[{EXTRA}]'"
     )
 
 
@@ -76,7 +76,7 @@ def to_prov(run: RunRecordCreate, run_id: str, created_at: datetime) -> ProvDocu
 
     doc = ProvDocument()
     doc.add_namespace("ab", NAMESPACE)
-    doc.add_namespace("run", "urn:agentic-base:run:")
+    doc.add_namespace("run", "urn:surf-agentic-base:run:")
     activity = doc.activity(
         f"run:{run_id}",
         startTime=created_at,
@@ -208,7 +208,7 @@ def to_process_run_crate(
     crate.name = f"agentic run {run_id}"
     crate.root_dataset["conformsTo"] = {"@id": PROCESS_RUN_CRATE_PROFILE}
 
-    software_id = "#agentic-base"
+    software_id = "#surf-agentic-base"
     versions = run.component_versions
     crate.add(
         ContextEntity(
@@ -216,8 +216,8 @@ def to_process_run_crate(
             software_id,
             properties={
                 "@type": "SoftwareApplication",
-                "name": "agentic-base",
-                "version": versions.get("agentic-base", ""),
+                "name": "surf-agentic-base",
+                "version": versions.get("surf-agentic-base", ""),
             },
         )
     )

@@ -1,4 +1,4 @@
-site_name: agentic-base
+site_name: surf-agentic-base
 site_description: "Platform layer for agentic workloads: run provenance, comparison validity, and HPC execution."
 
 repo_url: !ENV [DOCS_REPO_URL, "https://github.com/saradamian/agentic-base"]

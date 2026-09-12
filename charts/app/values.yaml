@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   # Site-specific. Set per environment in the deployment overlay, not here.
-  repository: agentic-base
+  repository: surf-agentic-base
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
@@ -194,7 +194,7 @@ affinity:
         podAffinityTerm:
           labelSelector:
             matchLabels:
-              app.kubernetes.io/name: agentic-base
+              app.kubernetes.io/name: surf-agentic-base
           topologyKey: "kubernetes.io/hostname"
 
 podDisruptionBudget:

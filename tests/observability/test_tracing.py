@@ -39,7 +39,7 @@ def test_a_request_produces_a_server_span_carrying_the_route(monkeypatch) -> Non
         if s.attributes and s.attributes.get("http.route") == "/runs/{run_id}"
     ]
     assert server, [s.name for s in spans]
-    assert server[0].resource.attributes["service.name"] == "agentic-base"
+    assert server[0].resource.attributes["service.name"] == "surf-agentic-base"
 
 
 def test_the_service_name_comes_from_the_standard_variable(monkeypatch) -> None:

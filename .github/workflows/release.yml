@@ -47,7 +47,7 @@ jobs:
 
       - name: the built version must equal the tag
         run: |
-          built=$(ls dist/*.tar.gz | sed -E 's|.*/agentic_base-(.*)\.tar\.gz|\1|')
+          built=$(ls dist/*.tar.gz | sed -E 's|.*/surf_agentic_base-(.*)\.tar\.gz|\1|')
           test "v$built" = "${GITHUB_REF_NAME}" || { echo "built $built, tag ${GITHUB_REF_NAME}"; exit 1; }
 
       - name: the wheel must install and import on the consumer floor
@@ -63,3 +63,26 @@ jobs:
       - run: gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes --verify-tag
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # Trusted publishing: no token stored anywhere, PyPI accepts this workflow's OIDC identity
+  # for the project `surf-agentic-base` once that publisher is registered on pypi.org. A
+  # separate job so a publish failure is a red job on a release that already exists, never a
+  # release that silently does not.
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - run: uv build
+      - name: the built version must equal the tag, here too
+        run: |
+          built=$(ls dist/*.tar.gz | sed -E 's|.*/surf_agentic_base-(.*)\.tar\.gz|\1|')
+          test "v$built" = "${GITHUB_REF_NAME}" || { echo "built $built, tag ${GITHUB_REF_NAME}"; exit 1; }
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
