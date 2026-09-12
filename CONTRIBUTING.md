@@ -31,7 +31,7 @@ The pattern and its tool are in `docs/architecture/deployment-overlay.md`.
 ## Running the gate
 
 ```
-uv sync --group dev --extra service
+uv sync --group dev --extra service --extra provenance
 .venv/bin/ruff check src tests
 .venv/bin/ruff format --check src tests
 .venv/bin/mypy src tests

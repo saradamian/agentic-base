@@ -50,6 +50,9 @@ commercial SDK, a graph library, or a loop they wrote. What they get here:
   completion instead of trusting a status code, and a retry policy that recycles the transport
 - **cluster facts without credentials**: `agentic_base.hpc.clusters`
 - **a value back from a batch job**: `agentic_base.hpc.job_result`
+- **the record in the standards**: `agentic_base.provenance`, W3C PROV, OpenLineage and a Process
+  Run Crate from one record, each through that standard's own library, with the scorer and its
+  authority carried as a declared extension
 
 ### The service: the system of record and the referee
 

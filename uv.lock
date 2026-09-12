@@ -31,6 +31,11 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+provenance = [
+    { name = "openlineage-python" },
+    { name = "prov" },
+    { name = "rocrate" },
+]
 service = [
     { name = "alembic" },
     { name = "asgi-correlation-id" },
@@ -68,14 +73,17 @@ requires-dist = [
     { name = "fastapi", extras = ["standard"], marker = "extra == 'service'", specifier = "==0.141.1" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", marker = "extra == 'service'", specifier = ">=2.2,<3" },
+    { name = "openlineage-python", marker = "extra == 'provenance'", specifier = ">=1.53,<2" },
     { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'service'", specifier = "==1.44.0" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'service'", specifier = "==0.65b0" },
     { name = "opentelemetry-sdk", marker = "extra == 'service'", specifier = "==1.44.0" },
     { name = "prometheus-fastapi-instrumentator", marker = "extra == 'service'", specifier = "==8.1.0" },
+    { name = "prov", marker = "extra == 'provenance'", specifier = ">=3.1,<4" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'service'", specifier = "==3.2.12" },
     { name = "pydantic", specifier = ">=2.9,<3" },
     { name = "pydantic-settings", specifier = ">=2.5,<3" },
     { name = "pyyaml", specifier = ">=6" },
+    { name = "rocrate", marker = "extra == 'provenance'", specifier = ">=0.15,<1" },
     { name = "sqlmodel", marker = "extra == 'service'", specifier = "==0.0.27" },
     { name = "structlog", marker = "extra == 'service'", specifier = "==26.1.0" },
     { name = "uvicorn", marker = "extra == 'service'", specifier = "==0.52.4" },
@@ -141,6 +149,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a9/d2/f4d173e22df740bc37b1db102b386ba719b66e95b0f0d751f556b387e6d2/anyio-4.15.1.tar.gz", hash = "sha256:9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94", size = 276966 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/12/b8/4bd346e22b28902df4d651910f5242c28d84e4a5c2435ca5c3f797ed7e2e/anyio-4.15.1-py3-none-any.whl", hash = "sha256:6152fdbbf9a77fdec97731721bebf7c4c44f7c29b424b0065826173efc7ed101", size = 132079 },
+]
+
+[[package]]
+name = "arcp"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/c6/4d/de103380fb1646b720a5318401cf2a49a1a88c082ef06fdd015d848f073b/arcp-0.2.1.tar.gz", hash = "sha256:5c17ac7972c9ef82979cc2caf2b3a87c1aefd3fefe9adb8a5dd728ada57715dd", size = 22063 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/66/df/32574bc8f1d440d40f4aaf3b455316b2b1536c7243c985a90f8516cf3074/arcp-0.2.1-py2.py3-none-any.whl", hash = "sha256:4e09b2d8a9fc3fda7ec112b553498ff032ea7de354e27dbeb1acc53667122444", size = 15838 },
 ]
 
 [[package]]
@@ -1852,6 +1869,22 @@ wheels = [
 ]
 
 [[package]]
+name = "openlineage-python"
+version = "1.53.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "httpx2" },
+    { name = "packaging" },
+    { name = "python-dateutil" },
+    { name = "pyyaml" },
+    { name = "requests" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/69/f1c2a443aae12ba2542e9e6f9bb43cb2a37aa043a9eb90f99932a68c69cc/openlineage_python-1.53.0-py3-none-any.whl", hash = "sha256:7a4723b938a24a753308611b0ac4add19cd396448758db903bfe9cc964a75575", size = 125654 },
+]
+
+[[package]]
 name = "opentelemetry-api"
 version = "1.44.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2100,6 +2133,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/3d/33/d4724ec5d86d496fe4108e220618aa0837ad3423a7af7ccdd9684ccc77c8/protobuf-7.36.1-cp310-abi3-win32.whl", hash = "sha256:0b53ce95272aad50ad25d7ff03373743209822e8ba42ea7fad27d2bee1547d00", size = 443002 },
     { url = "https://files.pythonhosted.org/packages/db/37/155788a0d8daded960375af604202805308169f9b859419ea0aa370946e2/protobuf-7.36.1-cp310-abi3-win_amd64.whl", hash = "sha256:51139351435d9b43d88a55eaa49fb6f737fbb478fb0cbf2cf694d1a04a9d3363", size = 456518 },
     { url = "https://files.pythonhosted.org/packages/39/ca/c47f91d3cab175b01fd8c4f0d80fdf8613be876cc616e66ad281a59c5ddf/protobuf-7.36.1-py3-none-any.whl", hash = "sha256:7d951e46b3f963d6c264c367c437921de9d5aedd9c3f9612b9077736b4e3ad5c", size = 179813 },
+]
+
+[[package]]
+name = "prov"
+version = "3.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ab/dd/c41de0164375be37c177e67b0041e29419fcf6f16b5244736781b01950a9/prov-3.1.1.tar.gz", hash = "sha256:8fcd1b4f67618524f7ab53ec96592877bca7be52a84b145ed19cc5d409f00031", size = 280359 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/eb/ec/2811da9e4c5054a9bc79342f5b7c0f533fc2deb853391ccbe1a3a488521a/prov-3.1.1-py3-none-any.whl", hash = "sha256:60da6ef4d2e4509607e8bd8a4de4f095099e1d41216eabc7c2ef9be8b3553e7f", size = 679209 },
 ]
 
 [[package]]
@@ -2781,6 +2823,22 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/3d/73/463687fb803db4c97fbe3d54354a8030b908e9685f29f4556335dc65c94c/rignore-0.8.1-pp311-pypy311_pp73-musllinux_1_2_armv7l.whl", hash = "sha256:4cc3003a462778a75aadabde87edebc0e1d205c119c703c155bb03a4f3e8be23", size = 1137382 },
     { url = "https://files.pythonhosted.org/packages/70/6f/6d90ff36a046d2d05c55c9f8d6287e3d5a8ebe0fddd50dce8872019d4462/rignore-0.8.1-pp311-pypy311_pp73-musllinux_1_2_i686.whl", hash = "sha256:0dc7765f94d6660574d648c89e28c9932248499d47dad49c2786f2e49231e1d9", size = 1147729 },
     { url = "https://files.pythonhosted.org/packages/d8/de/d2c11ed977298cee41c23b6625da9f816ba9f7b91005dfb6674cc0bec09c/rignore-0.8.1-pp311-pypy311_pp73-musllinux_1_2_x86_64.whl", hash = "sha256:f7b929db3f8f3fa240b0f328453de0b1b747e51b7992a9198c8412d16f4f0027", size = 1144578 },
+]
+
+[[package]]
+name = "rocrate"
+version = "0.15.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "arcp" },
+    { name = "click" },
+    { name = "jinja2" },
+    { name = "python-dateutil" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a2/58/04321e914bf9ae7593ea10baf9a111cb37551e3c442d0dbdcb52f6121f5a/rocrate-0.15.1.tar.gz", hash = "sha256:4f4cf6eea66559baa9d9b8f10ae06e0611ba13eb3644edc783bdf7dd0072fced", size = 321715 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/68/c7/3e8a7cdbed5cc7b1295196990f1bdea178ed7e6fc14ef40163e8b61ddca5/rocrate-0.15.1-py3-none-any.whl", hash = "sha256:fc04c1078774259ad8c70779c40acec14d80a8cf310db1e8f51ae65720c153fa", size = 351054 },
 ]
 
 [[package]]

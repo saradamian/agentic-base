@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/saradamian/agentic-base/blob/main/docs/schemas/OutcomeRunFacet.json",
+  "title": "OutcomeRunFacet",
+  "description": "An OpenLineage run facet carrying an agent run's outcome, the scorer that decided it, and whether that scorer's verdict may be cited. Two facts the standard has no field for.",
+  "type": "object",
+  "allOf": [{ "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet" }],
+  "properties": {
+    "resolved": { "type": ["boolean", "null"], "description": "The outcome, or null when no label has been attached." },
+    "labelSource": { "type": "string", "enum": ["unlabelled", "self_reported", "convenience_verifier", "official_harness", "human"], "description": "Who decided the outcome." },
+    "authority": { "type": "string", "enum": ["none", "diagnostic", "authoritative"], "description": "Whether the label may be cited, independent of its modality." },
+    "degraded": { "type": "boolean", "description": "True when the scoring instrument was not working and returned its fail-open default." },
+    "instrument": { "type": "string" },
+    "arm": { "type": "string" },
+    "armFingerprint": { "type": "string" },
+    "status": { "type": "string" },
+    "failureKind": { "type": "string" },
+    "promptTokens": { "type": "integer" },
+    "completionTokens": { "type": "integer" },
+    "elapsedMs": { "type": "number" },
+    "joules": { "type": "number", "description": "Physical energy, kept apart from tokens and elapsed time because each prices a different thing." }
+  },
+  "required": ["labelSource", "authority", "degraded"]
+}
