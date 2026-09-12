@@ -71,3 +71,6 @@ site
 *.db-shm
 *.sqlite
 *.sqlite3
+
+# MLflow writes here when a probe runs with the default tracking URI; never tracked.
+mlruns/

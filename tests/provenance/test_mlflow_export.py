@@ -1,0 +1,123 @@
+"""A run exported to MLflow comes back with its authority intact, through MLflow's own client."""
+
+from __future__ import annotations
+
+import sys
+from datetime import datetime, timezone
+
+import pytest
+
+from agentic_base.domain.outcomes import LabelSource, RunRecordCreate
+from agentic_base.provenance.mlflow_export import outcome_metadata, to_mlflow
+
+if sys.version_info < (3, 14):
+    import mlflow  # the 3.10 leg must run this; a skip there would be a guard that cannot fail
+else:  # pragma: no cover
+    mlflow = pytest.importorskip(
+        "mlflow", reason="mlflow's dependency tree does not build on 3.14 yet"
+    )
+
+CREATED = datetime(2026, 9, 12, 10, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture(scope="module")
+def tracking(tmp_path_factory):
+    """One backend for the module. MLflow's trace exporter is created once per process against
+    the tracking URI in force at that moment; switching URIs per test sends later traces to a
+    database the reader is no longer looking at. Async trace logging is left at MLflow's
+    default on purpose: the exporter has to be correct under it, not only under the sync flag."""
+    import os
+
+    os.environ["MLFLOW_DISABLE_AGENT_HINT"] = "1"
+    mlflow.set_tracking_uri(
+        f"sqlite:///{tmp_path_factory.mktemp('mlflow') / 'mlflow.db'}"
+    )
+    yield
+
+
+def _run(**overrides) -> RunRecordCreate:
+    base = dict(
+        tenant="hpml",
+        code_revision="ba38f821",
+        component_versions={"surf-agentic-base": "0.3.1"},
+        item="task-1",
+        arm="full",
+        model="glm-5.2",
+        system_prompt="You are careful.",
+        messages=[{"role": "user", "content": "fix it"}],
+        resolved=True,
+        label_source=LabelSource.OFFICIAL_HARNESS,
+        instrument="swebench-official-harness",
+        prompt_tokens=1200,
+        completion_tokens=300,
+    )
+    base.update(overrides)
+    return RunRecordCreate(**base)
+
+
+def test_the_export_round_trips_the_outcome_with_its_authority(tracking) -> None:
+    trace_id = to_mlflow(_run(), "abc", CREATED, experiment="probe")
+
+    trace = mlflow.get_trace(trace_id)
+    (assessment,) = [a for a in trace.info.assessments if a.name == "resolved"]
+    assert assessment.feedback.value is True
+    assert assessment.source.source_type == "CODE"
+    assert assessment.source.source_id == "swebench-official-harness"
+    assert assessment.metadata["agentic_base.authority"] == "authoritative"
+    assert assessment.metadata["agentic_base.label_source"] == "official_harness"
+    assert assessment.metadata["agentic_base.degraded"] == "false"
+
+
+def test_the_span_carries_the_transcript_and_the_standard_attributes(tracking) -> None:
+    trace_id = to_mlflow(_run(), "abc", CREATED, experiment="probe")
+
+    (span,) = mlflow.get_trace(trace_id).data.spans
+    assert span.inputs["system_prompt"] == "You are careful."
+    assert span.attributes["openinference.span.kind"] == "AGENT"
+    assert span.attributes["agentic_base.arm"] == "full"
+    assert span.attributes["agentic_base.component_versions"] == {
+        "surf-agentic-base": "0.3.1"
+    }
+
+
+def test_a_diagnostic_verdict_is_exported_as_diagnostic_not_hidden(tracking) -> None:
+    trace_id = to_mlflow(
+        _run(
+            label_source=LabelSource.CONVENIENCE_VERIFIER,
+            instrument="in-tree",
+            degraded=True,
+        ),
+        "abc",
+        CREATED,
+        experiment="probe",
+    )
+
+    (assessment,) = mlflow.get_trace(trace_id).info.assessments
+    assert assessment.source.source_type == "CODE"  # same modality as the harness...
+    assert (
+        assessment.metadata["agentic_base.authority"] == "diagnostic"
+    )  # ...different standing
+    assert assessment.metadata["agentic_base.degraded"] == "true"
+
+
+def test_an_unlabelled_run_exports_no_assessment(tracking) -> None:
+    trace_id = to_mlflow(
+        _run(resolved=None, label_source=LabelSource.UNLABELLED, instrument=""),
+        "abc",
+        CREATED,
+        experiment="probe",
+    )
+
+    assert mlflow.get_trace(trace_id).info.assessments == []
+
+
+def test_the_metadata_names_every_fact_the_source_type_cannot() -> None:
+    keys = set(outcome_metadata(_run(), "agentic-base"))
+
+    assert keys == {
+        "agentic_base.label_source",
+        "agentic_base.authority",
+        "agentic_base.degraded",
+        "agentic_base.instrument",
+        "agentic_base.writer",
+    }
