@@ -1,7 +1,8 @@
 # Contributing
 
 House rules, kept short so the next reader has less to hold in their head. Most exist because
-something specific went wrong once, and the reason is stated where it matters.
+something specific went wrong once; `docs/ENGINEERING.md` says what each one cost and which test
+fails when it stops being true.
 
 ## Where the reasoning lives
 

@@ -52,6 +52,11 @@ resource, in every deployed environment.
 - [What came from agentic-env](docs/architecture/from-agentic-env.md): what was extracted and what was left
 - [Going live on SDP](docs/architecture/go-live-on-sdp.md): the onboarding path and the one open question
 
+## The standard
+
+`docs/ENGINEERING.md` is why the rules are the rules: what each cost to learn, and the guard that
+enforces it. `CONTRIBUTING.md` is the short form for someone about to open a pull request.
+
 ## Where development happens
 
 Here. Changes land on `main` through pull requests that the gate has passed on both ends of the
