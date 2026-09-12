@@ -105,3 +105,63 @@ def test_recording_an_outcome_with_its_scorer_is_accepted(test_client) -> None:
     )
 
     assert response.status_code == 201
+
+
+def test_a_run_is_served_as_prov_json_with_its_scorer_attributed(test_client) -> None:
+    created = test_client.post("/runs", json=_payload(item="task-prov")).json()
+    test_client.post(
+        f"/runs/{created['run_id']}/label",
+        json={"resolved": True, "label_source": LabelSource.OFFICIAL_HARNESS.value},
+    )
+
+    response = test_client.get(
+        f"/runs/{created['run_id']}/provenance", params={"format": "prov"}
+    )
+
+    assert response.status_code == 200
+    doc = response.json()
+    (outcome,) = [v for k, v in doc["entity"].items() if k.endswith("/outcome")]
+    assert outcome["ab:authority"] == "authoritative"
+    assert "wasAttributedTo" in doc
+
+
+def test_a_run_is_served_as_an_openlineage_event(test_client) -> None:
+    created = test_client.post(
+        "/runs", json=_payload(item="task-ol", arm="full")
+    ).json()
+
+    response = test_client.get(
+        f"/runs/{created['run_id']}/provenance", params={"format": "openlineage"}
+    )
+
+    assert response.status_code == 200
+    event = response.json()
+    assert event["job"]["namespace"] == "hpml"
+    assert event["run"]["facets"]["agenticBaseOutcome"]["authority"] == "none"
+
+
+def test_a_run_is_served_as_a_process_run_crate(test_client) -> None:
+    created = test_client.post("/runs", json=_payload(item="task-crate")).json()
+
+    response = test_client.get(
+        f"/runs/{created['run_id']}/provenance", params={"format": "rocrate"}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/ld+json")
+    graph = {e["@id"]: e for e in response.json()["@graph"]}
+    assert graph[f"#{created['run_id']}"]["@type"] == "CreateAction"
+
+
+def test_provenance_of_an_unknown_run_is_not_found(test_client) -> None:
+    assert test_client.get("/runs/nope/provenance").status_code == 404
+
+
+def test_an_unknown_provenance_format_is_refused(test_client) -> None:
+    created = test_client.post("/runs", json=_payload(item="task-fmt")).json()
+
+    response = test_client.get(
+        f"/runs/{created['run_id']}/provenance", params={"format": "csv"}
+    )
+
+    assert response.status_code == 422

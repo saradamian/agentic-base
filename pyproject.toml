@@ -62,6 +62,10 @@ service = [
   "sqlmodel==0.0.27",
   "alembic==1.17.2",
   "psycopg[binary]==3.2.12",
+  # The API serves a run in the provenance standards, so the service carries their libraries.
+  "prov>=3.1,<4",
+  "openlineage-python>=1.53,<2",
+  "rocrate>=0.15,<1",
 ]
 
 [project.urls]

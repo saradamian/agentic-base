@@ -93,7 +93,7 @@ something maintained already do this? Rows that were missing are added; one defe
 | `limits.py` | a settings object read through a cached accessor | ADOPT `pydantic-settings`. The accessor is the fix for import-time constants and is ours |
 | `main.py` | FastAPI, the Prometheus instrumentator, correlation ids, structlog | ADOPT, all from the golden-path template |
 | `routers/health.py` | liveness and readiness | ADOPT, template |
-| `routers/runs.py` | the write path that refuses an outcome without a scorer, and the validity endpoint | BUILD. Measured 2026-09-12: MLflow accepts an unsourced outcome from any client and stamps it `CODE/default`, so the refusal has to live at a boundary of ours. Revisit when a tracker refuses an unsourced outcome at its own API |
+| `routers/runs.py` | the write path that refuses an outcome without a scorer, the validity endpoint, and a run served in any of the three provenance standards | BUILD. Measured 2026-09-12: MLflow accepts an unsourced outcome from any client and stamps it `CODE/default`, so the refusal has to live at a boundary of ours. Revisit when a tracker refuses an unsourced outcome at its own API |
 | `recording.py` | the observer seam a served call passes through | BRIDGE. `mcp` 2.x ships `ServerMiddleware`, the same seam for that transport; `mcp.server.ObservingMiddleware` adapts ours through it, so a host implements one observer and every served call reaches it |
 | `domain/run_record.py` | the table behind the BUILD row above | BUILD, see the build table. Revisit when that row says to |
 | `domain/outcomes.py` | the label vocabulary and the rules over a structural protocol | BRIDGE onto MLflow's assessment source, see the 2026-09-11 check below |

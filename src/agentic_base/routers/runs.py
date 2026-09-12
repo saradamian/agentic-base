@@ -1,9 +1,12 @@
 """Endpoints for run records and comparison validity."""
 
+import enum
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from starlette import status
@@ -13,9 +16,11 @@ from agentic_base.domain.run_record import (
     LabelUpdate,
     RunRecord,
     RunRecordCreate,
+    to_payload,
     to_record,
 )
 from agentic_base.domain.validity import ChannelSpread, check_comparison
+from agentic_base.provenance import to_openlineage, to_process_run_crate, to_prov
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -96,6 +101,58 @@ def get_run(run_id: str, session: Session = Depends(get_session)) -> RunRecord:
             status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
         )
     return record
+
+
+class ProvenanceFormat(str, enum.Enum):
+    PROV = "prov"
+    OPENLINEAGE = "openlineage"
+    ROCRATE = "rocrate"
+
+
+_MEDIA_TYPE = {
+    ProvenanceFormat.PROV: "application/json",
+    ProvenanceFormat.OPENLINEAGE: "application/json",
+    ProvenanceFormat.ROCRATE: "application/ld+json",
+}
+
+
+@router.get("/{run_id}/provenance")
+def run_provenance(
+    run_id: str,
+    format: ProvenanceFormat = Query(
+        ProvenanceFormat.PROV,
+        description="prov: W3C PROV-JSON. openlineage: a RunEvent. rocrate: the Process Run "
+        "Crate's ro-crate-metadata.json.",
+    ),
+    session: Session = Depends(get_session),
+) -> Response:
+    """One run in a provenance standard, produced by that standard's own library.
+
+    The scorer that decided the outcome and whether its verdict may be cited travel as a
+    declared extension in every format; see docs/schemas.
+    """
+    record = session.get(RunRecord, run_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        )
+    payload = to_payload(record)
+    if format is ProvenanceFormat.PROV:
+        body = (
+            to_prov(payload, record.run_id, record.created_at).serialize(format="json")
+            or ""
+        )
+    elif format is ProvenanceFormat.OPENLINEAGE:
+        from openlineage.client.serde import Serde
+
+        body = Serde.to_json(to_openlineage(payload, record.run_id, record.created_at))
+    else:
+        with tempfile.TemporaryDirectory() as out:
+            metadata = to_process_run_crate(
+                payload, record.run_id, record.created_at, Path(out)
+            )
+            body = metadata.read_text()
+    return Response(content=body, media_type=_MEDIA_TYPE[format])
 
 
 @router.post("/{run_id}/label")
