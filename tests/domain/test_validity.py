@@ -10,7 +10,12 @@ deliberately skewed input, this module is not measuring anything.
 
 from dataclasses import dataclass
 
-from app.domain.validity import INCLUDED, check_comparison, missingness_by_arm, paired_items
+from app.domain.validity import (
+    INCLUDED,
+    check_comparison,
+    missingness_by_arm,
+    paired_items,
+)
 
 
 @dataclass(frozen=True)

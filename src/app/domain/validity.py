@@ -26,8 +26,9 @@ Two rules learned by getting this wrong:
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable, Protocol
+from typing import Protocol
 
 
 class Observation(Protocol):

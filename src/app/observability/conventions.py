@@ -28,8 +28,14 @@ from typing import Any
 try:  # pragma: no cover - the installed-package path
     from openinference.semconv.trace import (
         MessageAttributes as _M,
+    )
+    from openinference.semconv.trace import (
         OpenInferenceSpanKindValues as _K,
+    )
+    from openinference.semconv.trace import (
         SpanAttributes as _S,
+    )
+    from openinference.semconv.trace import (
         ToolCallAttributes as _T,
     )
 

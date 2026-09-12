@@ -7,8 +7,11 @@ that silence must not read as a pass.
 from __future__ import annotations
 
 import pytest
-
-from scripts.assert_no_permitted_failures import CannotAsk, fetch_jobs, permitted_failures
+from scripts.assert_no_permitted_failures import (
+    CannotAsk,
+    fetch_jobs,
+    permitted_failures,
+)
 
 
 def _job(name: str, allow_failure: bool = False) -> dict:
@@ -43,7 +46,7 @@ def test_the_shipped_allowlist_is_empty() -> None:
     """A check that cannot block should be deleted, not exempted."""
     from scripts.assert_no_permitted_failures import ALLOWLIST
 
-    assert ALLOWLIST == frozenset()
+    assert frozenset() == ALLOWLIST
 
 
 def test_an_unreadable_job_list_raises_instead_of_reporting_clean() -> None:

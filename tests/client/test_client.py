@@ -30,10 +30,9 @@ def test_a_failing_run_is_still_recorded_and_marked_failed(monkeypatch) -> None:
         recorder, "record", lambda pending: (recorded.append(pending), "run-1")[1]
     )
 
-    with pytest.raises(RuntimeError):
-        with recorder.run(item="task-1") as run:
-            run.model = "some-model"
-            raise RuntimeError("agent blew up")
+    with pytest.raises(RuntimeError), recorder.run(item="task-1") as run:
+        run.model = "some-model"
+        raise RuntimeError("agent blew up")
 
     assert len(recorded) == 1
     assert recorded[0].status is RunStatus.FAILED
