@@ -9,8 +9,8 @@ The mermaid block at the bottom needs a mermaid-capable viewer.
 ```text
   APPLICATIONS            people's own work, each brings its own agent
   ┌──────────────────┬──────────────────────┬────────────────────┐
-  │ agentic-env      │ pipeline triage       │ other SURF teams   │
-  │ experiments      │ pipeline triage      │                    │
+  │ agentic-env      │ pipeline triage      │ other SURF teams   │
+  │ experiments      │ a new SURF project   │                    │
   └──────────────────┴──────────────────────┴────────────────────┘
                               │
   CONTROL PLANE               │   who may run what, and where
