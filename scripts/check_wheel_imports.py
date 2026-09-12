@@ -67,10 +67,28 @@ def main(argv: list[str]) -> int:
         text=True,
     ).stdout.strip()
 
+    # PEP 561: without this file a consumer's type checker treats every import as untyped,
+    # whatever the classifier says. Found by the first consumer, not by the suite.
+    typed = subprocess.run(
+        [
+            interpreter,
+            "-c",
+            "from importlib.resources import files; "
+            "print(files('agentic_base').joinpath('py.typed').is_file())",
+        ],
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    if typed != "True":
+        print("FAILED py.typed: the installed package carries no PEP 561 marker")
+        failed.append(("py.typed", ["missing"]))
+
+    unimported = [module for module, _ in failed if module in modules]
     for module, why in failed:
         print(f"FAILED {module}: {why[0] if why else 'no output'}")
     print(
-        f"imported {len(modules) - len(failed)} of {len(modules)} portable modules on {version}"
+        f"imported {len(modules) - len(unimported)} of {len(modules)} portable modules "
+        f"on {version}; py.typed {'present' if typed == 'True' else 'MISSING'}"
     )
     return 1 if failed else 0
 
