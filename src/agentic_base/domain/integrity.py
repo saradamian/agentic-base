@@ -5,9 +5,10 @@ accidental edits, partial writes and silent corruption in a corpus nobody can af
 which is a smaller claim and the one the mechanism actually supports.
 
 Both regimes the platform has to answer to ask for records that can be shown to be intact. The
-AI Act asks providers of high-risk systems to keep automatically generated logs. The Dutch
-Cybersecurity Act, in force since August 2026, asks in-scope entities for incident handling and
-logging that stands up afterwards. In both cases a record that could have been edited after the
+AI Act asks providers of high-risk systems to keep automatically generated logs; the Digital
+Omnibus of July 2026 moved the Annex III date to December 2027 and left the requirement as it
+was. The Dutch Cybersecurity Act, in force since 15 August 2026 with no transition period, asks
+in-scope entities for incident handling and logging that stands up afterwards. In both cases a record that could have been edited after the
 fact is weaker evidence than one that could not.
 
 The mechanism here is deliberately modest. Each record gets a content hash over its

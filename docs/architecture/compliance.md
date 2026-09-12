@@ -18,6 +18,11 @@ The articles that turn into engineering:
 |---|---|---|
 | 11 and Annex IV | technical documentation before a high-risk system is placed on the market | a description of the system, its development, its data, and its performance |
 | 12 | record-keeping | high-risk systems must technically allow automatic recording of events over the system's lifetime |
+
+The Digital Omnibus (Regulation (EU) 2026/1744, in force 27 July 2026) moved the Annex III
+high-risk obligations, article 12 among them, to 2 December 2027 and the Annex I ones to
+2 August 2028. The date moved; the requirement did not, and a record store designed after the
+requirement is the same store either way.
 | 15 | accuracy, robustness, cybersecurity | declared performance, and evidence for it |
 | 19 | log retention | providers keep the logs their systems generate, at least six months |
 | 53 and 55 | general-purpose model providers | technical documentation, a training-data summary, and for systemic-risk models evaluation, adversarial testing and incident reporting |
