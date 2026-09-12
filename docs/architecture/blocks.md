@@ -1,12 +1,17 @@
-# Blocks: the common capabilities SURF exposes to agents, and where each one lives
+# Blocks
+
+What SURF exposes to agents, one block per system, and where each block lives.
 
 SURF intends to offer a set of common building blocks, tools and skills, that an agent can use,
 internally and externally. This page says what a block is, which blocks the existing systems
 imply, how a block composes with others and is adapted by a downstream, and where this
-repository stops. It was checked on 2026-09-13 against the internal Confluence (the NL AI
-Factory architecture, its high-level MLOps design, the design memo of July 2026, the user
-interviews, the SURF Developer Platform overview, the AI-at-SURF product list) and against the
-code that exists in agentic-env, willma2 and the AI4Science prototype.
+repository stops. Logging, security, safety and compliance cut across every block and have their
+own page, `cross-cutting.md`.
+
+Checked on 2026-09-13 against the internal wiki (the AI Factory architecture and MLOps design,
+the design memo, the user interviews, the Developer Platform overview, the AI-at-SURF product
+list), against the AI Factory's plan and service list, and against the code in agentic-env,
+willma2 and the AI4Science prototype.
 
 ## Three layers
 
@@ -33,7 +38,7 @@ isolation, adds three and sharpens two.
 | **hpc** | Slurm on Snellius, LUMI and the AI Factory; a served model on it | agentic-env's slurm_companion, 51 tools, two curated profiles, an SSH backend; three separate slurmrestd clients in willma2, the AI4Science prototype and a stub in `python_slurm_wrapper` | the most duplicated capability at SURF and the one to consolidate, in its own package, once slurmrestd's availability is settled with the operators |
 | **inference** | Willma, the AI Hub back office | an OpenAI-compatible endpoint and nothing published as a block; the model catalogue, serve requests and the Whisper transcription that Research Cloud items already call | a block, because every other block's agent needs a model and the catalogue is the thing to expose |
 | **knowledge** | Confluence today; the SURF knowledge base and the education search portals tomorrow | agentic-env's confluence product, 20 tools, already served over MCP with a curated surface; a separate team is building an MCP server for edusources.nl | the cheapest first extraction, and the proof that two teams' MCP servers can share one catalogue |
-| **stacks** | EasyBuild and EESSI: the software environments a job runs in | agentic-env's easybuild product, 10 tools, with a sandboxed validation backend | ready to extract. Named stacks, not software, because every reader who arrives asking about software development misreads the other name |
+| **stacks** | EasyBuild and EESSI: the software environments a job runs in | agentic-env's easybuild product, 10 tools: search, grounding of upstream facts, lint, save. Its recipe validation runs a build in a container, which is the execution block's job, not this one's | ready to extract. Named stacks rather than software so nobody reads it as software development |
 | **data** | the object stores (Swift, LUMI-O, MinIO on the platform), the POSIX tiers, dCache, iRODS and Yoda, Research Drive, the AI Factory's dataset-as-a-service | the AI4Science prototype's dataset vocabulary; agentic-env's staging scripts for LUMI-O; nothing agent-facing | a block, and the largest gap: an agent that cannot find, stage or cite data does not do research |
 | **artifacts** | the container registry, a model registry, dataset versions and checkpoints | GitLab and Harbor registries on the platform; MLflow named as the registry in the AI Factory design; content-addressed artifacts in agentic-env's lineage | missing. The GPT-NL interview asked for exactly this: a shared versioned store and a common registry |
 | **identity** | SURFconext and SRAM: who you are, which project you belong to, what you may touch | every block needs it and none carries it; the platform's tenancy model | not a block an agent calls; the thing every block's surface is scoped by. Named so it is not forgotten |
@@ -175,27 +180,25 @@ compose file, and its fourteen configuration variables carry no SURF value.
   path, signed tags and attested wheels. A new block starts from the template and inherits the
   discipline without inheriting any code.
 
-## What the internal documentation does not yet say
+## Where this design stands
 
-Nothing on the internal Confluence describes an agent-facing layer: no page on MCP, on skills, or
-on agents as a workload, apart from one product line about an MCP server for the education
-portals. The AI Factory's own architecture notes list train, fine-tune and infer as the three
-verbs and have no box for an agent run, which is the gap the design memo of July 2026 calls the
-common denominators without naming agents. This page is therefore the first written statement of
-the layer, and it should move to Confluence once the block owners have read it.
+The internal wiki has no page on an agent-facing layer: nothing on MCP, on skills, or on agents
+as a workload, apart from one product line about an MCP server for the education portals. The
+AI Factory's architecture names three verbs, train, fine-tune and infer, and has no box for an
+agent run. This page is the first written version of the layer. It moves to the wiki once the
+block owners have read it.
 
 ## Order of work
 
-0. Write down the **forge** block's surface with the GitLab team and the **execution** block's
-   isolation contract with the platform team, because the first SURF-run agent needs both and
-   neither is a library extraction; they are decisions.
-1. Extract the **knowledge** block first. Smallest, already over MCP, needs no scheduler
-   decision, and proves the extraction loop and the template on something that cannot break a
-   cluster.
+0. Agree the **forge** block's surface with the GitLab team and the **execution** block's
+   isolation contract with the platform team. The first SURF-run agent needs both, and both are
+   decisions rather than extractions.
+1. Extract the **knowledge** block. Smallest, already over MCP, no scheduler decision, and it
+   proves the extraction loop and the template on something that cannot break a cluster.
 2. Settle slurmrestd availability with the Snellius operators, then start the **hpc** block from
-   the `python_slurm_wrapper` stub with willma2's token handling and the AI4Science schemas.
-3. Define the **data** block's surface with the data teams before writing it; find, stage and
-   cite are the three verbs an agent needs, and the systems behind them are theirs.
-4. Leave **identity** and **accounting** as named constraints until a block needs them for real,
-   but design **delegated credentials** with SRAM before the forge block ships, since the first
-   service agent cannot go live on a shared token.
+   the existing stub with willma2's token handling and the AI4Science schemas.
+3. Define the **data** block's surface with the data teams before writing it. Find, stage and
+   cite are the three verbs an agent needs; the systems behind them are theirs.
+4. Design **delegated credentials** with SRAM before the forge block ships. A service agent
+   cannot go live on a shared token. Identity and accounting otherwise stay named constraints
+   until a block needs them.

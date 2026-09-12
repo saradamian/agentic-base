@@ -52,7 +52,8 @@ write path from the first day. Provenance cannot be added to runs that did not r
 
 `docs/architecture/blocks.md` is the design: this repository is the contracts layer under a set of
 capability blocks, one per SURF system, each in its own package with the system's owner. No block
-lives here. The scheduler client in particular does not.
+lives here. `docs/architecture/cross-cutting.md` says where logging, security, safety and
+compliance live, and what the regimes ask of an agent platform.
 
 ## Read these, in this order
 
