@@ -35,6 +35,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Export into MLflow's tracking backend; heavy, so its own extra.
+mlflow = ["mlflow>=3.16,<4"]
 # Emitting the provenance standards through their own libraries; see docs/architecture/reuse-ledger.md.
 provenance = [
   "prov>=3.1,<4",
@@ -88,6 +90,9 @@ dev = [
   "mkdocs-techdocs-core==1.7.1",
   # The suite runs on the consumer floor too, so the 3.10 leg needs a TOML reader.
   'tomli>=2.4; python_version < "3.11"',
+  # The MLflow export test needs MLflow; its dependency tree does not build on 3.14 yet, so the
+  # 3.10 leg runs it and the 3.14 leg skips it with a visible reason.
+  'mlflow>=3.16,<4; python_version < "3.14"',
 
 ]
 
@@ -231,6 +236,12 @@ filterwarnings = [
   # anyio 4.15 warns. Scoped to that one message so every other warning still fails the suite.
   # Remove when the pinned fastapi brings a starlette that imports `anyio.from_thread`.
   "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+  # MLflow 3.16 warns from mlflow.types.type_hints while inferring schemas for ITS OWN pydantic
+  # models at import of mlflow.pyfunc, which start_span imports lazily. Under warnings-as-errors
+  # that warning raises inside start_span, MLflow catches it and returns a NO-OP span, and an
+  # export then "succeeds" with nothing stored (the exporter now refuses a no-op span). Scoped to
+  # the one message family; remove when mlflow's own models stop tripping its own inference.
+  "ignore:.*type hint is inferred as AnyType:UserWarning",
 ]
 env = [
   "METRICS_PORT=0", # Don't start metrics server during tests

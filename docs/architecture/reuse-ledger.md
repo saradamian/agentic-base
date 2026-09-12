@@ -102,6 +102,7 @@ something maintained already do this? Rows that were missing are added; one defe
 | `hpc/clusters.py` | cluster facts as YAML data with a no-secrets guard | ADOPT PyYAML and pydantic; the profile schema is ours and small |
 | `llm/health.py` | a probe that asks for a completion rather than trusting a status code | BUILD. Revisit when vLLM or Willma expose a readiness signal that means "answers", not "listens" |
 | `provenance/emit.py` | W3C PROV through `prov`, OpenLineage through `openlineage-python`, a Process Run Crate through `rocrate`; the outcome's scorer and authority ride as declared extensions with a schema file each | ADOPT the three libraries and the profile. The facet is a BRIDGE, and `docs/schemas/OutcomeRunFacet.json` is its contract |
+| `provenance/mlflow_export.py` | a run as an MLflow trace plus a feedback assessment, through MLflow's own client; the authority rides in assessment metadata because the schema has no field for it | ADOPT MLflow for the trace UI and as an export target; the metadata keys are the BRIDGE. Revisit when MLflow's assessment source carries authority natively |
 | `tools/types.py` | the in-process tool contract | BRIDGE. `mcp.types.Tool` is the wire schema; this is the in-process one it is derived from, and the names must match across backends (D1) |
 
 ## The rule this file encodes
