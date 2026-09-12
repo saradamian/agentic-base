@@ -89,12 +89,26 @@ def test_every_bundled_profile_sits_inside_the_package_so_a_wheel_carries_it() -
         )
 
 
+def _repo_root() -> Path:
+    """Walk up from this test file until pyproject.toml appears.
+
+    Deliberately not a fixed number of `parents`, and deliberately anchored on the test rather
+    than on the installed module. Counting parents is what shipped the bug this file guards
+    against: the same expression resolved to the repository root in a source tree and to the
+    parent of site-packages once installed, and nothing failed until somebody called a function.
+    """
+    for candidate in [Path(__file__).resolve(), *Path(__file__).resolve().parents]:
+        if (candidate / "pyproject.toml").is_file():
+            return candidate
+    raise AssertionError(
+        "no pyproject.toml above this test; run the suite from a source tree"
+    )
+
+
 def test_the_build_declares_the_profiles_as_package_data() -> None:
     """Naming the directory is not enough; a wheel ships no non-Python file unless it is listed."""
     config = tomllib.loads(
-        (Path(clusters.__file__).resolve().parents[3] / "pyproject.toml").read_text(
-            encoding="utf-8"
-        )
+        (_repo_root() / "pyproject.toml").read_text(encoding="utf-8")
     )
     package_data = config["tool"]["setuptools"]["package-data"]
 
