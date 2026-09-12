@@ -1,0 +1,43 @@
+# Two checks the gate did not have. Dependabot alerts on what GitHub already knows about; these
+# ask on every change, before it lands.
+#
+#   dependency-review  a pull request that adds a dependency with a known vulnerability, or one
+#                      under a licence this repository cannot ship, is refused at the pull request.
+#   audit              the fully pinned dependency set, every extra included, checked against the
+#                      advisory databases on every push and pull request. pip-audit reads the lock
+#                      export and installs nothing.
+#
+# Both are required checks, so neither can be permitted to fail into silence.
+name: supply-chain
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          comment-summary-in-pr: on-failure
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+      - name: export the pinned set, every extra, no dev tools
+        run: uv export --all-extras --no-dev --no-hashes --no-emit-project -o requirements.txt
+      - uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266 # v1.1.0
+        with:
+          inputs: requirements.txt
+          no-deps: true
+          summary: true

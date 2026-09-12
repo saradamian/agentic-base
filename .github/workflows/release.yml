@@ -60,7 +60,22 @@ jobs:
         with:
           subject-path: dist/*
 
-      - run: gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes --verify-tag
+      # The SBOM is generated from the wheel INSTALLED on the consumer floor, so it lists what a
+      # consumer actually gets, dependencies resolved, not what the source tree declares. It is
+      # attested to the same distribution files and attached to the release.
+      - uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          path: /tmp/floor
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: dist/*
+          sbom-path: sbom.spdx.json
+
+      - run: gh release create "${GITHUB_REF_NAME}" dist/* sbom.spdx.json --generate-notes --verify-tag
         env:
           GH_TOKEN: ${{ github.token }}
 
