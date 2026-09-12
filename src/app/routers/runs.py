@@ -1,7 +1,7 @@
 """Endpoints for run records and comparison validity."""
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 from starlette import status
 
 from app.db import get_session
-from app.domain.run_record import LabelUpdate, RunRecord, RunRecordCreate
+from app.domain.run_record import LabelUpdate, RunRecord, RunRecordCreate, to_record
 from app.domain.validity import ChannelSpread, check_comparison
 
 router = APIRouter(prefix="/runs", tags=["runs"])
@@ -73,7 +73,7 @@ def create_run(payload: RunRecordCreate, session: Session = Depends(get_session)
     Tenant and code revision are required. An outcome may only be supplied together with the
     scorer that produced it.
     """
-    record = payload.to_record()
+    record = to_record(payload)
     session.add(record)
     session.commit()
     session.refresh(record)
@@ -106,7 +106,7 @@ def label_run(
     record.label_source = update.label_source
     record.instrument = update.instrument
     record.degraded = update.degraded
-    record.labelled_at = datetime.now(UTC)
+    record.labelled_at = datetime.now(timezone.utc)
     session.add(record)
     session.commit()
     session.refresh(record)

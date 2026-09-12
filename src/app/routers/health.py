@@ -1,6 +1,6 @@
 """Endpoints related to health."""
 
-from enum import StrEnum
+from enum import Enum
 
 from fastapi import APIRouter
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ health_api_prefix = "/health"
 router = APIRouter(prefix=health_api_prefix, tags=["health_check"])
 
 
-class HealthStatus(StrEnum):
+class HealthStatus(str, Enum):
     """Possible health states this service can be in."""
 
     UP = "UP"

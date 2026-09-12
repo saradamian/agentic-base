@@ -66,3 +66,41 @@ already supported, and already have an owner.
 A private copy of a shared concern does not fail loudly. It drifts, and the drift surfaces as a
 measurement artifact somewhere far from the copy. When a row here says ADOPT and our code does it
 anyway, that is a defect, not a preference.
+
+## Checked against the world, 2026-09-11
+
+Five verdicts above were re-examined against what is actually published. Four moved, and one of
+them moved against us, which is the reason this section exists rather than a quiet edit.
+
+**A label's source is not our idea.** MLflow's assessment model already attaches a source to every
+judgement, typed as human, LLM judge, or code. The claim that nobody records label provenance was
+wrong and is withdrawn. What survives is narrower and still load-bearing: that taxonomy separates
+judgements by *modality*, so a convenience checker and a benchmark's authoritative harness are
+both `CODE` to it, and on our own corpus those two disagreed in both directions with roughly a
+quarter of the disagreements running in the flattering direction. Modality cannot tell you whether
+a number may be cited. The field is also optional, and optional provenance is not supplied: 4,742
+of 10,920 outcomes named no scorer at all. So `LabelAuthority` is a **BRIDGE**, not a **BUILD**,
+and `mlflow_source_type` exists so a record exports into their schema instead of a private one.
+
+**HAL is the complement, not the competitor.** It went to ICLR 2026 on 21,730 rollouts and
+independently found scaffold choice multiplying cost roughly tenfold, which corroborates our
+inversion result rather than pre-empting it. The division is clean: HAL varies the model and holds
+the scaffold, we vary the scaffold and hold the model. It standardises a harness, which works when
+you own the harness and stops working when tenants bring their own; that is what the arm
+fingerprint is for. ADOPT stands, and we cite them rather than claim the territory.
+
+**The agentic serving profile has been published by someone else.** There is now work on KV cache
+management for serving coding agents specifically. "Agentic inference is a distinct prefill-heavy
+workload" is no longer ours to claim. What remains ours is cross-replica placement on bare-metal
+Slurm, which every upstream implementation assumes Kubernetes for, and the acceptance argument
+that throughput is non-monotonic in concurrency so utilisation scores the collapse as healthy.
+
+**The GenAI conventions are still Development, in their own repository, on their own cadence.**
+Not one attribute is marked stable. Read as a reason to wait, that is wrong; it is the window in
+which proposals land. Two attributes would carry most of our argument into a standard other people
+implement: one naming the scaffold identity that produced a trace, one naming the authority of an
+outcome label rather than only its modality. Neither is a new standard.
+
+**One thing to carry to the procurement that we did not have.** Evaluation is being discussed as a
+compute bottleneck in its own right. The acceptance suite has no agentic workload, which was
+already remark A1, and no evaluation workload either, which nobody had noticed.

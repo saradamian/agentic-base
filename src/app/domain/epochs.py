@@ -24,9 +24,9 @@ from __future__ import annotations
 import enum
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
-from sqlmodel import Field, SQLModel
+from pydantic import BaseModel, Field
 
 
 class Epoch(str, enum.Enum):
@@ -36,12 +36,17 @@ class Epoch(str, enum.Enum):
     """The record cannot be placed. Not an error, and not poolable."""
 
 
-class MeaningChange(SQLModel, table=True):
-    """One declaration that a commit changed what something means."""
+class MeaningChange(BaseModel):
+    """One declaration that a commit changed what something means.
+
+    A plain model rather than a table. Applying a boundary is what every consumer needs;
+    storing one is what this service happens to do, and a consumer that imports the classifier
+    must not thereby acquire a database driver.
+    """
 
     __tablename__ = "meaning_change"
 
-    commit: str = Field(primary_key=True, description="The commit at which the new meaning starts.")
+    commit: str = Field(description="The commit at which the new meaning starts.")
     subject: str = Field(
         index=True,
         description="What changed meaning: a field name, a metric, an arm label, a scorer.",
@@ -64,7 +69,7 @@ class MeaningChange(SQLModel, table=True):
             "about, which is most of them."
         )
     )
-    declared_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    declared_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     declared_by: str = Field(default="")
 
 
@@ -137,8 +142,8 @@ def classify(record, change: MeaningChange) -> Epoch:
     if not revision:
         return Epoch.UNKNOWN
 
-    left = created if created.tzinfo else created.replace(tzinfo=UTC)
-    right = change.effective_at if change.effective_at.tzinfo else change.effective_at.replace(tzinfo=UTC)
+    left = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
+    right = change.effective_at if change.effective_at.tzinfo else change.effective_at.replace(tzinfo=timezone.utc)
     return Epoch.AFTER if left >= right else Epoch.BEFORE
 
 

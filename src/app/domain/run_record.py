@@ -1,7 +1,11 @@
-"""Run records — the audit and training substrate.
+"""The stored run record — one row per agent run.
 
-One row per agent run, written at the moment the run happens rather than reconstructed
-afterwards. It carries three things nothing else on the platform carries:
+This module is the *service's* persistence. The vocabulary and the rules live in
+:mod:`app.domain.outcomes` and do not import a database, because a consumer must be able to take
+the discipline without taking the storage. Importing this module costs you SQLModel; importing
+``outcomes`` costs you nothing beyond pydantic. Consumers want the second.
+
+A row carries three things nothing else on the platform carries:
 
 * **the transcript the model actually received**, including the assembled system prompt, which
   is what makes a run replayable and attributable to a configuration;
@@ -9,12 +13,7 @@ afterwards. It carries three things nothing else on the platform carries:
 * **the provenance of its environment** — model, endpoint, precision, code revision, and a
   fingerprint of the configuration that defines the arm.
 
-Four field-level decisions, each of which exists because its absence cost something real:
-
-``label_source``
-    Not all scorers are equal. Two scorers on the same artifact can disagree in both
-    directions, and a corpus where a third of the rows cannot name their own scorer cannot be
-    trained on or cited. Labelling is therefore impossible without declaring a source.
+Two fields exist because their absence cost something real and are worth naming here:
 
 ``degraded``
     Every automated verdict records whether it was produced by a working instrument. A scorer
@@ -25,74 +24,58 @@ Four field-level decisions, each of which exists because its absence cost someth
     Which implementation actually ran. A path that silently substitutes a fallback is
     indistinguishable later from one that was chosen deliberately, and surfaces months on as
     unexplained variance between arms.
-
-``extra``
-    The core carries mechanism and no vocabulary. Applications put their own join keys here,
-    which is what lets a run be joined to an external scorer without parsing its prompt.
 """
 
 from __future__ import annotations
 
-import enum
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import model_validator
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
-
-class LabelSource(str, enum.Enum):
-    """Who decided this run's outcome."""
-
-    UNLABELLED = "unlabelled"
-    SELF_REPORTED = "self_reported"
-    """The agent's own claim. Never citable; an agent grading itself is not a measurement."""
-
-    CONVENIENCE_VERIFIER = "convenience_verifier"
-    """An in-tree check. Useful as a diagnostic, not as a score: such checks have been
-    measured erring at rates that differ several-fold across arms, which does not cancel in a
-    contrast."""
-
-    OFFICIAL_HARNESS = "official_harness"
-    """The benchmark's own authoritative scorer."""
-
-    HUMAN = "human"
-
-
-CITABLE_LABEL_SOURCES = frozenset({LabelSource.OFFICIAL_HARNESS, LabelSource.HUMAN})
-"""Sources whose labels may be reported as results. Everything else is a diagnostic."""
-
-
-class RunStatus(str, enum.Enum):
-    """Terminal disposition of the run itself, independent of its outcome label."""
-
-    COMPLETED = "completed"
-    FAILED = "failed"
-    """The agent ran and did not succeed. A measurement."""
-
-    INFRASTRUCTURE_ERROR = "infrastructure_error"
-    """Something outside the agent broke. Not a measurement; excluded, and the exclusion is
-    counted per arm."""
-
-    TIMEOUT = "timeout"
-    CANCELLED = "cancelled"
-
-
-EXCLUDED_STATUSES = frozenset(
-    {RunStatus.INFRASTRUCTURE_ERROR, RunStatus.TIMEOUT, RunStatus.CANCELLED}
+from app.domain.outcomes import (
+    CITABLE_LABEL_SOURCES,
+    EXCLUDED_STATUSES,
+    Judgeable,
+    LabelAuthority,
+    LabelSource,
+    LabelUpdate,
+    RunRecordCreate,
+    RunStatus,
+    authority_of,
+    exclusion_channel,
+    is_citable,
+    is_excluded,
+    mlflow_source_type,
 )
-"""Statuses that remove a run from its arm's denominator. Each is an exclusion channel whose
-per-arm rate must be checked before any contrast is reported."""
+
+__all__ = [
+    "CITABLE_LABEL_SOURCES",
+    "EXCLUDED_STATUSES",
+    "Judgeable",
+    "LabelAuthority",
+    "LabelSource",
+    "LabelUpdate",
+    "RunRecord",
+    "RunRecordCreate",
+    "RunStatus",
+    "authority_of",
+    "exclusion_channel",
+    "is_citable",
+    "is_excluded",
+    "mlflow_source_type",
+    "to_record",
+]
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(timezone.utc)
 
 
 class RunRecord(SQLModel, table=True):
-    """One agent run."""
+    """One agent run, as stored."""
 
     __tablename__ = "run_record"
 
@@ -125,22 +108,23 @@ class RunRecord(SQLModel, table=True):
     """Resolved version of every component whose change would change behaviour.
 
     One revision stops being enough the moment an application depends on a library that can move
-    underneath it. A configuration fingerprint governs flags; it cannot see the version of imported
-    code, so two runs can share a fingerprint, share a code revision, and still have run different
-    software.
+    underneath it. A configuration fingerprint governs flags; it cannot see the version of
+    imported code, so two runs can share a fingerprint, share a code revision, and still have run
+    different software.
 
     That failure has a precedent worth stating: a study was protected by pinning a flag, and the
     commit that shipped the flag also rewrote the branch the flag selected between. The pin was
     real and the protection was not.
 
-    So record what actually resolved. `{"agentic-base": "0.2.1", "agentic-env": "0.5.0"}`. A run
-    that cannot name its components is placeable only by date, which is the weakest form of
-    placement there is.
+    So record what actually resolved. A run that cannot name its components is placeable only by
+    date, which is the weakest form of placement there is.
     """
 
     # --- outcome --------------------------------------------------------------
     status: RunStatus = Field(default=RunStatus.COMPLETED, index=True)
-    failure_kind: str = Field(default="", description="Free-form detail behind a non-completed status.")
+    failure_kind: str = Field(
+        default="", description="Free-form detail behind a non-completed status."
+    )
     resolved: bool | None = Field(default=None)
     label_source: LabelSource = Field(default=LabelSource.UNLABELLED, index=True)
     labelled_at: datetime | None = Field(default=None)
@@ -148,9 +132,13 @@ class RunRecord(SQLModel, table=True):
     # --- honesty of the measurement itself ------------------------------------
     degraded: bool = Field(
         default=False,
-        description="True when any automated verdict here came from a fallback or unavailable probe.",
+        description=(
+            "True when any automated verdict here came from a fallback or unavailable probe."
+        ),
     )
-    instrument: str = Field(default="", description="Which implementation actually produced the verdict.")
+    instrument: str = Field(
+        default="", description="Which implementation actually produced the verdict."
+    )
 
     # --- cost -----------------------------------------------------------------
     prompt_tokens: int = Field(default=0)
@@ -170,107 +158,24 @@ class RunRecord(SQLModel, table=True):
     extra: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
     # --- derived --------------------------------------------------------------
+    # Thin delegations. The rules live in `outcomes` so they apply to a consumer's own record
+    # type too; these exist so callers here read naturally.
     @property
     def excluded(self) -> bool:
         """Whether this run leaves its arm's denominator."""
-        return self.status in EXCLUDED_STATUSES
+        return is_excluded(self)
 
     @property
     def exclusion_channel(self) -> str:
         """The channel by which it left, or `included`."""
-        if not self.excluded:
-            return "included"
-        return self.failure_kind or self.status.value
+        return exclusion_channel(self)
 
     @property
     def citable(self) -> bool:
-        """Whether this run's outcome may be reported as a result.
-
-        Requires a label, from a citable source, produced by an instrument that was working.
-        """
-        return (
-            self.resolved is not None
-            and self.label_source in CITABLE_LABEL_SOURCES
-            and not self.degraded
-        )
+        """Whether this run's outcome may be reported as a result."""
+        return is_citable(self)
 
 
-class LabelUpdate(SQLModel):
-    """Back-fill an outcome. `label_source` is mandatory by construction."""
-
-    resolved: bool
-    label_source: LabelSource
-    instrument: str = ""
-    degraded: bool = False
-
-
-class RunRecordCreate(SQLModel):
-    """What a caller must supply to record a run.
-
-    Separate from the table model on purpose. SQLModel skips validation on table classes, so a
-    validator written there would look like enforcement and do nothing. Anything the platform
-    genuinely refuses to accept has to be refused here.
-
-    Two fields have no default, and the fact that this is mildly annoying is the point. Optional
-    provenance is never supplied: not through laziness, but through the honest path of least
-    resistance while you are trying to get one thing working. In the project this came from, a
-    corpus of 12,630 outcome rows ended up with 6,842 attributed to a convenience checker, 5,788
-    with no scorer named at all, and none at all attributed to the authoritative one, because
-    attribution was a later step that nobody ran. A scorer cannot be assigned to a verdict after
-    the fact.
-    """
-
-    tenant: str
-    code_revision: str
-    """The revision that produced this run. Without it the record cannot be placed against a
-    later declaration that some field changed meaning, and that placement cannot be recovered."""
-
-    component_versions: dict[str, str] = Field(default_factory=dict)
-    """Resolved versions of the libraries that can change behaviour underneath this run.
-
-    Optional rather than required, because an application with no such dependency has nothing to
-    record. It stops being optional the moment one exists, and `epochs` treats a record with no
-    component versions as unplaceable against a boundary declared on a component.
-    """
-
-    item: str = ""
-    arm: str = ""
-    arm_fingerprint: str = ""
-    system_prompt: str = ""
-    messages: list[dict[str, Any]] = Field(default_factory=list)
-    model: str = ""
-    endpoint: str = ""
-    precision: str = ""
-    status: RunStatus = RunStatus.COMPLETED
-    failure_kind: str = ""
-    resolved: bool | None = None
-    label_source: LabelSource = LabelSource.UNLABELLED
-    degraded: bool = False
-    instrument: str = ""
-    prompt_tokens: int = 0
-    completion_tokens: int = 0
-    joules: float = 0.0
-    num_steps: int = 0
-    total_tool_calls: int = 0
-    elapsed_ms: float = 0.0
-    extra: dict[str, Any] = Field(default_factory=dict)
-
-    @model_validator(mode="after")
-    def an_outcome_requires_a_source(self) -> "RunRecordCreate":
-        """Refuse an outcome whose scorer is not named."""
-        if self.resolved is not None and self.label_source is LabelSource.UNLABELLED:
-            raise ValueError(
-                "resolved was supplied without a label_source. Record the run without an outcome "
-                "and attach one later, or name the scorer now."
-            )
-        return self
-
-    @model_validator(mode="after")
-    def a_failure_kind_belongs_to_a_failure(self) -> "RunRecordCreate":
-        """A detail on a completed run is a mislabelled exclusion waiting to happen."""
-        if self.failure_kind and self.status is RunStatus.COMPLETED:
-            raise ValueError("failure_kind was supplied on a run whose status is completed")
-        return self
-
-    def to_record(self) -> RunRecord:
-        return RunRecord(**self.model_dump())
+def to_record(payload: RunRecordCreate) -> RunRecord:
+    """Build a stored row from a validated creation payload."""
+    return RunRecord(**payload.model_dump())

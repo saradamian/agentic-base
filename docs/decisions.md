@@ -82,3 +82,34 @@ The conclusion carried here is that the mechanism is worth having and the conten
 each domain measures for itself. This platform records experience so that a future learning claim
 can be tested. Filling this section with an unmeasured subsystem to avoid an empty one is the
 mistake that produced the campaign above.
+
+## D8: The library half is importable by its consumers, and that fixes its floor and its dependencies
+
+This repository is two things. A service that runs on the platform, and a library that other
+people import. The second is the whole point of the layer: code is supposed to leave `agentic-env`
+and land here, which only works if `agentic-env` can import what lands.
+
+On the day this was checked, it could not. The package declared Python 3.14 against a consumer
+whose floor is 3.10, so the import would have failed outright on the workstation where its cells
+run. Its core dependencies were a web framework, a migration tool, a Prometheus instrumentor and a
+Postgres driver, so importing a URL-safety helper would have pulled all four into a benchmark cell
+inside a task container with no route to a database. Neither problem was visible from inside this
+repository, because everything here is the service.
+
+So the split is explicit. The library half takes pydantic, pydantic-settings, httpx and PyYAML,
+and nothing else. The service half is an optional extra. The declared floor is the consumer's
+floor, not ours.
+
+Two consequences worth stating, because they are the parts that get undone later.
+
+The rules are functions over a structural protocol, not methods on our table. A consumer keeps its
+own record type and still gets `is_citable`, `is_excluded` and `exclusion_channel`. If applying the
+discipline required adopting the storage, the discipline would not travel, and a base layer whose
+contribution does not travel is a second copy of the thing it meant to replace.
+
+And the portable surface is a list in `tests/test_portable_surface.py` rather than a paragraph in
+a document. It checks that every portable module parses under the consumer's grammar, that
+importing one loads no service dependency, and that the declared floor still admits the consumer.
+The import check runs in a fresh interpreter on purpose: in-process it would pass whenever an
+earlier test had already imported SQLModel, which is an absence the check could not have
+contradicted. Each of the four was verified to fail when broken.
