@@ -19,7 +19,12 @@
     "completionTokens": { "type": "integer" },
     "elapsedMs": { "type": "number" },
     "joules": { "type": "number", "description": "Physical energy, kept apart from tokens and elapsed time because each prices a different thing." },
-    "sourceRunId": { "type": "string", "description": "The producer's own run id. The event's runId is this when it is a UUID and a uuid5 derived from it otherwise." }
+    "sourceRunId": { "type": "string", "description": "The producer's own run id. The event's runId is this when it is a UUID and a uuid5 derived from it otherwise." },
+    "principal": { "type": "string", "description": "The person the run acted for, as the federation names them. Empty means a service identity." },
+    "classification": { "type": "string", "enum": ["unclassified", "public", "internal", "confidential", "personal", "health"], "description": "What class of data the run touched. Set per tenant or run, never by the agent." },
+    "isolationTier": { "type": "string", "enum": ["unspecified", "community", "virtualised", "isolated"], "description": "The platform isolation tier the run executed under." },
+    "redaction": { "type": "string", "description": "What removed personal data before the transcript was written: none, or the instrument's name and version." },
+    "approvals": { "type": "integer", "description": "How many human approval records the run carries." }
   },
   "required": ["labelSource", "authority", "degraded"]
 }

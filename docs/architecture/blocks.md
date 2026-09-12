@@ -149,6 +149,45 @@ agentic-env's history; documentation written for a stranger's Confluence. Measur
 current product, 1,687 lines, the only site-specific string in code is one image path in a
 compose file, and its fourteen configuration variables carry no SURF value.
 
+## How people get an agent
+
+Three ways, and all three use the same blocks.
+
+**Bring your own agent.** A researcher or a company connects the agent they already run, whatever
+framework it is, to SURF's blocks over MCP, with credentials delegated for that person. This is
+the external offer, and it costs SURF nothing per agent.
+
+**An agent SURF runs as a service.** A GitLab companion that reviews merge requests, a research
+briefer, Fred on the AI Hub. Hosted on the Developer Platform, operated by the team that owns
+it, offered to members and to SURF itself. This is where the forge, execution and channels
+blocks and delegated credentials are needed first.
+
+**An agent for SURF's own work.** The same service agents, in an internal tenant, plus the
+internal generative AI platform. Internal use is not a separate design; it is the first tenant of
+the second way, which is why the GitLab companion is the right first service: SURF is its first
+customer.
+
+## Where the blocks land in the AI Factory's plan
+
+The plan's task headings, paraphrased, against the blocks. Every block maps to a task; two
+tasks have no block because they are the platform's own work, not an agent capability.
+
+| task, as the plan names it | blocks |
+|---|---|
+| model experimentation: an LLM sandbox with safety filters and logging | execution, inference, runs |
+| evaluation and compliance: logging, evidence and audit infrastructure | runs; the cross-cutting page |
+| model management: a model registry with versioning | artifacts |
+| user access: co-creation environments, Jupyter and VS Code in the browser | workspace, identity |
+| user productivity: standardised APIs and a command line | the contracts layer; every block's client |
+| multi-site workflows: a portability toolkit, workflow import and export | artifacts (workflows), runs |
+| data engineering: landing zones on object storage | data |
+| data governance: provenance and versioning, quality, personal data | data; the run record's classification and redaction |
+| federated learning infrastructure | execution, data; no agent capability of its own |
+| secure enclaves for sensitive data | execution's isolated tier; the platform's, not a block |
+
+Missing from the plan and present here: forge, channels, web, and delegated credentials. Those
+are the four things a SURF-run agent needs that a model-serving plan does not think of.
+
 ## What makes a block composable
 
 - **It speaks MCP and nothing private.** Any agent, any framework, any vendor's client, connects

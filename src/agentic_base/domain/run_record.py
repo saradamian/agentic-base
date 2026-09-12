@@ -38,6 +38,9 @@ from sqlmodel import Field, SQLModel
 from agentic_base.domain.outcomes import (
     CITABLE_LABEL_SOURCES,
     EXCLUDED_STATUSES,
+    Approval,
+    DataClass,
+    IsolationTier,
     Judgeable,
     LabelAuthority,
     LabelSource,
@@ -52,8 +55,11 @@ from agentic_base.domain.outcomes import (
 )
 
 __all__ = [
+    "Approval",
     "CITABLE_LABEL_SOURCES",
+    "DataClass",
     "EXCLUDED_STATUSES",
+    "IsolationTier",
     "Judgeable",
     "LabelAuthority",
     "LabelSource",
@@ -111,6 +117,13 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     endpoint: str = Field(default="")
     precision: str = Field(default="")
     code_revision: str = Field(default="")
+    principal: str = Field(default="", index=True)
+    classification: DataClass = Field(default=DataClass.UNCLASSIFIED, index=True)
+    isolation_tier: IsolationTier = Field(default=IsolationTier.UNSPECIFIED)
+    redaction: str = Field(default="none")
+    approvals: list[dict[str, Any]] = Field(
+        default_factory=list, sa_column=Column(JSON)
+    )
     component_versions: dict[str, str] = Field(
         default_factory=dict, sa_column=Column(JSON)
     )
@@ -187,7 +200,7 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
 
 def to_record(payload: RunRecordCreate) -> RunRecord:
     """Build a stored row from a validated creation payload."""
-    return RunRecord(**payload.model_dump())
+    return RunRecord(**payload.model_dump(mode="json"))
 
 
 def to_payload(record: RunRecord) -> RunRecordCreate:

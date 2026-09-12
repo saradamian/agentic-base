@@ -63,6 +63,11 @@ def _environment(run: RunRecordCreate) -> dict[str, Any]:
         "model": run.model,
         "endpoint": run.endpoint,
         "precision": run.precision,
+        "principal": run.principal,
+        "classification": run.classification.value,
+        "isolation_tier": run.isolation_tier.value,
+        "redaction": run.redaction,
+        "approvals": [a.model_dump() for a in run.approvals],
     }
 
 
@@ -110,7 +115,7 @@ def to_prov(run: RunRecordCreate, run_id: str, created_at: datetime) -> ProvDocu
     environment = doc.entity(
         f"run:{run_id}/environment",
         {
-            f"ab:{k}": (json.dumps(v) if isinstance(v, dict) else v)
+            f"ab:{k}": (json.dumps(v) if isinstance(v, dict | list) else v)
             for k, v in _environment(run).items()
         },
     )
@@ -161,6 +166,11 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
         elapsedMs: float = 0.0
         joules: float = 0.0
         sourceRunId: str = ""
+        principal: str = ""
+        classification: str = "unclassified"
+        isolationTier: str = "unspecified"
+        redaction: str = "none"
+        approvals: int = 0
 
         @staticmethod
         def _get_schema() -> str:
@@ -183,6 +193,11 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
             elapsedMs=run.elapsed_ms,
             joules=run.joules,
             sourceRunId=run_id,
+            principal=run.principal,
+            classification=run.classification.value,
+            isolationTier=run.isolation_tier.value,
+            redaction=run.redaction,
+            approvals=len(run.approvals),
         ),
     }
     versions = run.component_versions
@@ -252,7 +267,9 @@ def build_process_run_crate(
                 properties={
                     "@type": "PropertyValue",
                     "name": name,
-                    "value": json.dumps(item) if isinstance(item, dict) else str(item),
+                    "value": json.dumps(item)
+                    if isinstance(item, dict | list)
+                    else str(item),
                 },
             )
         )

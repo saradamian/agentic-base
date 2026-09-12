@@ -157,3 +157,47 @@ def test_a_benchmarks_own_grader_is_authoritative_and_citable() -> None:
     assert LabelSource.BENCHMARK_GRADER in CITABLE_LABEL_SOURCES
     assert authority_of(LabelSource.BENCHMARK_GRADER) is LabelAuthority.AUTHORITATIVE
     assert mlflow_source_type(LabelSource.BENCHMARK_GRADER) == "CODE"
+
+
+def test_personal_or_health_data_is_refused_on_the_community_tier() -> None:
+    """Classification decides the tier; the one combination no regime permits is refused."""
+    import pytest
+
+    from agentic_base.domain.outcomes import DataClass, IsolationTier, RunRecordCreate
+
+    with pytest.raises(ValueError, match="community"):
+        RunRecordCreate(
+            tenant="t",
+            code_revision="c",
+            classification=DataClass.HEALTH,
+            isolation_tier=IsolationTier.COMMUNITY,
+        )
+    RunRecordCreate(tenant="t", code_revision="c", classification=DataClass.HEALTH)
+    RunRecordCreate(
+        tenant="t",
+        code_revision="c",
+        classification=DataClass.HEALTH,
+        isolation_tier=IsolationTier.ISOLATED,
+    )
+
+
+def test_a_run_records_who_it_acted_for_and_who_approved_what() -> None:
+    from agentic_base.domain.outcomes import Approval, RunRecordCreate
+
+    run = RunRecordCreate(
+        tenant="t",
+        code_revision="c",
+        principal="alice@example.org",
+        approvals=[
+            Approval(
+                action="git push",
+                decision="approved",
+                by="alice@example.org",
+                at="2026-09-13T10:00:00Z",
+            )
+        ],
+    )
+
+    assert run.principal == "alice@example.org"
+    assert run.approvals[0].decision == "approved"
+    assert run.redaction == "none"

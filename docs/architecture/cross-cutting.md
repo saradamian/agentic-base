@@ -17,9 +17,22 @@ for counsel and the compliance officer.
 | **compliance** evidence | the hash chain over audit fields; provenance in W3C PROV, OpenLineage and RO-Crate; `compliance.md` maps obligations to what exists | keeps the evidence a regime asks for as a by-product of running, not a report assembled later | ISO 27001 certification of the HPC services; the baseline information security standard every SURF service meets; the audit function |
 | **engineering practice** | `ENGINEERING.md`: every rule names the test that fails when it stops holding; signed tags, attested wheels and SBOMs; dependency review and audit on every change | starts from the template and inherits the standard | the Developer Platform's pipeline components, GitOps, the developer portal |
 
-The gaps in that table, stated plainly: nothing redacts personal data from a transcript before it
-is written; no record says what class of data a run touched; no block yet demands a delegated
-credential; approvals are not modelled. Each one appears below as an obligation that produced it.
+## The four gaps, set in the structure
+
+Each of these was a gap in the first version of this page. None has a full solution today. All
+four are now fields on the record, with defaults that keep every existing writer working, so a
+corpus recorded from now on can say which runs predate the solution, and a solution has a place
+to write to when it arrives.
+
+| gap | in the structure now | what fills it later | AI Factory task it belongs to |
+|---|---|---|---|
+| nothing redacts personal data before a transcript is written | `redaction` on every run: `none`, or the instrument's name and version. A transcript with `none` and a personal classification is a finding | Presidio at the recording seam, in the ledger as ADOPT-when-built | the LLM sandbox with safety filters and logging; data governance |
+| no record says what class of data a run touched | `classification` on every run, six levels from unclassified to health, and `isolation_tier`. One rule already enforced: personal or health data cannot have run on the community tier | the tenant's use case sets both; the execution block reads them to pick the tier | data governance; the sandbox architecture with its isolation and access policies |
+| no block demands a delegated credential | `principal` on every run: the person it acted for, empty for a service identity. Recorded so the corpus can separate the two populations | scoped, expiring credentials issued by the federation and demanded by every block | user access; the identity federation the platform already runs |
+| approvals are not modelled | `approvals` on every run, each with action, decision, who and when, and an endpoint to add one | the channels and forge blocks write one before a write, a submission or a send | evaluation and compliance: the logging, evidence and audit infrastructure |
+
+The AI Factory's task names above are the plan's own headings, paraphrased; the numbering is in
+the private deployment overlay's copy of this map, because the plan is not public.
 
 ## The obligations, and what each asks of an agent platform
 

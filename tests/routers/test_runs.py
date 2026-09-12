@@ -165,3 +165,33 @@ def test_an_unknown_provenance_format_is_refused(test_client) -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_an_approval_is_kept_beside_the_run(test_client) -> None:
+    created = test_client.post("/runs", json=_payload(item="task-approve")).json()
+
+    response = test_client.post(
+        f"/runs/{created['run_id']}/approvals",
+        json={
+            "action": "git push",
+            "decision": "approved",
+            "by": "alice@example.org",
+            "at": "2026-09-13T10:00:00Z",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["approvals"][0]["by"] == "alice@example.org"
+    fetched = test_client.get(f"/runs/{created['run_id']}").json()
+    assert len(fetched["approvals"]) == 1
+
+
+def test_a_health_run_on_the_community_tier_is_refused_at_the_api(test_client) -> None:
+    response = test_client.post(
+        "/runs",
+        json=_payload(
+            item="task-health", classification="health", isolation_tier="community"
+        ),
+    )
+
+    assert response.status_code == 422
