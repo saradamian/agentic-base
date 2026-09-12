@@ -24,7 +24,7 @@ def _run(**overrides) -> RunRecordCreate:
     base = dict(
         tenant="hpml",
         code_revision="ba38f821",
-        component_versions={"agentic-base": "0.2.0"},
+        component_versions={"surf-agentic-base": "0.2.0"},
         item="task-1",
         arm="full",
         arm_fingerprint="10d6b5b3fa11",
@@ -160,7 +160,7 @@ def test_process_run_crate_reloads_and_conforms_to_the_profile(tmp_path) -> None
     assert results["label_source"] == "official_harness"
     objects = {o["name"]: o["value"] for o in action["object"]}
     assert objects["joules"] == "41.5"
-    assert json.loads(objects["component_versions"]) == {"agentic-base": "0.2.0"}
+    assert json.loads(objects["component_versions"]) == {"surf-agentic-base": "0.2.0"}
 
 
 def test_a_failed_run_is_a_failed_action_with_no_result(tmp_path) -> None:
@@ -202,5 +202,5 @@ def test_the_module_imports_without_the_extra_and_names_it_when_called(
     module = importlib.import_module("agentic_base.provenance.emit")
     monkeypatch.setattr(builtins, "__import__", refuse)
 
-    with pytest.raises(ImportError, match=r"agentic-base\[provenance\]"):
+    with pytest.raises(ImportError, match=r"surf-agentic-base\[provenance\]"):
         module.to_prov(_run(), "abc", CREATED)

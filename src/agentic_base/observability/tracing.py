@@ -35,7 +35,7 @@ from opentelemetry.sdk.trace.export import (
     SpanExporter,
 )
 
-DISTRIBUTION = "agentic-base"
+DISTRIBUTION = "surf-agentic-base"
 
 
 def _disabled() -> bool:

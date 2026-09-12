@@ -21,94 +21,6 @@ wheels = [
 ]
 
 [[package]]
-name = "agentic-base"
-source = { editable = "." }
-dependencies = [
-    { name = "httpx" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "pyyaml" },
-]
-
-[package.optional-dependencies]
-provenance = [
-    { name = "openlineage-python" },
-    { name = "prov" },
-    { name = "rocrate" },
-]
-service = [
-    { name = "alembic" },
-    { name = "asgi-correlation-id" },
-    { name = "fastapi", extra = ["standard"] },
-    { name = "mcp" },
-    { name = "openinference-semantic-conventions" },
-    { name = "opentelemetry-exporter-otlp-proto-http" },
-    { name = "opentelemetry-instrumentation-fastapi" },
-    { name = "opentelemetry-sdk" },
-    { name = "opentelemetry-semantic-conventions" },
-    { name = "prometheus-fastapi-instrumentator" },
-    { name = "psycopg", extra = ["binary"] },
-    { name = "sqlmodel" },
-    { name = "structlog" },
-    { name = "uvicorn" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "coverage" },
-    { name = "httpx2" },
-    { name = "mkdocs-techdocs-core" },
-    { name = "mypy" },
-    { name = "mypy-extensions" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "pytest-env" },
-    { name = "ruff" },
-    { name = "tomli", marker = "python_full_version < '3.11'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "alembic", marker = "extra == 'service'", specifier = "==1.17.2" },
-    { name = "asgi-correlation-id", marker = "extra == 'service'", specifier = "==5.0.1" },
-    { name = "fastapi", extras = ["standard"], marker = "extra == 'service'", specifier = "==0.141.1" },
-    { name = "httpx", specifier = ">=0.27" },
-    { name = "mcp", marker = "extra == 'service'", specifier = ">=2.2,<3" },
-    { name = "openinference-semantic-conventions", marker = "extra == 'service'", specifier = "==0.1.37" },
-    { name = "openlineage-python", marker = "extra == 'provenance'", specifier = ">=1.53,<2" },
-    { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'service'", specifier = "==1.44.0" },
-    { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'service'", specifier = "==0.65b0" },
-    { name = "opentelemetry-sdk", marker = "extra == 'service'", specifier = "==1.44.0" },
-    { name = "opentelemetry-semantic-conventions", marker = "extra == 'service'", specifier = "==0.65b0" },
-    { name = "prometheus-fastapi-instrumentator", marker = "extra == 'service'", specifier = "==8.1.0" },
-    { name = "prov", marker = "extra == 'provenance'", specifier = ">=3.1,<4" },
-    { name = "psycopg", extras = ["binary"], marker = "extra == 'service'", specifier = "==3.2.12" },
-    { name = "pydantic", specifier = ">=2.9,<3" },
-    { name = "pydantic-settings", specifier = ">=2.5,<3" },
-    { name = "pyyaml", specifier = ">=6" },
-    { name = "rocrate", marker = "extra == 'provenance'", specifier = ">=0.15,<1" },
-    { name = "sqlmodel", marker = "extra == 'service'", specifier = "==0.0.27" },
-    { name = "structlog", marker = "extra == 'service'", specifier = "==26.1.0" },
-    { name = "uvicorn", marker = "extra == 'service'", specifier = "==0.52.4" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "coverage", specifier = "==7.16.0" },
-    { name = "httpx2" },
-    { name = "mkdocs-techdocs-core", specifier = "==1.7.1" },
-    { name = "mypy", specifier = "==2.3.1" },
-    { name = "mypy-extensions", specifier = "==1.1.0" },
-    { name = "pytest", specifier = "==9.1.1" },
-    { name = "pytest-asyncio", specifier = "==1.4.0" },
-    { name = "pytest-cov", specifier = "==7.1.0" },
-    { name = "pytest-env", specifier = "==1.7.1" },
-    { name = "ruff", specifier = "==0.16.6" },
-    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.4" },
-]
-
-[[package]]
 name = "alembic"
 version = "1.17.2"
 source = { registry = "https://pypi.org/simple" }
@@ -3265,6 +3177,94 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/5e/89/b4a0bcfdf4f71a3dea31379f095929613d7e4528a0996bca6aa964cd0dca/structlog-26.1.0.tar.gz", hash = "sha256:f63a716cbd1b1291cf7661de7794b455acfa4c43c5bcf1630e6ad5ddc1adb3b7", size = 1459881 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a9/18/489c97b834dfff9cf2fc2507cede4bcd4b11e67f84bc462acd1992496f86/structlog-26.1.0-py3-none-any.whl", hash = "sha256:e081a26d6c373e6d201eca24eede26d8ffab07f88f477822e679183428d3d91e", size = 73764 },
+]
+
+[[package]]
+name = "surf-agentic-base"
+source = { editable = "." }
+dependencies = [
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "pyyaml" },
+]
+
+[package.optional-dependencies]
+provenance = [
+    { name = "openlineage-python" },
+    { name = "prov" },
+    { name = "rocrate" },
+]
+service = [
+    { name = "alembic" },
+    { name = "asgi-correlation-id" },
+    { name = "fastapi", extra = ["standard"] },
+    { name = "mcp" },
+    { name = "openinference-semantic-conventions" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
+    { name = "opentelemetry-instrumentation-fastapi" },
+    { name = "opentelemetry-sdk" },
+    { name = "opentelemetry-semantic-conventions" },
+    { name = "prometheus-fastapi-instrumentator" },
+    { name = "psycopg", extra = ["binary"] },
+    { name = "sqlmodel" },
+    { name = "structlog" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "coverage" },
+    { name = "httpx2" },
+    { name = "mkdocs-techdocs-core" },
+    { name = "mypy" },
+    { name = "mypy-extensions" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "pytest-env" },
+    { name = "ruff" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "alembic", marker = "extra == 'service'", specifier = "==1.17.2" },
+    { name = "asgi-correlation-id", marker = "extra == 'service'", specifier = "==5.0.1" },
+    { name = "fastapi", extras = ["standard"], marker = "extra == 'service'", specifier = "==0.141.1" },
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "mcp", marker = "extra == 'service'", specifier = ">=2.2,<3" },
+    { name = "openinference-semantic-conventions", marker = "extra == 'service'", specifier = "==0.1.37" },
+    { name = "openlineage-python", marker = "extra == 'provenance'", specifier = ">=1.53,<2" },
+    { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'service'", specifier = "==1.44.0" },
+    { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'service'", specifier = "==0.65b0" },
+    { name = "opentelemetry-sdk", marker = "extra == 'service'", specifier = "==1.44.0" },
+    { name = "opentelemetry-semantic-conventions", marker = "extra == 'service'", specifier = "==0.65b0" },
+    { name = "prometheus-fastapi-instrumentator", marker = "extra == 'service'", specifier = "==8.1.0" },
+    { name = "prov", marker = "extra == 'provenance'", specifier = ">=3.1,<4" },
+    { name = "psycopg", extras = ["binary"], marker = "extra == 'service'", specifier = "==3.2.12" },
+    { name = "pydantic", specifier = ">=2.9,<3" },
+    { name = "pydantic-settings", specifier = ">=2.5,<3" },
+    { name = "pyyaml", specifier = ">=6" },
+    { name = "rocrate", marker = "extra == 'provenance'", specifier = ">=0.15,<1" },
+    { name = "sqlmodel", marker = "extra == 'service'", specifier = "==0.0.27" },
+    { name = "structlog", marker = "extra == 'service'", specifier = "==26.1.0" },
+    { name = "uvicorn", marker = "extra == 'service'", specifier = "==0.52.4" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "coverage", specifier = "==7.16.0" },
+    { name = "httpx2" },
+    { name = "mkdocs-techdocs-core", specifier = "==1.7.1" },
+    { name = "mypy", specifier = "==2.3.1" },
+    { name = "mypy-extensions", specifier = "==1.1.0" },
+    { name = "pytest", specifier = "==9.1.1" },
+    { name = "pytest-asyncio", specifier = "==1.4.0" },
+    { name = "pytest-cov", specifier = "==7.1.0" },
+    { name = "pytest-env", specifier = "==1.7.1" },
+    { name = "ruff", specifier = "==0.16.6" },
+    { name = "tomli", marker = "python_full_version < '3.11'", specifier = ">=2.4" },
 ]
 
 [[package]]

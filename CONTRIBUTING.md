@@ -76,7 +76,8 @@ Semantic versioning. The version is the git tag; nothing is edited to cut a rele
 
 - `0.y.z` while the interface is settling. A minor bump may change the public interface, and it
   is stated in the notes when it does. The import name is `agentic_base`; it was `app` until
-  `0.2.0`, and the reason it changed is in the release notes for that version.
+  `0.2.0`. The distribution name is `surf-agentic-base` since `0.3.0`, because `agentic-base` on
+  PyPI belongs to an unrelated project and a pin against it would have installed theirs.
 - Patch releases fix without changing an interface.
 - Tag `vX.Y.Z` on `main`. The release workflow builds the distribution, refuses if the built
   version differs from the tag, and publishes a GitHub release with generated notes. Nothing goes

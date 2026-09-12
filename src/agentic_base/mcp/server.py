@@ -33,12 +33,12 @@ from agentic_base.domain.validity import check_comparison
 from agentic_base.limits import get_limits
 from agentic_base.recording import CallObserver, NullObserver, SafeObserver
 
-SERVER_NAME = "agentic-base"
+SERVER_NAME = "surf-agentic-base"
 
 
 def _distribution_version() -> str:
     try:
-        return version("agentic-base")
+        return version("surf-agentic-base")
     except PackageNotFoundError:
         return "0"
 

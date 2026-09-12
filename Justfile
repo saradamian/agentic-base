@@ -22,11 +22,11 @@ run:
     uv run uvicorn --app-dir src agentic_base.main:get_app --factory --port 8080 --reload
 
 suspend cluster:
-    flux suspend helmrelease --context {{cluster}} -n services-agentic-base agentic-base
+    flux suspend helmrelease --context {{cluster}} -n services-surf-agentic-base surf-agentic-base
 resume cluster:
-    flux resume helmrelease --context {{cluster}} -n services-agentic-base agentic-base
+    flux resume helmrelease --context {{cluster}} -n services-surf-agentic-base surf-agentic-base
 reconcile cluster:
-    flux reconcile helmrelease --context {{cluster}} -n services-agentic-base agentic-base
+    flux reconcile helmrelease --context {{cluster}} -n services-surf-agentic-base surf-agentic-base
 
 docs:
     uv run mkdocs serve
