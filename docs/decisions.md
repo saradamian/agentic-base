@@ -113,3 +113,31 @@ importing one loads no service dependency, and that the declared floor still adm
 The import check runs in a fresh interpreter on purpose: in-process it would pass whenever an
 earlier test had already imported SQLModel, which is an absence the check could not have
 contradicted. Each of the four was verified to fail when broken.
+
+## D9: Spend requiredness where the information is unrecoverable
+
+A field is required here when losing it cannot be repaired later, and optional when it can. That
+is the whole rule, and it decides cases that would otherwise be argued one at a time.
+
+| field | recoverable after the fact? | required |
+|---|---|---|
+| `label_source` | no. Once a run is over, nothing says which checker produced its verdict | yes |
+| `code_revision` | no. A deployed tree may have no `.git`, and the record outlives the checkout | yes |
+| `component_versions` | no. A fingerprint governs flags and cannot see an imported version | yes when one exists |
+| `tenant` | yes. Reconstructible from model, paths and timestamps | no |
+| `created_at` | yes. It has a default | no |
+
+The rule arrived by disagreement, which is worth recording because it is why it is trusted. A
+review argued that requiring `tenant` is multi-user infrastructure for one and a half single-user
+consumers, and that the field would hold the same constant string forever: a required field
+carrying no information, which is the failure the scorer rule exists to prevent, one field over.
+The parallel is fair and the conclusion is still wrong, because the cost of being wrong about a
+tenant is a backfill and the cost of being wrong about a scorer is a corpus nobody may cite.
+
+A second argument was available and is deliberately not used: the declared destination is a
+multitenant facility, so the constant string is expected to stop being constant. Arguments from a
+future deployment are exactly the kind this repository is supposed to distrust. It is the
+asymmetry above that carries the decision.
+
+What this buys is that the next field does not need a debate. Ask whether the information can be
+reconstructed from what will still exist. If it cannot, refuse the write without it.

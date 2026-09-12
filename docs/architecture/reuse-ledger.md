@@ -105,3 +105,32 @@ outcome label rather than only its modality. Neither is a new standard.
 **One thing to carry to the procurement that we did not have.** Evaluation is being discussed as a
 compute bottleneck in its own right. The acceptance suite has no agentic workload, which was
 already remark A1, and no evaluation workload either, which nobody had noticed.
+
+
+## The open question this ledger has not answered
+
+The ledger says **ADOPT MLflow** and this repository still carries its own run store. The
+vocabulary is bridged; the storage is not. That is a gap between a verdict and the code, and it is
+recorded here rather than left as an intention.
+
+The test for keeping a store you have been told to replace is whether the thing you keep does
+something the thing you would adopt cannot. Here it does: MLflow cannot express *this label came
+from a checker whose false-fail rate differs several-fold across arms and must never be differenced
+against another arm's*. That is a schema property, and a schema gap cannot be bridged by writing
+into an optional free-text field.
+
+But the sharper question is whether the **store** is load-bearing or only the **write-path rule**.
+One could adopt MLflow's storage and still refuse a write that does not name a scorer, enforcing
+at our boundary and persisting through theirs. Three things decide it, and all three are
+measurable rather than arguable:
+
+1. Does the refusal survive the round trip, or can a client write past it?
+2. Can the authority vocabulary be reconstructed on read?
+3. **Can a reader tell a reconstructed authority level from a natively stored one?** If it cannot,
+   the vocabulary has survived in form and not in force, which is the failure that looks most like
+   success.
+
+If all three hold, the store goes and the rule stays, and the ledger is satisfied without losing
+the part that matters. If any fails, there is a written reason to keep the store, which is what
+the ledger actually wants. Until that is measured, this section is the honest statement of where
+the repository stands.

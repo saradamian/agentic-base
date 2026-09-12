@@ -149,6 +149,18 @@ says it is safe is a point in time, and the action that falsifies it is usually 
 looks like progress.
 
 
+## A protocol in the first wave
+
+`core/slurm.py` carries `SlurmBackend`, and it is one of two protocols in the whole of
+`agentic-env`. Both declare methods only, so neither will acquire the invariance defect on the way
+down: a protocol whose members are declared as attributes reads as invariant, and a consumer's
+frozen record then fails to satisfy the interface built to accept it. Both protocols in this
+repository had exactly that defect and it was found by the first run of a type checker that had
+never run.
+
+The risk is not in what moves now. It arrives with the next protocol someone adds to a module that
+has already moved, and this plan is the only place anyone will look for that.
+
 ## One challenge recorded rather than acted on
 
 A peer's review argues that `tenant` should be demoted from required, on the grounds that
@@ -157,8 +169,9 @@ filled with the same constant string forever, which is a required field carrying
 That is the failure mode the scorer rule exists to prevent, one field over, and the parallel is
 fair.
 
-It is not being acted on, for one asymmetry that decides it. **A tenant is recoverable after the
-fact and a scorer is not.** You can always work out which project a run belonged to; you can never
+It is not being acted on, for one asymmetry that decides it, now written up as a general rule in
+`docs/decisions.md` D9 so the next field does not need the same argument. **A tenant is
+recoverable after the fact and a scorer is not.** You can always work out which project a run belonged to; you can never
 work out which checker produced a verdict once the run is over. So the cost of getting `tenant`
 wrong is an annoying backfill, while the cost of getting `label_source` wrong is a corpus that
 cannot be cited. Requiredness is worth spending where the information is unrecoverable.
