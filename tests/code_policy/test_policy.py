@@ -5,7 +5,7 @@ text-pattern blocklist was defeated by writing the attribute name as two adjacen
 literals, then walking the object graph to reach the file builtin.
 """
 
-from app.code_policy.policy import inspect, is_acceptable
+from agentic_base.code_policy.policy import inspect, is_acceptable
 
 
 def test_plain_arithmetic_passes() -> None:

@@ -67,7 +67,7 @@ of the predecessor project worth carrying. The scheduling underneath it is commo
 
 ## Sandboxing becomes real
 
-The structural filter in `app.code_policy` is a pre-filter, and its own documentation says it is
+The structural filter in `agentic_base.code_policy` is a pre-filter, and its own documentation says it is
 not an isolation boundary. On Slurm with user namespaces disabled there was no boundary available
 to put behind it.
 

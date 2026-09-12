@@ -22,7 +22,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from app.limits import get_limits
+from agentic_base.limits import get_limits
 
 
 class EndpointState(str, enum.Enum):

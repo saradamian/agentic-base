@@ -51,11 +51,11 @@ found.
 | requirement | what serves it here |
 |---|---|
 | automatic event recording over a system's lifetime | the run record, written while the run happens, not reconstructed after |
-| evidence that a record has not been altered | the hash chain in `app.domain.integrity`, verifiable on demand |
+| evidence that a record has not been altered | the hash chain in `agentic_base.domain.integrity`, verifiable on demand |
 | provenance of a performance claim | `label_source`, which refuses citability to a self-reported or convenience-scored outcome |
 | evidence that a verdict came from a working instrument | `degraded` and `instrument` |
 | reproducibility of a reported result | model, endpoint, precision, code revision and configuration fingerprint on every record |
-| soundness of a comparison between configurations | `app.domain.validity` |
+| soundness of a comparison between configurations | `agentic_base.domain.validity` |
 | data and workflow provenance in a standard format | PROV, RO-Crate and OpenLineage emission |
 | dependency and supply-chain evidence | Dependency Track through the platform pipeline, on every build |
 | vulnerability handling | the same, plus Renovate |

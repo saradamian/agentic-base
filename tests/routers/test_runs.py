@@ -1,6 +1,6 @@
 """End-to-end tests for the run endpoints."""
 
-from app.domain.run_record import LabelSource, RunStatus
+from agentic_base.domain.run_record import LabelSource, RunStatus
 
 
 def _payload(**kwargs) -> dict:

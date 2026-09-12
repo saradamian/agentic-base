@@ -125,7 +125,7 @@ def test_ephemeral_storage_is_bounded(values) -> None:
 
 def test_egress_is_default_deny_with_a_declared_allowlist(values) -> None:
     """This is where generated code meets a real boundary. The structural filter in
-    app.code_policy is a pre-filter and says so itself."""
+    agentic_base.code_policy is a pre-filter and says so itself."""
     policy = values["networkPolicy"]
 
     assert policy["enabled"] is True

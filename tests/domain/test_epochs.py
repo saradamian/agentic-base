@@ -2,8 +2,8 @@
 
 from datetime import datetime, timedelta, timezone
 
-from app.domain.epochs import Epoch, MeaningChange, check_poolable, classify
-from app.domain.run_record import RunRecord
+from agentic_base.domain.epochs import Epoch, MeaningChange, check_poolable, classify
+from agentic_base.domain.run_record import RunRecord
 
 LANDED = datetime(2026, 9, 1, tzinfo=timezone.utc)
 

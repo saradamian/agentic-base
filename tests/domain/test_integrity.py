@@ -1,7 +1,12 @@
 """The hash chain over run records."""
 
-from app.domain.integrity import GENESIS, build_chain, content_hash, verify_chain
-from app.domain.run_record import LabelSource, RunRecord
+from agentic_base.domain.integrity import (
+    GENESIS,
+    build_chain,
+    content_hash,
+    verify_chain,
+)
+from agentic_base.domain.run_record import LabelSource, RunRecord
 
 
 def _records(n: int) -> list[RunRecord]:

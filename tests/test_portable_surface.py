@@ -30,21 +30,21 @@ import pytest
 SRC = Path(__file__).resolve().parent.parent / "src"
 
 PORTABLE_MODULES = (
-    "app.client",
-    "app.code_policy.policy",
-    "app.domain.epochs",
-    "app.domain.integrity",
-    "app.domain.outcomes",
-    "app.domain.validity",
-    "app.hpc.clusters",
-    "app.hpc.job_result",
-    "app.limits",
-    "app.llm.health",
-    "app.llm.resilience",
-    "app.observability.conventions",
-    "app.recording",
-    "app.security.netsec",
-    "app.tools.types",
+    "agentic_base.client",
+    "agentic_base.code_policy.policy",
+    "agentic_base.domain.epochs",
+    "agentic_base.domain.integrity",
+    "agentic_base.domain.outcomes",
+    "agentic_base.domain.validity",
+    "agentic_base.hpc.clusters",
+    "agentic_base.hpc.job_result",
+    "agentic_base.limits",
+    "agentic_base.llm.health",
+    "agentic_base.llm.resilience",
+    "agentic_base.observability.conventions",
+    "agentic_base.recording",
+    "agentic_base.security.netsec",
+    "agentic_base.tools.types",
 )
 """What a consumer may import. Anything outside this list is the service's own business."""
 

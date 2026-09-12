@@ -22,7 +22,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from app.limits import get_limits
+from agentic_base.limits import get_limits
 
 
 class FatalToolError(Exception):

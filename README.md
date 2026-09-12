@@ -30,8 +30,8 @@ adopted and from where.
 
 | module | what it does | why nothing off the shelf does it |
 |---|---|---|
-| `app.domain.run_record` | one row per run: the transcript the model actually received, the provenance of its environment, and the provenance of its outcome label | experiment trackers record what a run produced; almost none record *who decided* whether it was right, or whether the instrument that decided was working |
-| `app.domain.validity` | adjudicates whether a contrast across arms is sound, by detecting exclusion channels whose rate differs by arm, and reports the per-arm accounting behind the verdict | trackers store, version and visualise runs. None of them tell you your comparison is invalid, and no reporting standard in agent evaluation asks for the accounting that would show it |
+| `agentic_base.domain.run_record` | one row per run: the transcript the model actually received, the provenance of its environment, and the provenance of its outcome label | experiment trackers record what a run produced; almost none record *who decided* whether it was right, or whether the instrument that decided was working |
+| `agentic_base.domain.validity` | adjudicates whether a contrast across arms is sound, by detecting exclusion channels whose rate differs by arm, and reports the per-arm accounting behind the verdict | trackers store, version and visualise runs. None of them tell you your comparison is invalid, and no reporting standard in agent evaluation asks for the accounting that would show it |
 
 The second is not a new mechanism, and the README used to overclaim it as one. Clinical trials
 have shipped exactly this artifact for two decades: the **CONSORT flow diagram**, a per-arm
@@ -76,8 +76,9 @@ overlay, kept current by merging `main`, with `scripts/overlay.py` to compose, c
 ## Versioning and releases
 
 Semantic versioning, with the version taken from the git tag. While the major version is `0`, a
-minor bump may change the public interface, and the import name of the package is one of the
-things that may change before `1.0`. Releases are tagged `vX.Y.Z` and each carries generated
+minor bump may change the public interface. The import name changed once, from `app` to
+`agentic_base` in `0.2.0`, because a top-level `app` collides with the first package any
+consumer of a web template already has. Releases are tagged `vX.Y.Z` and each carries generated
 notes and a built distribution. See `CONTRIBUTING.md` for the release procedure.
 
 ## Citation

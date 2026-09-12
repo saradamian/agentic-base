@@ -22,5 +22,5 @@ unless you ask otherwise.
 
 The library half fetches URLs on behalf of agents and filters generated code before it runs.
 Both are documented as bounding accidental damage, not as boundaries against an adversary; see
-the module docstrings in `src/app/security` and `src/app/code_policy`. A report that one of them
+the module docstrings in `src/agentic_base/security` and `src/agentic_base/code_policy`. A report that one of them
 is escapable by a determined attacker is welcome and will be handled, but it is not a surprise.

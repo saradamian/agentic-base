@@ -166,7 +166,7 @@ lifecycle:
 
 networkPolicy:
   # Default-deny egress. This is where generated code finally meets a real boundary: the
-  # structural filter in app.code_policy is a pre-filter and its own documentation says it is not
+  # structural filter in agentic_base.code_policy is a pre-filter and its own documentation says it is not
   # an isolation boundary.
   #
   # Check with the platform team before relying on this. A namespace-level policy may already

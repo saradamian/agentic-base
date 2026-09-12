@@ -62,7 +62,9 @@ def test_every_source_module_has_a_test_module() -> None:
     existed. Nothing had imported it, so nothing had failed.
     """
     wired_only = {"__init__", "main", "config", "db"}
-    modules = {path.stem for path in (ROOT / "src" / "app").rglob("*.py")} - wired_only
+    modules = {
+        path.stem for path in (ROOT / "src" / "agentic_base").rglob("*.py")
+    } - wired_only
     tested = {
         path.stem.removeprefix("test_") for path in (ROOT / "tests").rglob("test_*.py")
     }

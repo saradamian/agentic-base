@@ -1,6 +1,6 @@
 """Behavioural tests for the run record."""
 
-from app.domain.run_record import LabelSource, RunRecord, RunStatus
+from agentic_base.domain.run_record import LabelSource, RunRecord, RunStatus
 
 
 def _record(**kwargs) -> RunRecord:

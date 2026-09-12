@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
-from app.limits import get_limits
+from agentic_base.limits import get_limits
 
 ALLOWED_SCHEMES = frozenset({"http", "https"})
 DEFAULT_ALLOWED_PORTS = frozenset({80, 443})

@@ -76,7 +76,7 @@ dev = [
 # A wheel ships no non-Python file unless it is named, and the failure is silent until somebody
 # installs the distribution and calls the function.
 [tool.setuptools.package-data]
-"app.hpc" = ["profiles/*.yaml"]
+"agentic_base.hpc" = ["profiles/*.yaml"]
 
 [tool.setuptools.dynamic]
 readme = { file = ["README.md"], content-type = "text/markdown" }
@@ -139,13 +139,13 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.isort]
 # `scripts` is first-party too; without this the sorter files it with third-party imports.
-known-first-party = ["app", "scripts"]
+known-first-party = ["agentic_base", "scripts"]
 
 [tool.ruff.lint.per-file-ignores]
 # `Depends(...)` in a parameter default is FastAPI's declared way of asking for a dependency,
 # not the mutable-default bug B008 exists to catch. Scoped to the routers so the rule keeps
 # working everywhere it means what it says.
-"src/app/routers/*" = ["B008"]
+"src/agentic_base/routers/*" = ["B008"]
 "tests/*" = [
   "ANN",    # Don't force type annotations
   "S101",   # We need assert in test

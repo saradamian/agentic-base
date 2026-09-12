@@ -4,7 +4,7 @@ from typing import NoReturn
 import pytest
 from structlog.testing import capture_logs
 
-from app.utils.logging import drop_color_message_key
+from agentic_base.utils.logging import drop_color_message_key
 
 TEST_CLIENT_PORT = 50000
 

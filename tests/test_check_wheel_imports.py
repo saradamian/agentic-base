@@ -40,7 +40,7 @@ def test_a_declaration_the_checker_cannot_find_is_an_error_not_an_empty_surface(
 ) -> None:
     module = _load()
     decoy = tmp_path / "test_portable_surface.py"
-    decoy.write_text("SOMETHING_ELSE = ('app.client',)\n")
+    decoy.write_text("SOMETHING_ELSE = ('agentic_base.client',)\n")
     with pytest.raises(SystemExit, match="PORTABLE_MODULES"):
         module.portable_modules(decoy)
 

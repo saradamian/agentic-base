@@ -68,12 +68,12 @@ artifacts we adopt, because a reader from that field should recognise what they 
 
 | concern | standard | verdict |
 |---|---|---|
-| per-arm accounting behind a contrast | **CONSORT** (2001; 2010 revision), the flow diagram: assessed, excluded with reasons, analysed, per arm. **CONSORT-AI** (2020) is the extension for AI interventions | ADOPT the vocabulary and the artifact. `app.domain.validity.flow_by_arm` produces it; `ValidityReport.flow` carries it. The only PyPI package named `consort` is a music-notation tool, so there is nothing to install |
+| per-arm accounting behind a contrast | **CONSORT** (2001; 2010 revision), the flow diagram: assessed, excluded with reasons, analysed, per arm. **CONSORT-AI** (2020) is the extension for AI interventions | ADOPT the vocabulary and the artifact. `agentic_base.domain.validity.flow_by_arm` produces it; `ValidityReport.flow` carries it. The only PyPI package named `consort` is a music-notation tool, so there is nothing to install |
 | intention-to-treat vs per-protocol | CONSORT's two analysis populations | ADOPT as the names for the full split and the paired set. `paired_items` is per-protocol and is the wrong denominator for a score for exactly the reason CONSORT gives |
 
 ## Source audit, 2026-09-12
 
-Every module under `src/app/` checked against the question this file exists to ask: does
+Every module under `src/agentic_base/` checked against the question this file exists to ask: does
 something maintained already do this? Rows that were missing are added; one defect is recorded.
 
 | module | finding | verdict |

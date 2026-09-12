@@ -13,7 +13,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from structlog.typing import EventDict, ExceptionRenderer, Processor, WrappedLogger
 
-from app.config import get_settings
+from agentic_base.config import get_settings
 
 event_key = "message"
 
