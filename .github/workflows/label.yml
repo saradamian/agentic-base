@@ -57,7 +57,11 @@ jobs:
             exit 0
           fi
 
+          # A JSON body on stdin, not `-f 'labels[]=x'`: that form is not understood by every
+          # gh version and returns 422 where it is not, which would make this step fail for a
+          # reason that has nothing to do with the label.
           for name in $wanted; do
-            gh api "repos/$REPO/issues/$NUMBER/labels" -f "labels[]=$name" --silent
+            printf '{"labels":["%s"]}' "$name" |
+              gh api "repos/$REPO/issues/$NUMBER/labels" --input - --silent
             echo "applied $name"
           done
