@@ -1,7 +1,12 @@
 """Comparison validity — is this contrast sound enough to report?
 
 Experiment trackers store, version and visualise runs. None of them adjudicate whether a
-comparison between two arms is valid. This module does that one thing.
+comparison between two arms is valid. This module does that one thing, and it is not a new
+thing: clinical trials have required it for two decades as the CONSORT flow diagram, a per-arm
+accounting of who was assessed, who was excluded and why, and who was analysed. The vocabulary
+here is deliberately CONSORT's, so a reader from that world recognises the artifact. The
+intention-to-treat population is every observation an arm attempted; the per-protocol
+population is `paired_items`, and CONSORT's caution about the second is the second rule below.
 
 The defect it detects has a name in the missing-data literature: missingness that is **MNAR
 with respect to the treatment arm**. A cell can leave the denominator through many channels —
@@ -70,6 +75,29 @@ class ChannelSpread:
 
 
 @dataclass(frozen=True)
+class ArmFlow:
+    """One arm's row of a CONSORT-style flow diagram.
+
+    `assessed` is every observation the arm attempted. `excluded` maps each exclusion channel
+    to how many left through it. `analysed` is what remains, and the three always reconcile:
+    `assessed == analysed + sum(excluded.values())`. This is the artifact the standard makes
+    mandatory, and it is what turns a verdict into something a reader can check.
+    """
+
+    arm: str
+    assessed: int
+    excluded: dict[str, int]
+    analysed: int
+
+    def describe(self) -> str:
+        reasons = (
+            ", ".join(f"{n} {ch}" for ch, n in sorted(self.excluded.items())) or "none"
+        )
+        left = self.assessed - self.analysed
+        return f"{self.arm}: assessed {self.assessed}; excluded {left} ({reasons}); analysed {self.analysed}"
+
+
+@dataclass(frozen=True)
 class ValidityReport:
     """The verdict, plus enough context that a clean result is legible as a real result."""
 
@@ -79,6 +107,8 @@ class ValidityReport:
     flagged: list[ChannelSpread] = field(default_factory=list)
     paired_items: int = 0
     total_items: int = 0
+    flow: dict[str, ArmFlow] = field(default_factory=dict)
+    """The per-arm accounting the verdict rests on. Present even when the verdict is sound."""
 
     @property
     def sound(self) -> bool:
@@ -120,6 +150,31 @@ def missingness_by_arm(
     for obs in observations:
         counts[obs.arm][obs.channel] += 1
     return {arm: dict(channels) for arm, channels in counts.items()}
+
+
+def flow_by_arm(observations: Iterable[Observation]) -> dict[str, ArmFlow]:
+    """The CONSORT flow: per arm, how many were assessed, how many left and why, how many remain.
+
+    A pure re-labelling of `missingness_by_arm` into the standard's vocabulary, kept as its own
+    function because the vocabulary is the point: a reader who knows the flow diagram should
+    not have to learn ours.
+    """
+    flow: dict[str, ArmFlow] = {}
+    for arm, channels in missingness_by_arm(observations).items():
+        analysed = channels.get(INCLUDED, 0)
+        excluded = {ch: n for ch, n in channels.items() if ch != INCLUDED}
+        flow[arm] = ArmFlow(
+            arm=arm,
+            assessed=analysed + sum(excluded.values()),
+            excluded=excluded,
+            analysed=analysed,
+        )
+    return flow
+
+
+def render_flow(flow: dict[str, ArmFlow]) -> str:
+    """One line per arm, in the order a reader would scan them."""
+    return "\n".join(flow[arm].describe() for arm in sorted(flow))
 
 
 def paired_items(observations: Iterable[Observation]) -> set[str]:
@@ -195,4 +250,5 @@ def check_comparison(
         flagged=flagged,
         paired_items=len(paired_items(observations)),
         total_items=len({obs.item for obs in observations}),
+        flow=flow_by_arm(observations),
     )

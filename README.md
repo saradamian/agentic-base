@@ -31,10 +31,17 @@ adopted and from where.
 | module | what it does | why nothing off the shelf does it |
 |---|---|---|
 | `app.domain.run_record` | one row per run: the transcript the model actually received, the provenance of its environment, and the provenance of its outcome label | experiment trackers record what a run produced; almost none record *who decided* whether it was right, or whether the instrument that decided was working |
-| `app.domain.validity` | adjudicates whether a contrast across arms is sound, by detecting exclusion channels whose rate differs by arm | trackers store, version and visualise runs. None of them tell you your comparison is invalid |
+| `app.domain.validity` | adjudicates whether a contrast across arms is sound, by detecting exclusion channels whose rate differs by arm, and reports the per-arm accounting behind the verdict | trackers store, version and visualise runs. None of them tell you your comparison is invalid, and no reporting standard in agent evaluation asks for the accounting that would show it |
 
-The second has a name in the missing-data literature: missingness that is **MNAR with respect to
-the treatment arm**. The concept is decades old. No experiment tracker implements it.
+The second is not a new mechanism, and the README used to overclaim it as one. Clinical trials
+have shipped exactly this artifact for two decades: the **CONSORT flow diagram**, a per-arm
+accounting of everyone who left the denominator and why, mandatory for publication since 2001,
+with an extension for AI interventions since 2020. The defect it exposes has a name in the
+missing-data literature, missingness that is **MNAR with respect to the treatment arm**. What is
+missing is not the idea. No experiment tracker implements the check, and no reporting standard in
+agent evaluation requires the accounting, so `validity` implements the check and
+`flow_by_arm` produces the accounting in the standard's vocabulary: assessed, excluded with
+reasons, analysed.
 
 ## Running locally
 

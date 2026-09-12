@@ -13,8 +13,10 @@ from dataclasses import dataclass
 from app.domain.validity import (
     INCLUDED,
     check_comparison,
+    flow_by_arm,
     missingness_by_arm,
     paired_items,
+    render_flow,
 )
 
 
@@ -139,3 +141,38 @@ def test_report_states_how_much_it_examined_so_a_zero_is_legible() -> None:
     assert report.arms_examined == 2
     assert report.channels_examined == 1
     assert report.observations_examined == 12
+
+
+def test_flow_reconciles_assessed_with_analysed_plus_every_exclusion() -> None:
+    """The CONSORT invariant: nobody assessed goes unaccounted for."""
+    obs = _arm("a", included=7, excluded=3) + _arm(
+        "a", included=0, excluded=2, channel="oom"
+    )
+    flow = flow_by_arm(obs)
+    row = flow["a"]
+    assert row.assessed == 12
+    assert row.analysed == 7
+    assert row.excluded == {"timeout": 3, "oom": 2}
+    assert row.assessed == row.analysed + sum(row.excluded.values())
+
+
+def test_flow_names_each_reason_per_arm_so_a_reader_can_check_the_verdict() -> None:
+    obs = _arm("a", included=8, excluded=2) + _arm(
+        "b", included=9, excluded=1, channel="oom"
+    )
+    text = render_flow(flow_by_arm(obs))
+    assert "a: assessed 10; excluded 2 (2 timeout); analysed 8" in text
+    assert "b: assessed 10; excluded 1 (1 oom); analysed 9" in text
+
+
+def test_a_sound_verdict_still_carries_the_accounting_it_rests_on() -> None:
+    """A clean result with no flow would be a verdict without evidence."""
+    report = check_comparison(
+        _arm("a", included=9, excluded=1) + _arm("b", included=9, excluded=1)
+    )
+    assert report.sound
+    assert set(report.flow) == {"a", "b"}
+    assert (
+        report.flow["a"].describe()
+        == "a: assessed 10; excluded 1 (1 timeout); analysed 9"
+    )

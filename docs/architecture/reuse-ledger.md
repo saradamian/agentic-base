@@ -55,11 +55,37 @@ already supported, and already have an owner.
 | concern | why nothing else does it | revisit when |
 |---|---|---|
 | **run record with label and instrument provenance** | trackers record outcomes, not who decided them or whether the decider was working. A corpus that cannot name its scorers can be neither cited nor trained on | a tracker adds a first-class evaluator-provenance field |
-| **comparison validity** | no experiment tracker adjudicates whether a contrast is sound. The statistics is old; the tooling does not exist | any tracker ships arm-correlated missingness detection |
+| **comparison validity** | no experiment tracker adjudicates whether a contrast is sound, and no reporting standard in agent evaluation asks for the per-arm accounting that would show it. The check is ours; the accounting is CONSORT's flow diagram, adopted as a standard below rather than reinvented | any tracker ships arm-correlated missingness detection, or an agent-evaluation reporting standard mandates a per-arm exclusion flow |
 | **agentic execution on batch-scheduled HPC** | the published position is that rollout training does not work on Slurm, for four named reasons: no service discovery, jobs must terminate, no component-level recovery, no dynamic scaling. A national facility cannot leave Slurm | Slurm grows service-level primitives, or the workload moves to Kubernetes |
 | **cross-replica request placement** | **ADOPT on Kubernetes.** The Endpoint Picker in the Gateway API Inference Extension routes on queue depth, KV-cache utilisation, prefix-cache locality and adapter affinity, which is the same signal set we arrived at independently. Build only where there is no cluster to run it on | already the case wherever Kubernetes is available |
 | **the join across planes** | tying a trajectory to the replica that served it, the weights that produced it and the bytes it read, keyed on content hashes. Each plane's tooling knows its own plane only | an exporter publishes the join, at which point delete ours |
 | **energy as a first-class axis** | tokens price an API, GPU-seconds price an allocation, joules are physical. A run that spends more wall clock on the same accelerators emits no extra tokens and still costs more | scheduler accounting exposes per-job energy reliably everywhere we run |
+
+## Standards adopted as standards
+
+Not every reuse is a package. These are reporting standards whose vocabulary and mandatory
+artifacts we adopt, because a reader from that field should recognise what they are looking at.
+
+| concern | standard | verdict |
+|---|---|---|
+| per-arm accounting behind a contrast | **CONSORT** (2001; 2010 revision), the flow diagram: assessed, excluded with reasons, analysed, per arm. **CONSORT-AI** (2020) is the extension for AI interventions | ADOPT the vocabulary and the artifact. `app.domain.validity.flow_by_arm` produces it; `ValidityReport.flow` carries it. The only PyPI package named `consort` is a music-notation tool, so there is nothing to install |
+| intention-to-treat vs per-protocol | CONSORT's two analysis populations | ADOPT as the names for the full split and the paired set. `paired_items` is per-protocol and is the wrong denominator for a score for exactly the reason CONSORT gives |
+
+## Source audit, 2026-09-12
+
+Every module under `src/app/` checked against the question this file exists to ask: does
+something maintained already do this? Rows that were missing are added; one defect is recorded.
+
+| module | finding | verdict |
+|---|---|---|
+| `observability/conventions.py` | imports `openinference-semantic-conventions` and the OpenTelemetry incubating `gen_ai` attributes, with literal fallbacks when neither is installed | ADOPT, as the row above says. Pin the versions |
+| `utils/logging.py` | structlog plus `asgi-correlation-id`, from the golden-path template | ADOPT |
+| `llm/resilience.py` | retry predicates and a transport pool; the loop belongs to tenacity | ADOPT, correctly split |
+| `mcp/server.py` | **hand-rolls JSON-RPC 2.0 and the MCP handshake** while the official `mcp` SDK (2.2.0, `>=3.10`) fits the floor and has an in-memory test transport. Cost of adopting: 19 dependencies, in the `service` extra. By this file's own rule that is a defect | ADOPT. Tracked as [#11](https://github.com/saradamian/agentic-base/issues/11); the tool surface and pure dispatch stay |
+| `code_policy/policy.py` | an AST pre-filter, deliberately not an isolation boundary. **RestrictedPython** (8.5, 2026-08, `>=3.10`) covers the runtime half, guarded builtins and attribute access, and has been attacked for twenty years | BRIDGE. Keep the zero-dependency pre-filter in the library half; any executor added to this repository adopts RestrictedPython for the runtime guard rather than extending this file |
+| `security/netsec.py` | SSRF validation and DNS pinning. The one wrapper that did this, `advocate`, last released 2020-07 and targets `requests` | BUILD. Revisit when httpx ships an SSRF-safe transport or a maintained library appears |
+| `hpc/job_result.py` | a delimited single-line base64 result channel over Slurm stdout | BUILD. Nothing models a value coming back from a batch job. Revisit when Slurm exposes a result channel |
+| `domain/validity.py` | see the standards table | BUILD the check, ADOPT the standard |
 
 ## The rule this file encodes
 
