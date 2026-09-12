@@ -167,6 +167,10 @@ disallow_untyped_defs = false
 pythonpath = ["src", "."]
 filterwarnings = [
   "error", # Make warnings errors
+  # starlette 1.6 reaches anyio's deprecated `anyio.abc.BlockingPortal` alias at import, and
+  # anyio 4.15 warns. Scoped to that one message so every other warning still fails the suite.
+  # Remove when the pinned fastapi brings a starlette that imports `anyio.from_thread`.
+  "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
 ]
 env = [
   "METRICS_PORT=0", # Don't start metrics server during tests
