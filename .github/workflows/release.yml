@@ -1,6 +1,18 @@
 # A tag `vX.Y.Z` on main produces a release. The version inside the built distribution comes
 # from that same tag through setuptools-scm, so the two cannot disagree. Nothing is published to
 # a package index from here; that is a separate decision with its own owner.
+#
+# Three things a consumer of a release can check now, and could not before:
+#
+#   * the tag carries a signature from a key listed in `.github/allowed_signers`. Note that
+#     `gh release create --verify-tag`, at the end of this file, does NOT do this. It asserts the
+#     tag exists on the remote and reads no signature at all; the name invites the opposite
+#     reading. The rule starts at the next tag, because `v0.1.0` predates commit signing and the
+#     tag ruleset makes it immutable, so nobody can quietly re-sign it and close the gap;
+#   * the artifact installs and imports on the consumer's Python floor. The suite reads `src/`,
+#     so it cannot see a defect that exists only in the built wheel;
+#   * the artifact carries build provenance. Without it the chain of custody stops at the tag,
+#     and anyone with write access can replace a release asset with nothing to detect it.
 name: release
 
 on:
@@ -9,6 +21,11 @@ on:
 
 permissions:
   contents: write
+  # `attest-build-provenance` mints a short-lived signing certificate for this run and writes the
+  # attestation back to the repository. Both are required. With `contents: write` alone the build
+  # succeeds and the attest step fails at the end of it, having spent the whole job first.
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -17,12 +34,32 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          # The tag OBJECT, not just the commit it points at: the signature lives on the object.
+          fetch-tags: true
+
+      - name: the tag must be signed by a listed signer
+        run: |
+          git config gpg.ssh.allowedSignersFile .github/allowed_signers
+          git verify-tag "${GITHUB_REF_NAME}"
+
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
       - run: uv build
+
       - name: the built version must equal the tag
         run: |
           built=$(ls dist/*.tar.gz | sed -E 's|.*/agentic_base-(.*)\.tar\.gz|\1|')
           test "v$built" = "${GITHUB_REF_NAME}" || { echo "built $built, tag ${GITHUB_REF_NAME}"; exit 1; }
+
+      - name: the wheel must install and import on the consumer floor
+        run: |
+          uv venv --python 3.10 /tmp/floor
+          uv pip install --python /tmp/floor/bin/python --quiet dist/*.whl
+          python3 scripts/check_wheel_imports.py /tmp/floor/bin/python
+
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/*
+
       - run: gh release create "${GITHUB_REF_NAME}" dist/* --generate-notes --verify-tag
         env:
           GH_TOKEN: ${{ github.token }}

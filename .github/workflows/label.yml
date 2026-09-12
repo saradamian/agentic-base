@@ -1,0 +1,67 @@
+# The release notes group by pull request label (`.github/release.yml`). Nothing ever applied one:
+# all fourteen labels existed, none of the first five pull requests carried any, so every entry
+# would have been filed under "Other" and the grouping config could not do the thing it describes.
+#
+# The input is the conventional-commit prefix the commit hook already enforces, which squash
+# merging puts on main as the commit subject. Deriving the label from the title keeps one source
+# of truth rather than adding a second one for humans to keep in step.
+#
+# A prefix that maps to nothing is not an error. `chore`, `ci`, `test` and `refactor` belong under
+# "Other", and this says so rather than failing.
+#
+# `pull_request_target` is used because a fork's `pull_request` token cannot write labels. It runs
+# with a writable token against the BASE repository, so this workflow deliberately checks out no
+# code at all and reads the title through the environment rather than interpolating it into the
+# script. Nothing from a fork is executed here.
+name: label
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: derive the grouping label from the conventional-commit prefix
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: ${{ github.event.pull_request.title }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          prefix=${TITLE%%:*}
+
+          breaking=""
+          case "$prefix" in *'!') breaking="breaking" ;; esac
+          prefix=${prefix%!}
+          prefix=${prefix%%(*}
+
+          case "$prefix" in
+            feat)       label="feat" ;;
+            fix)        label="fix" ;;
+            docs)       label="documentation" ;;
+            deps|build) label="dependencies" ;;
+            *)          label="" ;;
+          esac
+
+          wanted=""
+          [ -n "$label" ] && wanted="$label"
+          [ -n "$breaking" ] && wanted="$wanted $breaking"
+
+          if [ -z "$wanted" ]; then
+            echo "prefix '$prefix' maps to no grouping label; the notes file this under Other"
+            exit 0
+          fi
+
+          # A JSON body on stdin, not `-f 'labels[]=x'`: that form is not understood by every
+          # gh version and returns 422 where it is not, which would make this step fail for a
+          # reason that has nothing to do with the label.
+          for name in $wanted; do
+            printf '{"labels":["%s"]}' "$name" |
+              gh api "repos/$REPO/issues/$NUMBER/labels" --input - --silent
+            echo "applied $name"
+          done
