@@ -45,6 +45,10 @@ service = [
   "fastapi[standard]==0.141.1",
   "prometheus-fastapi-instrumentator==8.1.0",
   "uvicorn==0.52.4",
+  # Tracing: the vocabulary in observability/conventions.py is worthless if no span is opened.
+  "opentelemetry-sdk==1.44.0",
+  "opentelemetry-instrumentation-fastapi==0.65b0",
+  "opentelemetry-exporter-otlp-proto-http==1.44.0",
   "structlog==26.1.0",
   "sqlmodel==0.0.27",
   "alembic==1.17.2",

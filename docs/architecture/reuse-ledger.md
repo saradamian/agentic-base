@@ -79,6 +79,7 @@ something maintained already do this? Rows that were missing are added; one defe
 | module | finding | verdict |
 |---|---|---|
 | `observability/conventions.py` | imports `openinference-semantic-conventions` and the OpenTelemetry incubating `gen_ai` attributes, with literal fallbacks when neither is installed | ADOPT, as the row above says. Pin the versions |
+| `observability/tracing.py` | the SDK's FastAPI instrumentation and an exporter chosen by the standard `OTEL_*` variables | ADOPT. Nothing here is a private knob; the one decision of ours is that no endpoint means record-and-drop rather than a default address nobody listens on |
 | `utils/logging.py` | structlog plus `asgi-correlation-id`, from the golden-path template | ADOPT |
 | `llm/resilience.py` | retry predicates and a transport pool; the loop belongs to tenacity | ADOPT, correctly split |
 | `mcp/server.py` | **hand-rolls JSON-RPC 2.0 and the MCP handshake** while the official `mcp` SDK (2.2.0, `>=3.10`) fits the floor and has an in-memory test transport. Cost of adopting: 19 dependencies, in the `service` extra. By this file's own rule that is a defect | ADOPT. Tracked as [#11](https://github.com/saradamian/agentic-base/issues/11); the tool surface and pure dispatch stay |

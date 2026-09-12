@@ -13,6 +13,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from agentic_base.config import get_settings
 from agentic_base.db import get_engine, init_db
+from agentic_base.observability.tracing import configure_tracing
 from agentic_base.routers.health import health_api_prefix
 from agentic_base.routers.health import router as health_router
 from agentic_base.routers.runs import router as runs_router
@@ -49,6 +50,7 @@ def get_app() -> FastAPI:
     )
 
     Instrumentator().instrument(app, metric_namespace="fastapi")
+    configure_tracing(app, excluded_urls=f"{health_api_prefix}.*")
 
     if settings.metrics_port:
         start_http_server(settings.metrics_port)
