@@ -188,3 +188,11 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
 def to_record(payload: RunRecordCreate) -> RunRecord:
     """Build a stored row from a validated creation payload."""
     return RunRecord(**payload.model_dump())
+
+
+def to_payload(record: RunRecord) -> RunRecordCreate:
+    """The creation payload a stored row corresponds to, for the emitters that take one."""
+    fields = set(RunRecordCreate.model_fields)
+    return RunRecordCreate(
+        **{k: v for k, v in record.model_dump().items() if k in fields}
+    )
