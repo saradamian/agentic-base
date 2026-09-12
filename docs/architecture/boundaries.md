@@ -72,6 +72,13 @@ No model serving. That is Willma.
 No job submission. That is AI4Science, and the seam between the two is the first piece of work
 worth doing together.
 
+## The blocks are outside, by construction
+
+The capability blocks an agent calls, hpc, inference, knowledge, data, software, artifacts, are
+each their own package with the owner of the system behind them (`blocks.md`). They import this
+repository's contracts; nothing here imports a block. A scheduler client in particular does not
+belong here, because this repository must not submit jobs.
+
 ## Split this repository when, and not before
 
 One package becomes two when someone outside SURF wants the library and does not want the service,

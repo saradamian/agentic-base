@@ -10,34 +10,35 @@ The mermaid block at the bottom needs a mermaid-capable viewer.
   APPLICATIONS            people's own work, each brings its own agent
   ┌──────────────────┬──────────────────────┬────────────────────┐
   │ agentic-env      │ pipeline triage      │ other SURF teams   │
-  │ experiments      │ a new SURF project   │                    │
+  │ experiments      │ a new SURF project   │ and their agents   │
   └──────────────────┴──────────────────────┴────────────────────┘
                               │
   CONTROL PLANE               │   who may run what, and where
   ┌───────────────────────────▼────────────────────────────────┐
-  │ AI4Science   jobs, tenancy, datasets, orchestration        │
+  │ AI4Science today; the AI Factory's MLOps and meta-scheduler │
   └───────────────────────────┬────────────────────────────────┘
                               │
-  CAPABILITIES                │   one per system, curated surface
-  ┌──────────┬───────┬────────▼──┬──────────┬───────────┐
-  │ runs     │ hpc   │ data      │ software │ knowledge │
-  │ (new)    │       │           │          │           │
-  └──────────┴───┬───┴───────────┴────┬─────┴─────┬─────┘
-                 │                    │           │
-  surf-agentic-base   │  THIS REPOSITORY   │           │
-  ┌──────────────▼────────────────────▼───────────▼────────────┐
-  │ tool contract │ span vocabulary │ recording seam │ prims   │
-  ├────────────────────────────────────────────────────────────┤
-  │ run record · label provenance · validity · epochs · emit   │
-  └────────────────────────────────────────────────────────────┘
+  BLOCKS                      │   one per system, curated surface, own package, own owner
+  ┌───────┬──────────┬──────────┬──────────┬──────┬──────────┬──────────┐
+  │ runs  │ hpc      │inference │knowledge │ data │ software │ artifacts│
+  │ (here)│          │          │          │      │          │          │
+  └───┬───┴────┬─────┴────┬─────┴────┬─────┴──┬───┴────┬─────┴────┬─────┘
+      │  scoped by IDENTITY (SURFconext, SRAM) · billed by ACCOUNTING     │
+      │                    │          │          │        │          │
+  CONTRACTS   │  THIS REPOSITORY   │          │          │        │
+  ┌───────────▼────────────▼──────────▼──────────▼────────▼──────────▼────┐
+  │ tool contract │ recording seam │ curated surfaces │ security │ spans │
+  ├────────────────────────────────────────────────────────────────────────┤
+  │ run record · label provenance · validity · epochs · emitted standards │
+  └────────────────────────────────────────────────────────────────────────┘
 
   ALREADY EXIST, not ours to rebuild
-  ┌────────────┬────────────────┬────────────┬───────────┐
-  │ Willma     │ Slurm clusters │ Confluence │ EasyBuild │
-  │ serves     │ Snellius, LUMI │            │           │
-  │ models     │ AI Factory     │            │           │
-  └────────────┴────────────────┴────────────┴───────────┘
-   each is published as exactly one capability above
+  ┌──────────┬───────────────┬────────────┬───────────┬──────────────────┬──────────────┐
+  │ Willma   │ Slurm         │ Confluence │ EasyBuild │ object stores,   │ registries   │
+  │ serves   │ Snellius,LUMI │ edusources │ EESSI     │ dCache, iRODS,   │ GitLab,      │
+  │ models   │ AI Factory    │            │           │ Yoda, Res. Drive │ Harbor,MLflow│
+  └──────────┴───────────────┴────────────┴───────────┴──────────────────┴──────────────┘
+   each is published as exactly one block above; see blocks.md
 ```
 
 ## Reading it in one paragraph
@@ -46,8 +47,11 @@ The systems at the bottom already exist and are not ours to rebuild. Each is pub
 one capability with a curated, read-only-by-default surface. Those capabilities all stand on the
 same contracts, which is what this repository is. Applications sit on top and bring their own agent.
 
-The only capability with no existing system behind it is **runs**, which is why the record lives
-here and the rest do not.
+The only block with no existing system behind it is **runs**, which is why the record lives here
+and the rest do not. Two things on the picture are not blocks an agent calls: identity scopes
+every surface and accounting bills every run, and both are named because a design that leaves
+them implicit gets them wrong. The full list, with what exists behind each block and the order
+to build them, is in `blocks.md`.
 
 ## What "moving things" would actually mean
 
@@ -87,39 +91,46 @@ flowchart TB
         OTH[other SURF teams]
     end
     subgraph ctrl[Control plane - who may run what and where]
-        AI4[AI4Science]
+        AI4[AI4Science today, the AI Factory MLOps tomorrow]
     end
-    subgraph caps[Capabilities - published to agents]
+    subgraph blocks[Blocks - one per system, curated surface, own owner]
         R[runs]
         H[hpc]
+        I[inference]
+        K[knowledge]
         D[data]
         S[software]
-        K[knowledge]
+        A[artifacts]
     end
-    subgraph base[surf-agentic-base - this repository]
+    subgraph scope[Every block is scoped and billed]
+        ID[identity: SURFconext, SRAM]
+        AC[accounting: GPU-seconds, storage, joules]
+    end
+    subgraph base[Contracts - this repository]
         C1[tool contract]
-        C2[span vocabulary]
-        C3[recording seam]
-        C4[run record and validity and epochs]
-        C6[provenance emission: PROV, OpenLineage, RO-Crate]
-        C5[primitives]
+        C2[recording seam and curated surfaces]
+        C3[security primitives and span vocabulary]
+        C4[run record, validity, epochs, emitted standards]
     end
     subgraph sys[Systems that already exist]
         W[Willma]
         SL[Slurm clusters]
-        CF[Confluence]
-        EB[EasyBuild]
+        CF[Confluence and edusources]
+        EB[EasyBuild and EESSI]
+        ST[object stores, dCache, iRODS, Yoda, Research Drive]
+        RG[GitLab, Harbor, MLflow registries]
     end
-    AE --> caps
-    MW --> caps
-    OTH --> caps
-    AI4 --> caps
-    caps --> base
+    AE --> blocks
+    MW --> blocks
+    OTH --> blocks
+    AI4 --> blocks
+    blocks --> base
+    blocks -.-> scope
     H --> SL
-    H --> W
+    I --> W
     K --> CF
     S --> EB
-    D --> AI4
+    D --> ST
+    A --> RG
     R --> C4
-    R --> C6
 ```
