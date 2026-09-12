@@ -7,6 +7,7 @@ that silence must not read as a pass.
 from __future__ import annotations
 
 import pytest
+
 from scripts.assert_no_permitted_failures import (
     CannotAsk,
     fetch_jobs,
