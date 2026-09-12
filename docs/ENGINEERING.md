@@ -144,6 +144,16 @@ one declared cannot fail on the class of defect that regime exists for.
 Continuous integration runs the suite on both ends of the supported range precisely because a
 developer machine usually has one of them.
 
+## A push after auto-merge is armed is a push to nowhere
+
+Auto-merge fires the moment the required checks pass. A commit pushed to the branch after that,
+an amend, a fix-up, a wording change, reaches the branch and never reaches `main`: the squash
+already happened and the pull request is closed. It happened twice in one day on this repository,
+and both times a consumer's tests, not ours, found the missing commit. Push everything, then arm;
+or after a late push, read the pull request's state back before believing anything landed.
+
+There is no guard for this, because the thing that would fail is a check that did not run.
+
 ## Signed history depends on the merge method, not on the author
 
 Measured here on 2026-09-12. Commits authored and signed locally arrived on the trunk unsigned,

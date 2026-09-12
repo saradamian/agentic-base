@@ -106,7 +106,7 @@ def parse_result(
     if not ends:
         return JobResult(
             ResultState.CORRUPT,
-            detail="result block opened and never closed, output was probably truncated",
+            detail="result block was started but never terminated; output was probably truncated",
         )
 
     body = [line.strip() for line in lines[first + 1 : ends[0]] if line.strip()]
@@ -125,5 +125,5 @@ def parse_result(
         try:
             return JobResult(ResultState.OK, value=json.loads(decoded.decode("utf-8")))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            last_detail = f"payload is not valid JSON ({exc})"
+            last_detail = f"payload decoded from base64 but was not JSON ({exc})"
     return JobResult(ResultState.CORRUPT, detail=last_detail)
