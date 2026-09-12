@@ -204,3 +204,31 @@ def test_the_module_imports_without_the_extra_and_names_it_when_called(
 
     with pytest.raises(ImportError, match=r"surf-agentic-base\[provenance\]"):
         module.to_prov(_run(), "abc", CREATED)
+
+
+def test_a_run_id_that_is_not_a_uuid_becomes_a_stable_uuid_and_travels_in_the_facet() -> (
+    None
+):
+    from openlineage.client.serde import Serde
+
+    from agentic_base.provenance import openlineage_run_id
+
+    first = json.loads(Serde.to_json(to_openlineage(_run(), "journal-42", CREATED)))
+    second = json.loads(Serde.to_json(to_openlineage(_run(), "journal-42", CREATED)))
+
+    assert (
+        first["run"]["runId"]
+        == second["run"]["runId"]
+        == openlineage_run_id("journal-42")
+    )
+    assert first["run"]["runId"] != "journal-42"
+    assert first["run"]["facets"]["agenticBaseOutcome"]["sourceRunId"] == "journal-42"
+
+
+def test_a_run_id_that_is_a_uuid_is_kept_as_is() -> None:
+    from agentic_base.provenance import openlineage_run_id
+
+    assert (
+        openlineage_run_id("C5A4B1E0-0000-4000-8000-000000000001")
+        == "c5a4b1e0-0000-4000-8000-000000000001"
+    )

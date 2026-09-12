@@ -4,6 +4,7 @@ without the ``provenance`` extra and a caller without it gets one sentence namin
 from __future__ import annotations
 
 import json
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -19,6 +20,21 @@ PRODUCER = "https://github.com/saradamian/agentic-base"
 OUTCOME_FACET_SCHEMA = "https://github.com/saradamian/agentic-base/blob/main/docs/schemas/OutcomeRunFacet.json"
 PROCESS_RUN_CRATE_PROFILE = "https://w3id.org/ro/wfrun/process/0.5"
 EXTRA = "provenance"
+RUN_ID_NAMESPACE = uuid.uuid5(uuid.NAMESPACE_URL, PRODUCER)
+"""Namespace for deriving an OpenLineage run UUID from a run id that is not one."""
+
+
+def openlineage_run_id(run_id: str) -> str:
+    """The UUID OpenLineage requires for a run, derived when *run_id* is not one.
+
+    PROV and RO-Crate take any string; OpenLineage's ``Run.runId`` must be a UUID and the
+    library fails on anything else. A consumer keying runs by an integer or a slug gets one
+    stable rule here rather than three private ones, and the original id travels in the facet.
+    """
+    try:
+        return str(uuid.UUID(run_id))
+    except ValueError:
+        return str(uuid.uuid5(RUN_ID_NAMESPACE, run_id))
 
 
 def _need(module: str) -> None:
@@ -143,6 +159,7 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
         completionTokens: int = 0
         elapsedMs: float = 0.0
         joules: float = 0.0
+        sourceRunId: str = ""
 
         @staticmethod
         def _get_schema() -> str:
@@ -164,6 +181,7 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
             completionTokens=run.completion_tokens,
             elapsedMs=run.elapsed_ms,
             joules=run.joules,
+            sourceRunId=run_id,
         ),
     }
     versions = run.component_versions
@@ -182,7 +200,7 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
         eventTime=_iso(created_at),
         producer=PRODUCER,
         eventType=state,
-        run=Run(runId=run_id, facets=facets),
+        run=Run(runId=openlineage_run_id(run_id), facets=facets),
         job=Job(namespace=run.tenant, name=run.arm or "(unset)"),
         inputs=inputs,
         outputs=[],
