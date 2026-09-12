@@ -70,3 +70,12 @@ def test_every_source_module_has_a_test_module() -> None:
     }
 
     assert modules <= tested, f"no test module for: {sorted(modules - tested)}"
+
+
+def test_the_package_ships_its_pep_561_marker() -> None:
+    """The classifier says Typing :: Typed. Without py.typed in the wheel a consumer's mypy
+    reports every import as untyped, which is how the first consumer found this."""
+    assert (ROOT / "src" / "agentic_base" / "py.typed").exists()
+    data = tomllib.loads((ROOT / "pyproject.toml").read_text())
+    assert "py.typed" in data["tool"]["setuptools"]["package-data"]["agentic_base"]
+    assert "Typing :: Typed" in data["project"]["classifiers"]

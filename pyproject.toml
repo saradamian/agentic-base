@@ -88,6 +88,8 @@ dev = [
 # A wheel ships no non-Python file unless it is named, and the failure is silent until somebody
 # installs the distribution and calls the function.
 [tool.setuptools.package-data]
+# The marker that lets a consumer's type checker read this package; the classifier alone is a claim.
+"agentic_base" = ["py.typed"]
 "agentic_base.hpc" = ["profiles/*.yaml"]
 
 [tool.setuptools.dynamic]
