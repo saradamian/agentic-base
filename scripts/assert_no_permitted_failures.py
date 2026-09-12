@@ -38,7 +38,9 @@ class CannotAsk(Exception):
     """The job list could not be read. Never treated as an empty answer."""
 
 
-def fetch_jobs(api_url: str, project_id: str, pipeline_id: str, token: str) -> list[dict]:
+def fetch_jobs(
+    api_url: str, project_id: str, pipeline_id: str, token: str
+) -> list[dict]:
     """Every job in the pipeline, following pagination."""
     jobs: list[dict] = []
     page = 1
@@ -64,7 +66,9 @@ def fetch_jobs(api_url: str, project_id: str, pipeline_id: str, token: str) -> l
     return jobs
 
 
-def permitted_failures(jobs: list[dict], allowlist: frozenset[str] = ALLOWLIST) -> list[str]:
+def permitted_failures(
+    jobs: list[dict], allowlist: frozenset[str] = ALLOWLIST
+) -> list[str]:
     """Names of jobs that are permitted to fail and are not on the allowlist."""
     return sorted(
         {
