@@ -23,7 +23,7 @@ submit jobs, and a block that does belongs with the people who run the scheduler
 
 ## The blocks the existing systems imply
 
-The first list had six. Checking it against what SURF runs and what the AI Factory names as its
+The first list had six, and the second nine. Checking it against what SURF runs and what the AI Factory names as its
 common denominators, identity and access, a data plane with object and POSIX tiers, accounting
 and quota, a shared GPU pool, a common home for artifacts, uniform observability, and tenant
 isolation, adds three and sharpens two.
@@ -43,6 +43,56 @@ isolation, adds three and sharpens two.
 Two of the nine are not agent tools at all. Identity is what scopes every surface, and
 accounting is what the platform bills on; they appear because a design that leaves them implicit
 gets them wrong, which the AI Factory memo says in its own words.
+
+## What the first list missed: the blocks for what an agent does
+
+The nine above are what an agent reads and submits to. Checked against agentic-env's twelve
+products, counting the external systems each one actually calls, four capabilities are used by
+most of them and appear in no block: source control, sandboxed execution, web egress, and the
+channels people talk to an agent through. Without them no SURF-run agent can exist, whatever the
+other blocks offer.
+
+| block | wraps | what agentic-env does today | why it is a block |
+|---|---|---|---|
+| **code** | GitLab first, GitHub second: repositories, branches, merge requests, issues, pipelines, reviews | `gitlab_integration`, 753 call sites against GitLab; `code_companion`'s git tools; `matrix_bot` and `easybuild` read GitLab and GitHub too | a review companion, a triage bot and a coding agent are all this block plus a model. It is the one SURF's own services would use first |
+| **execute** | a sandbox that runs agent-generated code and a workspace it can edit: a container with a read-only root and no bind mounts, or a microVM, on the platform | `code_companion`'s process sandbox and host filesystem, `swebench`'s Docker and Apptainer containers, `easybuild`'s validation sandbox, `pentest`'s subprocess tools; 63, 197 and 96 call sites respectively | the AI Factory's own remarks say sandboxing agent code on shared infrastructure is unsolved. Every product reinvents it, and each one is a security boundary someone has to get right. This layer's structural filter is the pre-filter in front of it, never the boundary itself |
+| **web** | outbound fetch and search with the SSRF check, an egress allow-list and a budget | `web_fetch` and `web_search` builtins, used by briefer, buca, deck_builder and the research agents | on a shared platform egress is a security decision, not a library call. One block, one policy, one place to log what an agent reached for |
+| **channels** | how people reach an agent and it reaches them: Matrix, Microsoft 365 mail and calendar, meeting audio through Willma's transcription, later Teams | `matrix_bot` (100 call sites), `briefer` (Microsoft Graph, 61; Whisper through Willma, 21), Fred as the AI Hub's chat front | an agent that cannot be spoken to is a batch job. Internal services want the same front door |
+
+Three more things cut across every block and are not blocks either. They are listed with
+identity and accounting because leaving them implicit is how a platform ends up with a service
+account that can do everything.
+
+- **Delegated credentials.** An agent acting for a person acts with that person's rights, on
+  GitLab, on Slurm, on the data stores, and no more. Today every product carries its own token
+  in an environment variable, which is one identity for everyone who talks to it. The block
+  surfaces need a token minted for the user and the session, scoped and expiring, which is
+  SRAM's job to issue and every block's job to demand.
+- **Triggers.** A service agent starts on an event: a merge request opened, a message in a room,
+  a mail arriving, a schedule. agentic-env's runtime has schedule, file and user triggers and
+  its GitLab product polls; the platform has webhooks. The trigger belongs to the control
+  plane; the block only needs to name the events it emits.
+- **Human approval.** A write to a repository, a job submission, a message sent on someone's
+  behalf: each needs a place where a person can say yes, and a record that they did.
+  agentic-env's supervisor gates this in-process; a SURF service needs it as a surface people
+  see, and the run record is where the decision is kept.
+
+## Could SURF run a code companion, or a GitLab companion, as a service?
+
+Not yet, and the table says exactly why. Each row is a SURF-run agent; each cell is the block it
+would stand on and whether that block exists as a package today.
+
+| agent | inference | code | execute | web | channels | knowledge | runs | delegated credentials |
+|---|---|---|---|---|---|---|---|---|
+| **GitLab companion**: reviews merge requests, triages issues, answers in threads | Willma, exists | needed, not a block | for running the tests it claims it ran; needed | optional | GitLab threads suffice at first | Confluence, exists over MCP | exists | required, not designed |
+| **code companion**: edits a repository on request | Willma, exists | needed | needed, the whole point | docs lookups; needed | Matrix or the editor; exists in part | exists | exists | required |
+| **research briefer**: reads mail, meetings and the wiki, writes a brief | Willma with Whisper, exists | no | no | needed | Microsoft 365 and Matrix; exists in part | exists | exists | required, per person |
+
+So the GitLab companion is the nearest service: it needs the code block, an execute block for
+verification, and delegated credentials, and everything else it needs is already published or
+in this repository. That is also the order to build in, because a review companion that cannot
+run the tests it reviews is the assertion-versus-proof gap agentic-env spent a year closing, and
+one that acts with a shared token is the security finding the platform audit would write first.
 
 ## What makes a block composable
 
@@ -86,6 +136,9 @@ the layer, and it should move to Confluence once the block owners have read it.
 
 ## Order of work
 
+0. Write down the **code** block's surface with the GitLab team and the **execute** block's
+   isolation contract with the platform team, because the first SURF-run agent needs both and
+   neither is a library extraction; they are decisions.
 1. Extract the **knowledge** block first. Smallest, already over MCP, needs no scheduler
    decision, and proves the extraction loop and the template on something that cannot break a
    cluster.
@@ -93,4 +146,6 @@ the layer, and it should move to Confluence once the block owners have read it.
    the `python_slurm_wrapper` stub with willma2's token handling and the AI4Science schemas.
 3. Define the **data** block's surface with the data teams before writing it; find, stage and
    cite are the three verbs an agent needs, and the systems behind them are theirs.
-4. Leave **identity** and **accounting** as named constraints until a block needs them for real.
+4. Leave **identity** and **accounting** as named constraints until a block needs them for real,
+   but design **delegated credentials** with SRAM before the code block ships, since the first
+   service agent cannot go live on a shared token.
