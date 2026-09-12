@@ -71,48 +71,59 @@ class JobResult:
         return self.state is ResultState.OK
 
 
-def encode_result(value: Any) -> str:
-    """The exact text a job should print, markers included."""
+def encode_result(
+    value: Any, *, start: str = RESULT_START, end: str = RESULT_END
+) -> str:
+    """The exact text a job should print, markers included.
+
+    The markers are parameters because a consumer that adopted this protocol before this
+    package existed has jobs in flight that print its own, and a reader that only knows ours
+    would report those results absent. The default is the protocol; the parameter is the
+    migration.
+    """
     payload = base64.b64encode(json.dumps(value).encode("utf-8")).decode("ascii")
-    return f"{RESULT_START}\n{payload}\n{RESULT_END}"
+    return f"{start}\n{payload}\n{end}"
 
 
-def parse_result(text: str) -> JobResult:
+def parse_result(
+    text: str, *, start: str = RESULT_START, end: str = RESULT_END
+) -> JobResult:
     """Recover a result from arbitrary job output.
 
     The last complete block wins, because a job may emit progress results before its final one.
+    Inside the block, the one line that decodes is the payload: another rank writing a log line
+    into the middle of the block is the case this protocol exists for, and it must not turn a
+    result that was printed correctly into a corrupt one. Only a block where nothing decodes is
+    reported corrupt.
     """
     lines = text.splitlines()
-    starts = [i for i, line in enumerate(lines) if line.strip() == RESULT_START]
+    starts = [i for i, line in enumerate(lines) if line.strip() == start]
     if not starts:
         return JobResult(ResultState.ABSENT, detail="no result block in output")
 
-    start = starts[-1]
-    ends = [
-        i for i, line in enumerate(lines) if line.strip() == RESULT_END and i > start
-    ]
+    first = starts[-1]
+    ends = [i for i, line in enumerate(lines) if line.strip() == end and i > first]
     if not ends:
         return JobResult(
             ResultState.CORRUPT,
             detail="result block opened and never closed, output was probably truncated",
         )
 
-    body = [line.strip() for line in lines[start + 1 : ends[0]] if line.strip()]
+    body = [line.strip() for line in lines[first + 1 : ends[0]] if line.strip()]
     if not body:
         return JobResult(ResultState.CORRUPT, detail="result block was empty")
 
-    # More than one line means something interleaved into the payload.
-    candidate = body[0] if len(body) == 1 else "".join(body)
-    try:
-        decoded = base64.b64decode(candidate, validate=True)
-    except (binascii.Error, ValueError) as exc:
-        return JobResult(
-            ResultState.CORRUPT, detail=f"payload is not valid base64 ({exc})"
-        )
-    try:
-        value = json.loads(decoded.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        return JobResult(
-            ResultState.CORRUPT, detail=f"payload is not valid JSON ({exc})"
-        )
-    return JobResult(ResultState.OK, value=value)
+    # Each line on its own, last first, then the whole body joined for a payload that a wrapper
+    # split across lines. The first candidate that is both base64 and JSON is the result.
+    last_detail = "no line in the result block decoded as base64-encoded JSON"
+    for candidate in [*reversed(body), "".join(body)]:
+        try:
+            decoded = base64.b64decode(candidate, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            last_detail = f"payload is not valid base64 ({exc})"
+            continue
+        try:
+            return JobResult(ResultState.OK, value=json.loads(decoded.decode("utf-8")))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            last_detail = f"payload is not valid JSON ({exc})"
+    return JobResult(ResultState.CORRUPT, detail=last_detail)

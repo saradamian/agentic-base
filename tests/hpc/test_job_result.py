@@ -53,3 +53,22 @@ def test_a_value_containing_newlines_survives_because_the_payload_is_one_line() 
     value = {"log": "line one\nline two"}
 
     assert parse_result(encode_result(value)).value == value
+
+
+def test_a_log_line_interleaved_inside_the_block_does_not_corrupt_the_result() -> None:
+    """The case the protocol exists for: another rank writes into the middle of the block."""
+    printed = encode_result({"loss": 0.5}).splitlines()
+    printed.insert(2, "[rank 3] INFO: checkpoint saved")
+
+    result = parse_result("\n".join(printed))
+
+    assert result.ok
+    assert result.value == {"loss": 0.5}
+
+
+def test_a_consumer_can_read_the_markers_it_already_prints() -> None:
+    start, end = "###AGENTIC_JOB_RESULT_START###", "###AGENTIC_JOB_RESULT_END###"
+    text = encode_result([1, 2], start=start, end=end)
+
+    assert parse_result(text).state is ResultState.ABSENT
+    assert parse_result(text, start=start, end=end).value == [1, 2]
