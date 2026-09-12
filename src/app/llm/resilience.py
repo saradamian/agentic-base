@@ -41,7 +41,9 @@ def should_retry_exception(exc: BaseException) -> bool:
 
     Timeouts and connection errors qualify, and both are the dead-pool signature.
     """
-    return isinstance(exc, httpx.TimeoutException | httpx.ConnectError | httpx.ReadError)
+    return isinstance(
+        exc, httpx.TimeoutException | httpx.ConnectError | httpx.ReadError
+    )
 
 
 def is_wrapped_timeout(message: str) -> bool:

@@ -30,7 +30,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from types import TracebackType
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
@@ -119,7 +119,9 @@ class RunRecorder:
                 if key not in ("run_id",)
             },
         }
-        response = httpx.post(f"{self.base_url}/runs", json=payload, timeout=self._timeout)
+        response = httpx.post(
+            f"{self.base_url}/runs", json=payload, timeout=self._timeout
+        )
         response.raise_for_status()
         return response.json()["run_id"]
 
@@ -161,7 +163,7 @@ class _RunContext:
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
         tb: TracebackType | None,
-    ) -> bool:
+    ) -> Literal[False]:
         self._pending.elapsed_ms = (time.monotonic() - self._started) * 1000
         if exc_type is not None and self._pending.status is RunStatus.COMPLETED:
             self._pending.status = RunStatus.FAILED

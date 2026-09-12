@@ -83,7 +83,9 @@ def probe_endpoint(
     try:
         response = httpx.post(url, json=payload, headers=headers, timeout=timeout)
     except httpx.TimeoutException as exc:
-        return ProbeResult(EndpointState.TIMEOUT, f"no answer within {timeout}s ({exc!s})", model)
+        return ProbeResult(
+            EndpointState.TIMEOUT, f"no answer within {timeout}s ({exc!s})", model
+        )
     except httpx.HTTPError as exc:
         return ProbeResult(EndpointState.UNREACHABLE, str(exc), model)
 
@@ -101,7 +103,9 @@ def _safe_json(response: httpx.Response) -> dict:
 def interpret_response(status_code: int, body: dict, model: str = "") -> ProbeResult:
     """Map an endpoint's answer to a state. Separated so it can be tested without a network."""
     if status_code in (401, 403):
-        return ProbeResult(EndpointState.UNAUTHORISED, f"credential refused ({status_code})", model)
+        return ProbeResult(
+            EndpointState.UNAUTHORISED, f"credential refused ({status_code})", model
+        )
     if status_code == 404:
         return ProbeResult(
             EndpointState.MODEL_NOT_SERVED,
@@ -109,14 +113,20 @@ def interpret_response(status_code: int, body: dict, model: str = "") -> ProbeRe
             model,
         )
     if status_code >= 500:
-        return ProbeResult(EndpointState.UNREACHABLE, f"server error {status_code}", model)
+        return ProbeResult(
+            EndpointState.UNREACHABLE, f"server error {status_code}", model
+        )
     if status_code >= 400:
         detail = str(body.get("error") or body.get("_text") or body)[:200]
-        return ProbeResult(EndpointState.COMPLETION_FAILED, f"{status_code}: {detail}", model)
+        return ProbeResult(
+            EndpointState.COMPLETION_FAILED, f"{status_code}: {detail}", model
+        )
 
     choices = body.get("choices")
     if not choices:
-        return ProbeResult(EndpointState.COMPLETION_FAILED, "no choices in the response", model)
+        return ProbeResult(
+            EndpointState.COMPLETION_FAILED, "no choices in the response", model
+        )
     message = (choices[0] or {}).get("message") or {}
     if message.get("content") is None and not message.get("tool_calls"):
         # A model that returns nothing but reasoning tokens has answered without answering.

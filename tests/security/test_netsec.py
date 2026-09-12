@@ -59,7 +59,9 @@ def test_an_empty_hostname_is_refused() -> None:
 
 def test_a_name_resolving_to_a_private_address_is_refused(monkeypatch) -> None:
     """The usual bypass: a public name pointing at an internal address."""
-    monkeypatch.setattr(netsec, "resolve", lambda host: [ipaddress.ip_address("10.1.2.3")])
+    monkeypatch.setattr(
+        netsec, "resolve", lambda host: [ipaddress.ip_address("10.1.2.3")]
+    )
 
     ok, reason = netsec.is_url_safe("https://sneaky.example.com/")
 
@@ -67,7 +69,9 @@ def test_a_name_resolving_to_a_private_address_is_refused(monkeypatch) -> None:
     assert "disallowed address" in reason
 
 
-def test_a_name_that_does_not_resolve_is_refused_rather_than_allowed(monkeypatch) -> None:
+def test_a_name_that_does_not_resolve_is_refused_rather_than_allowed(
+    monkeypatch,
+) -> None:
     """A check that could not run must not report a pass."""
     monkeypatch.setattr(netsec, "resolve", lambda host: [])
 
@@ -78,7 +82,9 @@ def test_a_name_that_does_not_resolve_is_refused_rather_than_allowed(monkeypatch
 
 
 def test_a_name_resolving_only_to_public_addresses_is_allowed(monkeypatch) -> None:
-    monkeypatch.setattr(netsec, "resolve", lambda host: [ipaddress.ip_address("93.184.216.34")])
+    monkeypatch.setattr(
+        netsec, "resolve", lambda host: [ipaddress.ip_address("93.184.216.34")]
+    )
 
     assert netsec.is_url_safe("https://example.com/")[0]
 
@@ -88,7 +94,10 @@ def test_every_resolved_address_is_checked_not_only_the_first(monkeypatch) -> No
     monkeypatch.setattr(
         netsec,
         "resolve",
-        lambda host: [ipaddress.ip_address("93.184.216.34"), ipaddress.ip_address("10.0.0.1")],
+        lambda host: [
+            ipaddress.ip_address("93.184.216.34"),
+            ipaddress.ip_address("10.0.0.1"),
+        ],
     )
 
     assert not netsec.is_url_safe("https://mixed.example.com/")[0]
@@ -100,7 +109,7 @@ def test_validate_url_raises_for_an_unsafe_target() -> None:
 
 
 def test_validate_url_is_silent_for_a_safe_target() -> None:
-    assert netsec.validate_url("https://93.184.216.34/") is None
+    netsec.validate_url("https://93.184.216.34/")  # returns nothing; it must not raise
 
 
 # --- fetching -------------------------------------------------------------------------------
@@ -116,7 +125,9 @@ def _client(handler) -> httpx.Client:
 
 
 def _public(monkeypatch) -> None:
-    monkeypatch.setattr(netsec, "resolve", lambda h: [ipaddress.ip_address("93.184.216.34")])
+    monkeypatch.setattr(
+        netsec, "resolve", lambda h: [ipaddress.ip_address("93.184.216.34")]
+    )
 
 
 def test_pinning_connects_to_the_address_while_still_addressing_the_host() -> None:
@@ -153,7 +164,9 @@ def test_pinning_keeps_the_hostname_for_certificate_validation() -> None:
 def test_a_fetch_returns_the_body(monkeypatch) -> None:
     _public(monkeypatch)
     client = _client(
-        lambda r: httpx.Response(200, text="hello", headers={"content-type": "text/plain"})
+        lambda r: httpx.Response(
+            200, text="hello", headers={"content-type": "text/plain"}
+        )
     )
 
     result = safe_fetch_text("https://example.com/", client=client)
@@ -182,10 +195,16 @@ def test_a_redirect_to_an_internal_address_is_refused(monkeypatch) -> None:
     """A permitted first hop redirecting inward is the same attack with one more step."""
 
     def _resolve(host: str):
-        return [ipaddress.ip_address("93.184.216.34" if host == "example.com" else "10.0.0.5")]
+        return [
+            ipaddress.ip_address(
+                "93.184.216.34" if host == "example.com" else "10.0.0.5"
+            )
+        ]
 
     monkeypatch.setattr(netsec, "resolve", _resolve)
-    client = _client(lambda r: httpx.Response(302, headers={"location": "https://internal.test/"}))
+    client = _client(
+        lambda r: httpx.Response(302, headers={"location": "https://internal.test/"})
+    )
 
     with pytest.raises(netsec.URLSafetyError, match="disallowed address"):
         safe_fetch_text("https://example.com/", client=client)
@@ -193,7 +212,9 @@ def test_a_redirect_to_an_internal_address_is_refused(monkeypatch) -> None:
 
 def test_a_redirect_loop_stops_at_the_hop_limit(monkeypatch) -> None:
     _public(monkeypatch)
-    client = _client(lambda r: httpx.Response(302, headers={"location": "https://example.com/n"}))
+    client = _client(
+        lambda r: httpx.Response(302, headers={"location": "https://example.com/n"})
+    )
 
     with pytest.raises(netsec.URLSafetyError, match="redirects"):
         safe_fetch_text("https://example.com/", max_redirects=2, client=client)
@@ -203,7 +224,9 @@ def test_a_redirect_without_a_location_is_refused(monkeypatch) -> None:
     _public(monkeypatch)
 
     with pytest.raises(netsec.URLSafetyError, match="location"):
-        safe_fetch_text("https://example.com/", client=_client(lambda r: httpx.Response(302)))
+        safe_fetch_text(
+            "https://example.com/", client=_client(lambda r: httpx.Response(302))
+        )
 
 
 def test_the_body_is_capped(monkeypatch) -> None:
@@ -220,7 +243,9 @@ def test_an_unsafe_url_is_refused_before_anything_is_opened() -> None:
     """Validation comes first, so a refused URL never reaches the network layer."""
 
     def explode(request: httpx.Request) -> httpx.Response:
-        raise AssertionError("a request was made for a URL that should have been refused")
+        raise AssertionError(
+            "a request was made for a URL that should have been refused"
+        )
 
     with pytest.raises(netsec.URLSafetyError):
         safe_fetch_text("http://127.0.0.1/", client=_client(explode))
@@ -230,4 +255,6 @@ def test_a_non_success_response_raises(monkeypatch) -> None:
     _public(monkeypatch)
 
     with pytest.raises(httpx.HTTPStatusError):
-        safe_fetch_text("https://example.com/", client=_client(lambda r: httpx.Response(404)))
+        safe_fetch_text(
+            "https://example.com/", client=_client(lambda r: httpx.Response(404))
+        )

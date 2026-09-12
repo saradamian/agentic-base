@@ -74,7 +74,10 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class RunRecord(SQLModel, table=True):
+# `table=True` is SQLModel's own subclass kwarg. The pydantic plugin does not model it and
+# SQLModel ships no plugin of its own, so the checker sees an unknown argument to
+# `__init_subclass__`. Scoped to the line rather than silenced repository-wide.
+class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     """One agent run, as stored."""
 
     __tablename__ = "run_record"
@@ -84,8 +87,12 @@ class RunRecord(SQLModel, table=True):
 
     # --- tenancy and grouping -------------------------------------------------
     tenant: str = Field(index=True, description="Owning project or research group.")
-    item: str = Field(default="", index=True, description="What was attempted. Pairing key.")
-    arm: str = Field(default="", index=True, description="Condition under which it ran.")
+    item: str = Field(
+        default="", index=True, description="What was attempted. Pairing key."
+    )
+    arm: str = Field(
+        default="", index=True, description="Condition under which it ran."
+    )
     arm_fingerprint: str = Field(
         default="",
         index=True,
@@ -104,7 +111,9 @@ class RunRecord(SQLModel, table=True):
     endpoint: str = Field(default="")
     precision: str = Field(default="")
     code_revision: str = Field(default="")
-    component_versions: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
+    component_versions: dict[str, str] = Field(
+        default_factory=dict, sa_column=Column(JSON)
+    )
     """Resolved version of every component whose change would change behaviour.
 
     One revision stops being enough the moment an application depends on a library that can move

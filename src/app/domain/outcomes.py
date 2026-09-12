@@ -134,11 +134,20 @@ class Judgeable(Protocol):
     Structural on purpose. A consumer keeps its own row type and still gets the rules.
     """
 
-    status: RunStatus
-    failure_kind: str
-    resolved: bool | None
-    label_source: LabelSource
-    degraded: bool
+    @property
+    def status(self) -> RunStatus: ...
+
+    @property
+    def failure_kind(self) -> str: ...
+
+    @property
+    def resolved(self) -> bool | None: ...
+
+    @property
+    def label_source(self) -> LabelSource: ...
+
+    @property
+    def degraded(self) -> bool: ...
 
 
 def is_excluded(record: Judgeable) -> bool:
@@ -241,5 +250,7 @@ class RunRecordCreate(BaseModel):
     def a_failure_kind_belongs_to_a_failure(self) -> RunRecordCreate:
         """A detail on a completed run is a mislabelled exclusion waiting to happen."""
         if self.failure_kind and self.status is RunStatus.COMPLETED:
-            raise ValueError("failure_kind was supplied on a run whose status is completed")
+            raise ValueError(
+                "failure_kind was supplied on a run whose status is completed"
+            )
         return self

@@ -17,7 +17,9 @@ def test_a_recorder_without_a_tenant_is_refused() -> None:
         RunRecorder("http://localhost", tenant="", code_revision="abc")
 
 
-def test_git_revision_returns_empty_outside_a_checkout_instead_of_raising(tmp_path) -> None:
+def test_git_revision_returns_empty_outside_a_checkout_instead_of_raising(
+    tmp_path,
+) -> None:
     """The caller decides. The service then refuses the empty value, which is the intent."""
     assert git_revision(str(tmp_path)) == ""
 
@@ -26,9 +28,12 @@ def test_a_failing_run_is_still_recorded_and_marked_failed(monkeypatch) -> None:
     """A run that crashed is a measurement. Losing it biases whatever it was part of."""
     recorded: list[PendingRun] = []
     recorder = RunRecorder("http://localhost", tenant="hpml", code_revision="abc")
-    monkeypatch.setattr(
-        recorder, "record", lambda pending: (recorded.append(pending), "run-1")[1]
-    )
+
+    def _capture(pending: PendingRun) -> str:
+        recorded.append(pending)
+        return "run-1"
+
+    monkeypatch.setattr(recorder, "record", _capture)
 
     with pytest.raises(RuntimeError), recorder.run(item="task-1") as run:
         run.model = "some-model"
@@ -42,9 +47,12 @@ def test_a_failing_run_is_still_recorded_and_marked_failed(monkeypatch) -> None:
 def test_a_successful_run_records_its_duration(monkeypatch) -> None:
     recorded: list[PendingRun] = []
     recorder = RunRecorder("http://localhost", tenant="hpml", code_revision="abc")
-    monkeypatch.setattr(
-        recorder, "record", lambda pending: (recorded.append(pending), "run-2")[1]
-    )
+
+    def _capture(pending: PendingRun) -> str:
+        recorded.append(pending)
+        return "run-2"
+
+    monkeypatch.setattr(recorder, "record", _capture)
 
     with recorder.run(item="task-2") as run:
         run.num_steps = 3

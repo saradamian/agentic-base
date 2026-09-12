@@ -42,6 +42,8 @@ def test_clearing_the_cache_picks_up_a_change(monkeypatch) -> None:
     assert get_limits().fetch_timeout_s == first + 5
 
 
-def test_every_limit_carries_a_default_so_the_service_starts_with_no_configuration() -> None:
+def test_every_limit_carries_a_default_so_the_service_starts_with_no_configuration() -> (
+    None
+):
     """A platform component that will not start without a full environment is a deployment risk."""
     assert Limits()

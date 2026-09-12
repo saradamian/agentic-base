@@ -88,7 +88,9 @@ def parse_result(text: str) -> JobResult:
         return JobResult(ResultState.ABSENT, detail="no result block in output")
 
     start = starts[-1]
-    ends = [i for i, line in enumerate(lines) if line.strip() == RESULT_END and i > start]
+    ends = [
+        i for i, line in enumerate(lines) if line.strip() == RESULT_END and i > start
+    ]
     if not ends:
         return JobResult(
             ResultState.CORRUPT,
@@ -104,9 +106,13 @@ def parse_result(text: str) -> JobResult:
     try:
         decoded = base64.b64decode(candidate, validate=True)
     except (binascii.Error, ValueError) as exc:
-        return JobResult(ResultState.CORRUPT, detail=f"payload is not valid base64 ({exc})")
+        return JobResult(
+            ResultState.CORRUPT, detail=f"payload is not valid base64 ({exc})"
+        )
     try:
         value = json.loads(decoded.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        return JobResult(ResultState.CORRUPT, detail=f"payload is not valid JSON ({exc})")
+        return JobResult(
+            ResultState.CORRUPT, detail=f"payload is not valid JSON ({exc})"
+        )
     return JobResult(ResultState.OK, value=value)

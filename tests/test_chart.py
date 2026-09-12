@@ -50,15 +50,23 @@ def test_the_grace_period_is_derived_and_not_written_as_a_literal(values) -> Non
         "grace period is a literal again; it must be derived in the template"
     )
 
-    template = (VALUES.parent / "templates" / "deployment.yaml").read_text(encoding="utf-8")
+    template = (VALUES.parent / "templates" / "deployment.yaml").read_text(
+        encoding="utf-8"
+    )
     grace_line = next(
-        line for line in template.splitlines() if "terminationGracePeriodSeconds:" in line
+        line
+        for line in template.splitlines()
+        if "terminationGracePeriodSeconds:" in line
     )
 
-    assert "longestRequestSeconds" in grace_line, f"not derived from the timeout: {grace_line.strip()}"
+    assert "longestRequestSeconds" in grace_line, (
+        f"not derived from the timeout: {grace_line.strip()}"
+    )
 
 
-def test_the_pod_waits_before_shutting_down_so_it_stops_receiving_work_first(values) -> None:
+def test_the_pod_waits_before_shutting_down_so_it_stops_receiving_work_first(
+    values,
+) -> None:
     """Pod deletion and endpoint removal race, so without this the pod refuses traffic that is
     still being routed to it."""
     assert values["lifecycle"]["preStopSleepSeconds"] > 0
@@ -86,7 +94,9 @@ def test_autoscaling_never_scales_on_utilisation(values) -> None:
 def test_autoscaling_scales_on_queued_work(values) -> None:
     metrics = values["autoscaling"]["metrics"]
 
-    assert any(m.get("type") == "External" for m in metrics), "no queue-depth metric declared"
+    assert any(m.get("type") == "External" for m in metrics), (
+        "no queue-depth metric declared"
+    )
 
 
 def test_the_root_filesystem_is_read_only(values) -> None:
@@ -119,7 +129,9 @@ def test_egress_is_default_deny_with_a_declared_allowlist(values) -> None:
     policy = values["networkPolicy"]
 
     assert policy["enabled"] is True
-    assert policy["allowedPorts"], "default-deny with no allowlist would break the service"
+    assert policy["allowedPorts"], (
+        "default-deny with no allowlist would break the service"
+    )
 
 
 def test_an_autoscaler_that_cannot_read_its_metric_raises_an_alert(values) -> None:
@@ -131,6 +143,8 @@ def test_an_autoscaler_that_cannot_read_its_metric_raises_an_alert(values) -> No
     """
     assert values["autoscaling"]["alertOnInactive"] is True
 
-    rule = (VALUES.parent / "templates" / "prometheusrule.yaml").read_text(encoding="utf-8")
+    rule = (VALUES.parent / "templates" / "prometheusrule.yaml").read_text(
+        encoding="utf-8"
+    )
 
     assert "ScalingActive" in rule

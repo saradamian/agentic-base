@@ -102,12 +102,16 @@ def inspect(code: str) -> list[Violation]:
         if isinstance(node, ast.Import | ast.ImportFrom):
             found.append(Violation("import", "import statement"))
         elif isinstance(node, ast.Attribute) and is_dunder(node.attr):
-            found.append(Violation("reflection", f"dunder attribute access ({node.attr})"))
+            found.append(
+                Violation("reflection", f"dunder attribute access ({node.attr})")
+            )
         elif isinstance(node, ast.Name) and node.id in FORBIDDEN_NAMES:
             found.append(Violation("builtin", f"forbidden name ({node.id})"))
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
             if is_dunder(node.value):
-                found.append(Violation("reflection", f"dunder string literal ({node.value})"))
+                found.append(
+                    Violation("reflection", f"dunder string literal ({node.value})")
+                )
             elif format_field_reaches_dunder(node.value):
                 found.append(Violation("reflection", "dunder inside a format field"))
     return found

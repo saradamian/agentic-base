@@ -142,9 +142,13 @@ def classify(record, change: MeaningChange) -> Epoch:
     if not revision:
         return Epoch.UNKNOWN
 
-    left = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
-    right = change.effective_at if change.effective_at.tzinfo else change.effective_at.replace(tzinfo=timezone.utc)
-    return Epoch.AFTER if left >= right else Epoch.BEFORE
+    record_at = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
+    boundary_at = (
+        change.effective_at
+        if change.effective_at.tzinfo
+        else change.effective_at.replace(tzinfo=timezone.utc)
+    )
+    return Epoch.AFTER if record_at >= boundary_at else Epoch.BEFORE
 
 
 def classify_all(records: Iterable, change: MeaningChange) -> dict[Epoch, int]:

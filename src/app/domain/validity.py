@@ -34,14 +34,17 @@ from typing import Protocol
 class Observation(Protocol):
     """The minimum an object needs to be checked for comparison validity."""
 
-    item: str
-    """What was attempted — a task, an instance, a question. Pairing key."""
+    @property
+    def item(self) -> str:
+        """What was attempted — a task, an instance, a question. Pairing key."""
 
-    arm: str
-    """Which condition it was attempted under. The treatment variable."""
+    @property
+    def arm(self) -> str:
+        """Which condition it was attempted under. The treatment variable."""
 
-    channel: str
-    """How this observation left the denominator, or `INCLUDED` if it did not."""
+    @property
+    def channel(self) -> str:
+        """How this observation left the denominator, or `INCLUDED` if it did not."""
 
 
 INCLUDED = "included"
@@ -63,9 +66,7 @@ class ChannelSpread:
 
     def describe(self) -> str:
         lo, hi = self.rate_by_arm[self.lowest_arm], self.rate_by_arm[self.highest_arm]
-        return (
-            f"{self.channel}: {hi:.1%} ({self.highest_arm}) vs {lo:.1%} ({self.lowest_arm})"
-        )
+        return f"{self.channel}: {hi:.1%} ({self.highest_arm}) vs {lo:.1%} ({self.lowest_arm})"
 
 
 @dataclass(frozen=True)

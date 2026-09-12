@@ -50,7 +50,9 @@ def test_a_foreign_record_the_agent_graded_itself_is_not_citable() -> None:
     assert not is_citable(ForeignRecord(label_source=LabelSource.SELF_REPORTED))
 
 
-def test_a_verdict_from_a_degraded_instrument_is_not_citable_however_authoritative() -> None:
+def test_a_verdict_from_a_degraded_instrument_is_not_citable_however_authoritative() -> (
+    None
+):
     assert not is_citable(ForeignRecord(degraded=True))
 
 

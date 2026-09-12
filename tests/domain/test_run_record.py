@@ -33,7 +33,9 @@ def test_an_official_label_from_a_working_instrument_is_citable() -> None:
 
 def test_a_degraded_verdict_is_not_citable_even_from_an_official_source() -> None:
     """A scorer that failed open returns a result-shaped answer; the flag is what separates them."""
-    record = _record(resolved=True, label_source=LabelSource.OFFICIAL_HARNESS, degraded=True)
+    record = _record(
+        resolved=True, label_source=LabelSource.OFFICIAL_HARNESS, degraded=True
+    )
 
     assert not record.citable
 
@@ -52,8 +54,12 @@ def test_a_failed_run_counts_as_a_measurement_rather_than_an_exclusion() -> None
     assert not record.excluded
 
 
-def test_an_infrastructure_error_leaves_the_denominator_through_a_named_channel() -> None:
-    record = _record(status=RunStatus.INFRASTRUCTURE_ERROR, failure_kind="container_removed")
+def test_an_infrastructure_error_leaves_the_denominator_through_a_named_channel() -> (
+    None
+):
+    record = _record(
+        status=RunStatus.INFRASTRUCTURE_ERROR, failure_kind="container_removed"
+    )
 
     assert record.excluded
     assert record.exclusion_channel == "container_removed"

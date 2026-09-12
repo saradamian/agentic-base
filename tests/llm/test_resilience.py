@@ -45,7 +45,9 @@ def test_a_gateway_wrapping_a_timeout_as_a_client_error_is_recognised() -> None:
     assert not is_wrapped_timeout("max_tokens is too large")
 
 
-def test_recycling_discards_the_client_so_the_next_call_opens_fresh_connections() -> None:
+def test_recycling_discards_the_client_so_the_next_call_opens_fresh_connections() -> (
+    None
+):
     created: list[httpx.Client] = []
 
     def factory() -> httpx.Client:

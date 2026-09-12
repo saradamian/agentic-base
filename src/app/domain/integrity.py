@@ -57,7 +57,9 @@ who decided it.
 
 def _canonical(values: dict[str, Any]) -> bytes:
     """Stable bytes for a mapping, so the same record always hashes the same way."""
-    return json.dumps(values, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    return json.dumps(
+        values, sort_keys=True, separators=(",", ":"), default=str
+    ).encode("utf-8")
 
 
 def content_hash(record: Any, previous_hash: str = GENESIS) -> str:

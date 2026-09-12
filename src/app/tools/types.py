@@ -97,7 +97,9 @@ class Tool:
     name: str
     description: str
     parameters: list[ToolParameter] = field(default_factory=list)
-    handler: Callable[..., Awaitable[ToolResult]] | Callable[..., ToolResult] | None = None
+    handler: Callable[..., Awaitable[ToolResult]] | Callable[..., ToolResult] | None = (
+        None
+    )
     category: str = "general"
 
     max_output_chars: int | None = None

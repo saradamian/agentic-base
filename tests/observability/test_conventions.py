@@ -7,7 +7,7 @@ between telemetry a tool can read and telemetry only we can read.
 
 from __future__ import annotations
 
-from app.observability import conventions as c
+import app.observability.conventions as c
 
 
 def test_every_span_carries_a_standard_kind() -> None:

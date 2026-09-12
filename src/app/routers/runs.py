@@ -67,7 +67,9 @@ class _Observation:
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_run(payload: RunRecordCreate, session: Session = Depends(get_session)) -> RunRecord:
+def create_run(
+    payload: RunRecordCreate, session: Session = Depends(get_session)
+) -> RunRecord:
     """Record one agent run, transcript and provenance included.
 
     Tenant and code revision are required. An outcome may only be supplied together with the
@@ -85,7 +87,9 @@ def get_run(run_id: str, session: Session = Depends(get_session)) -> RunRecord:
     """Retrieve one run."""
     record = session.get(RunRecord, run_id)
     if record is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        )
     return record
 
 
@@ -101,7 +105,9 @@ def label_run(
     """
     record = session.get(RunRecord, run_id)
     if record is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        )
     record.resolved = update.resolved
     record.label_source = update.label_source
     record.instrument = update.instrument
@@ -129,7 +135,8 @@ def validity_report(
     if item_prefix:
         records = [r for r in records if r.item.startswith(item_prefix)]
     observations = [
-        _Observation(item=r.item, arm=r.arm, channel=r.exclusion_channel) for r in records
+        _Observation(item=r.item, arm=r.arm, channel=r.exclusion_channel)
+        for r in records
     ]
     report = check_comparison(observations)
     return ValidityResponse(

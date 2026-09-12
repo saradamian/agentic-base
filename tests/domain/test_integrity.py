@@ -5,7 +5,9 @@ from app.domain.run_record import LabelSource, RunRecord
 
 
 def _records(n: int) -> list[RunRecord]:
-    return [RunRecord(tenant="hpml", item=f"task-{i}", arm="baseline") for i in range(n)]
+    return [
+        RunRecord(tenant="hpml", item=f"task-{i}", arm="baseline") for i in range(n)
+    ]
 
 
 def test_the_same_record_hashes_the_same_way_every_time() -> None:

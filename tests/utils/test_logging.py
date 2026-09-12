@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from typing import Never
+from typing import NoReturn
 
 import pytest
 from structlog.testing import capture_logs
@@ -70,7 +70,7 @@ async def test_logs_for_ignored_route(test_client):
 @pytest.mark.asyncio
 async def test_logs_ise(app, test_client):
     @app.get("/ise", response_model=None)
-    async def ise() -> Never:
+    async def ise() -> NoReturn:
         raise ValueError("AAAAA!")
 
     with pytest.raises(ValueError, match="AAAAA!"), capture_logs() as cap_logs:

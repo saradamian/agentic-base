@@ -4,7 +4,12 @@ from app.domain.run_record import LabelSource, RunStatus
 
 
 def _payload(**kwargs) -> dict:
-    body = {"tenant": "hpml", "code_revision": "abc1234", "item": "task-1", "arm": "baseline"}
+    body = {
+        "tenant": "hpml",
+        "code_revision": "abc1234",
+        "item": "task-1",
+        "arm": "baseline",
+    }
     body.update(kwargs)
     return body
 
@@ -39,7 +44,9 @@ def test_a_label_without_a_source_is_rejected(test_client) -> None:
     """Provenance is mandatory by construction, not by convention."""
     created = test_client.post("/runs", json=_payload(item="task-3")).json()
 
-    response = test_client.post(f"/runs/{created['run_id']}/label", json={"resolved": True})
+    response = test_client.post(
+        f"/runs/{created['run_id']}/label", json={"resolved": True}
+    )
 
     assert response.status_code == 422
 
@@ -47,7 +54,9 @@ def test_a_label_without_a_source_is_rejected(test_client) -> None:
 def test_the_validity_report_flags_an_arm_correlated_exclusion(test_client) -> None:
     tenant = "skewed"
     for n in range(20):
-        test_client.post("/runs", json=_payload(tenant=tenant, item=f"t{n}", arm="shallow"))
+        test_client.post(
+            "/runs", json=_payload(tenant=tenant, item=f"t{n}", arm="shallow")
+        )
     for n in range(20):
         excluded = n < 6
         test_client.post(
@@ -56,7 +65,9 @@ def test_the_validity_report_flags_an_arm_correlated_exclusion(test_client) -> N
                 tenant=tenant,
                 item=f"t{n}",
                 arm="deep",
-                status=RunStatus.INFRASTRUCTURE_ERROR.value if excluded else RunStatus.COMPLETED.value,
+                status=RunStatus.INFRASTRUCTURE_ERROR.value
+                if excluded
+                else RunStatus.COMPLETED.value,
                 failure_kind="container_removed" if excluded else "",
             ),
         )
@@ -86,7 +97,11 @@ def test_recording_an_outcome_without_naming_its_scorer_is_refused(test_client) 
 def test_recording_an_outcome_with_its_scorer_is_accepted(test_client) -> None:
     response = test_client.post(
         "/runs",
-        json=_payload(item="task-10", resolved=True, label_source=LabelSource.OFFICIAL_HARNESS.value),
+        json=_payload(
+            item="task-10",
+            resolved=True,
+            label_source=LabelSource.OFFICIAL_HARNESS.value,
+        ),
     )
 
     assert response.status_code == 201

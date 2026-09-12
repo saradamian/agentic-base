@@ -127,7 +127,9 @@ def validate_url(
     resolve_dns: bool = True,
 ) -> None:
     """Raise URLSafetyError if the URL must not be fetched."""
-    safe, reason = is_url_safe(url, allowed_ports=allowed_ports, resolve_dns=resolve_dns)
+    safe, reason = is_url_safe(
+        url, allowed_ports=allowed_ports, resolve_dns=resolve_dns
+    )
     if not safe:
         raise URLSafetyError(reason)
 
@@ -211,7 +213,9 @@ def safe_fetch_text(
     try:
         for _ in range(hops + 1):
             validate_url(current, allowed_ports=allowed_ports)
-            addresses = [ip for ip in resolve(_hostname(current)) if not is_disallowed_ip(ip)]
+            addresses = [
+                ip for ip in resolve(_hostname(current)) if not is_disallowed_ip(ip)
+            ]
             if addresses:
                 target = pin_target(current, str(addresses[0]))
                 request_url = target.connect_url
@@ -219,9 +223,15 @@ def safe_fetch_text(
                 extensions = {"sni_hostname": target.sni_hostname}
             else:
                 # An address literal: validate_url already checked it, nothing to pin.
-                request_url, request_headers, extensions = current, dict(headers or {}), {}
+                request_url, request_headers, extensions = (
+                    current,
+                    dict(headers or {}),
+                    {},
+                )
 
-            response = client.get(request_url, headers=request_headers, extensions=extensions)
+            response = client.get(
+                request_url, headers=request_headers, extensions=extensions
+            )
             if response.is_redirect:
                 location = response.headers.get("location", "")
                 if not location:

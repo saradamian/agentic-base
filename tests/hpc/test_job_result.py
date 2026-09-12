@@ -30,7 +30,10 @@ def test_a_block_cut_off_by_a_killed_job_is_corrupt_rather_than_absent() -> None
 
 
 def test_an_empty_block_is_corrupt() -> None:
-    assert parse_result("###JOB_RESULT_START###\n###JOB_RESULT_END###").state is ResultState.CORRUPT
+    assert (
+        parse_result("###JOB_RESULT_START###\n###JOB_RESULT_END###").state
+        is ResultState.CORRUPT
+    )
 
 
 def test_a_payload_that_is_not_base64_is_corrupt() -> None:

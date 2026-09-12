@@ -46,6 +46,8 @@ dev = [
   "pytest-env==1.7.1",
   "ruff==0.16.6",
   "mkdocs-techdocs-core==1.7.1",
+  # The suite runs on the consumer floor too, so the 3.10 leg needs a TOML reader.
+  'tomli==2.2.1; python_version < "3.11"',
 
 ]
 
@@ -101,6 +103,10 @@ ignore = [
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.per-file-ignores]
+# `Depends(...)` in a parameter default is FastAPI's declared way of asking for a dependency,
+# not the mutable-default bug B008 exists to catch. Scoped to the routers so the rule keeps
+# working everywhere it means what it says.
+"src/app/routers/*" = ["B008"]
 "tests/*" = [
   "ANN",    # Don't force type annotations
   "S101",   # We need assert in test

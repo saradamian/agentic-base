@@ -122,7 +122,7 @@ def test_the_linter_targets_the_consumer_floor_rather_than_ours() -> None:
     text = (SRC.parent / "pyproject.toml").read_text()
     line = next(ln for ln in text.splitlines() if ln.startswith("target-version"))
     target = line.split('"')[1]
-    want = "py%d%d" % CONSUMER_PYTHON_FLOOR
+    want = f"py{CONSUMER_PYTHON_FLOOR[0]}{CONSUMER_PYTHON_FLOOR[1]}"
     assert target == want, (
         f"ruff targets {target} but the consumer floor is {want}; its upgrade rules will ask "
         "for syntax this layer's consumers cannot run"

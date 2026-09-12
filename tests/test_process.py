@@ -13,9 +13,13 @@ only the part a commit can change.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
-import tomllib
+if sys.version_info >= (3, 11):
+    import tomllib
+else:  # the consumer floor; see tests/test_portable_surface.py
+    import tomli as tomllib
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,7 +37,10 @@ _CILoader.add_multi_constructor("!", lambda loader, suffix, node: None)
 
 
 def _load_ci() -> dict:
-    return yaml.load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"), Loader=_CILoader)
+    return yaml.load(
+        (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"), Loader=_CILoader
+    )
+
 
 MINIMUM_COVERAGE = 88
 """The floor. Raise it when coverage rises; never lower it.
@@ -89,7 +96,9 @@ def test_commit_messages_are_checked_at_commit_time() -> None:
     Between two comparable repositories the compliance rate was 95% with this hook and 4.5%
     without. The difference is entirely the hook.
     """
-    config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    config = yaml.safe_load(
+        (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+    )
     hooks = [hook["id"] for repo in config["repos"] for hook in repo["hooks"]]
 
     assert "commitizen" in hooks
@@ -102,9 +111,9 @@ def test_every_source_module_has_a_test_module() -> None:
     existed. Nothing had imported it, so nothing had failed.
     """
     wired_only = {"__init__", "main", "config", "db"}
-    modules = {
-        path.stem for path in (ROOT / "src" / "app").rglob("*.py")
-    } - wired_only
-    tested = {path.stem.removeprefix("test_") for path in (ROOT / "tests").rglob("test_*.py")}
+    modules = {path.stem for path in (ROOT / "src" / "app").rglob("*.py")} - wired_only
+    tested = {
+        path.stem.removeprefix("test_") for path in (ROOT / "tests").rglob("test_*.py")
+    }
 
     assert modules <= tested, f"no test module for: {sorted(modules - tested)}"

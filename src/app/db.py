@@ -17,7 +17,11 @@ from app.config import get_settings
 def get_engine():  # noqa: ANN201 - engine type is a SQLAlchemy internal
     """Create the process-wide engine."""
     settings = get_settings()
-    connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+    connect_args = (
+        {"check_same_thread": False}
+        if settings.database_url.startswith("sqlite")
+        else {}
+    )
     return create_engine(settings.database_url, connect_args=connect_args)
 
 

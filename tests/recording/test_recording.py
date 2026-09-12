@@ -37,7 +37,7 @@ def test_the_default_observer_changes_nothing() -> None:
 
     assert observer.inspect_arguments("t", {"a": 1}) == {"a": 1}
     assert observer.inspect_result("t", "out", True) == "out"
-    assert observer.record("t", {}, "out", True, 1.0) is None
+    observer.record("t", {}, "out", True, 1.0)  # returns nothing; it must not raise
 
 
 def test_the_default_observer_satisfies_the_protocol() -> None:

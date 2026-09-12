@@ -49,7 +49,9 @@ def test_required_parameters_appear_in_the_schema() -> None:
 
 def test_a_tool_with_no_required_parameters_omits_the_key() -> None:
     """An empty required list is not the same as no required key, and some endpoints care."""
-    tool = Tool(name="now", description="Time", parameters=[ToolParameter("tz", required=False)])
+    tool = Tool(
+        name="now", description="Time", parameters=[ToolParameter("tz", required=False)]
+    )
 
     assert "required" not in tool.to_openai_schema()["function"]["parameters"]
 
@@ -61,7 +63,9 @@ def test_an_enum_parameter_carries_its_options() -> None:
         parameters=[ToolParameter("mode", enum=["read", "write"])],
     )
 
-    assert tool.to_openai_schema()["function"]["parameters"]["properties"]["mode"]["enum"] == [
+    assert tool.to_openai_schema()["function"]["parameters"]["properties"]["mode"][
+        "enum"
+    ] == [
         "read",
         "write",
     ]
@@ -72,7 +76,10 @@ def test_the_output_limit_comes_from_configuration_not_a_literal() -> None:
     be able to say what it was."""
     get_limits.cache_clear()
 
-    assert Tool(name="t", description="d").output_limit == get_limits().tool_output_max_chars
+    assert (
+        Tool(name="t", description="d").output_limit
+        == get_limits().tool_output_max_chars
+    )
 
 
 def test_a_tool_may_override_its_own_output_limit() -> None:

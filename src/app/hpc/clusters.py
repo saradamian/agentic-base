@@ -88,14 +88,20 @@ def _assert_no_secrets(raw: dict[str, Any], source: Path) -> None:
     credentials = raw.get("credentials") or {}
     for purpose, value in credentials.items():
         text = str(value)
-        if not text.replace("_", "").isalnum() or text != text.upper() or len(text) > 64:
+        if (
+            not text.replace("_", "").isalnum()
+            or text != text.upper()
+            or len(text) > 64
+        ):
             raise ProfileError(
                 f"{source}: credentials.{purpose} looks like a value rather than the name of an "
                 f"environment variable. Profiles are committed and must never carry secrets."
             )
 
 
-def load_profile(name_or_path: str, *, profile_dir: Path | None = None) -> ClusterProfile:
+def load_profile(
+    name_or_path: str, *, profile_dir: Path | None = None
+) -> ClusterProfile:
     """Load a profile by name from the profile directory, or from an explicit path."""
     candidate = Path(name_or_path)
     if not candidate.suffix:

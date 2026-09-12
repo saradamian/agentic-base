@@ -25,7 +25,9 @@ class Obs:
     channel: str
 
 
-def _arm(arm: str, *, included: int, excluded: int, channel: str = "timeout") -> list[Obs]:
+def _arm(
+    arm: str, *, included: int, excluded: int, channel: str = "timeout"
+) -> list[Obs]:
     rows = [Obs(item=f"i{n}", arm=arm, channel=INCLUDED) for n in range(included)]
     rows += [Obs(item=f"x{n}", arm=arm, channel=channel) for n in range(excluded)]
     return rows
@@ -33,7 +35,9 @@ def _arm(arm: str, *, included: int, excluded: int, channel: str = "timeout") ->
 
 def test_flags_a_channel_whose_rate_differs_across_arms() -> None:
     """POSITIVE CONTROL: a skewed exclusion rate must be reported as unsound."""
-    observations = _arm("shallow", included=90, excluded=10) + _arm("deep", included=99, excluded=1)
+    observations = _arm("shallow", included=90, excluded=10) + _arm(
+        "deep", included=99, excluded=1
+    )
 
     report = check_comparison(observations)
 
@@ -44,7 +48,9 @@ def test_flags_a_channel_whose_rate_differs_across_arms() -> None:
 
 
 def test_reports_sound_when_exclusion_rates_match_across_arms() -> None:
-    observations = _arm("shallow", included=90, excluded=10) + _arm("deep", included=90, excluded=10)
+    observations = _arm("shallow", included=90, excluded=10) + _arm(
+        "deep", included=90, excluded=10
+    )
 
     report = check_comparison(observations)
 
@@ -62,7 +68,9 @@ def test_a_single_arm_cannot_produce_a_finding_and_says_so() -> None:
 
 
 def test_no_exclusions_anywhere_cannot_produce_a_finding_and_says_so() -> None:
-    observations = _arm("a", included=10, excluded=0) + _arm("b", included=10, excluded=0)
+    observations = _arm("a", included=10, excluded=0) + _arm(
+        "b", included=10, excluded=0
+    )
 
     report = check_comparison(observations)
 
@@ -72,7 +80,9 @@ def test_no_exclusions_anywhere_cannot_produce_a_finding_and_says_so() -> None:
 
 def test_ignores_a_ratio_between_two_negligible_rates() -> None:
     """Two rare exclusions differing threefold are noise, not a finding."""
-    observations = _arm("a", included=999, excluded=3) + _arm("b", included=1000, excluded=1)
+    observations = _arm("a", included=999, excluded=3) + _arm(
+        "b", included=1000, excluded=1
+    )
 
     report = check_comparison(observations)
 
@@ -80,7 +90,9 @@ def test_ignores_a_ratio_between_two_negligible_rates() -> None:
 
 
 def test_treats_a_zero_rate_against_a_real_one_as_an_infinite_ratio() -> None:
-    observations = _arm("a", included=80, excluded=20) + _arm("b", included=100, excluded=0)
+    observations = _arm("a", included=80, excluded=20) + _arm(
+        "b", included=100, excluded=0
+    )
 
     report = check_comparison(observations)
 
@@ -89,9 +101,8 @@ def test_treats_a_zero_rate_against_a_real_one_as_an_infinite_ratio() -> None:
 
 
 def test_counts_each_exclusion_channel_separately_per_arm() -> None:
-    observations = (
-        _arm("a", included=8, excluded=2, channel="timeout")
-        + _arm("b", included=8, excluded=2, channel="infrastructure_error")
+    observations = _arm("a", included=8, excluded=2, channel="timeout") + _arm(
+        "b", included=8, excluded=2, channel="infrastructure_error"
     )
 
     counts = missingness_by_arm(observations)

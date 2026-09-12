@@ -54,7 +54,11 @@ def test_a_completion_with_no_content_is_not_healthy() -> None:
 
 
 def test_a_tool_call_with_no_content_counts_as_an_answer() -> None:
-    body = {"choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [{}]}}]}
+    body: dict[str, object] = {
+        "choices": [
+            {"message": {"role": "assistant", "content": None, "tool_calls": [{}]}}
+        ]
+    }
 
     assert interpret_response(200, body, "m").state is EndpointState.OK
 

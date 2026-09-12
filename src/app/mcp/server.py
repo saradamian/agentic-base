@@ -43,7 +43,10 @@ TOOLS: list[dict[str, Any]] = [
         "inputSchema": {
             "type": "object",
             "properties": {
-                "tenant": {"type": "string", "description": "Owning project or research group."},
+                "tenant": {
+                    "type": "string",
+                    "description": "Owning project or research group.",
+                },
                 "arm": {"type": "string", "description": "Optional filter on the arm."},
                 "limit": {"type": "integer", "description": "Rows to return."},
             },
@@ -112,7 +115,9 @@ def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[st
         if arm := arguments.get("arm"):
             rows = [r for r in rows if r.arm == arm]
         rows.sort(key=lambda r: r.created_at, reverse=True)
-        cap = min(int(arguments.get("limit") or limits.mcp_max_rows), limits.mcp_max_rows)
+        cap = min(
+            int(arguments.get("limit") or limits.mcp_max_rows), limits.mcp_max_rows
+        )
         return {
             "total": len(rows),
             "returned": min(len(rows), cap),
@@ -159,7 +164,8 @@ def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[st
         stats: dict[str, dict[str, int]] = {}
         for record in rows:
             bucket = stats.setdefault(
-                record.arm or "(unset)", {"runs": 0, "citable": 0, "degraded": 0, "excluded": 0}
+                record.arm or "(unset)",
+                {"runs": 0, "citable": 0, "degraded": 0, "excluded": 0},
             )
             bucket["runs"] += 1
             bucket["citable"] += int(record.citable)
@@ -199,7 +205,11 @@ def handle_request(request: dict[str, Any], session: Session) -> dict[str, Any] 
             return _error(request_id, -32602, f"missing argument: {exc}")
         return _result(
             request_id,
-            {"content": [{"type": "text", "text": json.dumps(payload, default=str, indent=2)}]},
+            {
+                "content": [
+                    {"type": "text", "text": json.dumps(payload, default=str, indent=2)}
+                ]
+            },
         )
     return _error(request_id, -32601, f"unknown method: {method}")
 
@@ -209,7 +219,11 @@ def _result(request_id: Any, result: dict[str, Any]) -> dict[str, Any]:
 
 
 def _error(request_id: Any, code: int, message: str) -> dict[str, Any]:
-    return {"jsonrpc": "2.0", "id": request_id, "error": {"code": code, "message": message}}
+    return {
+        "jsonrpc": "2.0",
+        "id": request_id,
+        "error": {"code": code, "message": message},
+    }
 
 
 def serve_stdio(session_factory: Callable[[], Session]) -> None:

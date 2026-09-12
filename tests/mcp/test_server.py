@@ -46,19 +46,30 @@ def session():
 
 
 def test_initialize_announces_the_tool_capability(session) -> None:
-    response = handle_request({"jsonrpc": "2.0", "id": 1, "method": "initialize"}, session)
+    response = handle_request(
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize"}, session
+    )
 
+    assert response is not None
     assert "tools" in response["result"]["capabilities"]
 
 
 def test_a_notification_receives_no_reply(session) -> None:
     """A reply to a notification makes some clients drop the session."""
-    assert handle_request({"jsonrpc": "2.0", "method": "notifications/initialized"}, session) is None
+    assert (
+        handle_request(
+            {"jsonrpc": "2.0", "method": "notifications/initialized"}, session
+        )
+        is None
+    )
 
 
 def test_the_published_surface_stays_small(session) -> None:
-    response = handle_request({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, session)
+    response = handle_request(
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, session
+    )
 
+    assert response is not None
     assert len(response["result"]["tools"]) == 4
 
 
@@ -89,10 +100,16 @@ def test_an_unknown_run_reports_an_error_rather_than_raising(session) -> None:
 
 
 def test_a_missing_argument_becomes_a_protocol_error(session) -> None:
-    request = {"jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name": "list_runs"}}
+    request = {
+        "jsonrpc": "2.0",
+        "id": 7,
+        "method": "tools/call",
+        "params": {"name": "list_runs"},
+    }
 
     response = handle_request(request, session)
 
+    assert response is not None
     assert response["error"]["code"] == -32602
 
 
@@ -106,5 +123,6 @@ def test_a_tool_call_returns_json_text_content(session) -> None:
 
     response = handle_request(request, session)
 
+    assert response is not None
     payload = json.loads(response["result"]["content"][0]["text"])
     assert payload["tenant"] == "hpml"
