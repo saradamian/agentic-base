@@ -1,0 +1,29 @@
+# The gate this repository declares, run on both ends of the supported range. 3.10 is not
+# decoration: it is the floor a consumer of this library runs on, and the portable-surface guards
+# mean nothing unless something executes them there.
+#
+# This file lives in the internal tree so the public mirror carries it; GitLab ignores it.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --python ${{ matrix.python }} --group dev --extra service
+      - run: .venv/bin/ruff check src tests
+      - run: .venv/bin/ruff format --check src tests
+      - run: .venv/bin/mypy src tests
+      - run: .venv/bin/pytest tests -q --cov=src --cov-report=term
+        env:
+          DATABASE_URL: sqlite:///./ci.db

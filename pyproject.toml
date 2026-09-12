@@ -47,7 +47,7 @@ dev = [
   "ruff==0.16.6",
   "mkdocs-techdocs-core==1.7.1",
   # The suite runs on the consumer floor too, so the 3.10 leg needs a TOML reader.
-  'tomli==2.2.1; python_version < "3.11"',
+  'tomli>=2.4; python_version < "3.11"',
 
 ]
 
