@@ -52,12 +52,19 @@ class LabelSource(str, enum.Enum):
     contrast."""
 
     OFFICIAL_HARNESS = "official_harness"
-    """The benchmark's own authoritative scorer."""
+    """The benchmark's own authoritative scorer, published as such: the SWE-bench harness."""
+
+    BENCHMARK_GRADER = "benchmark_grader"
+    """A benchmark's own grader where the benchmark ships no separate harness: a tau environment
+    reward, a Terminal-Bench grader, an ARE validator. Authoritative for that benchmark, and
+    named apart from the harness because a reader must not assume the SWE-bench calibration."""
 
     HUMAN = "human"
 
 
-CITABLE_LABEL_SOURCES = frozenset({LabelSource.OFFICIAL_HARNESS, LabelSource.HUMAN})
+CITABLE_LABEL_SOURCES = frozenset(
+    {LabelSource.OFFICIAL_HARNESS, LabelSource.BENCHMARK_GRADER, LabelSource.HUMAN}
+)
 """Sources whose labels may be reported as results. Everything else is a diagnostic."""
 
 
@@ -81,6 +88,7 @@ _AUTHORITY: dict[LabelSource, LabelAuthority] = {
     LabelSource.SELF_REPORTED: LabelAuthority.DIAGNOSTIC,
     LabelSource.CONVENIENCE_VERIFIER: LabelAuthority.DIAGNOSTIC,
     LabelSource.OFFICIAL_HARNESS: LabelAuthority.AUTHORITATIVE,
+    LabelSource.BENCHMARK_GRADER: LabelAuthority.AUTHORITATIVE,
     LabelSource.HUMAN: LabelAuthority.AUTHORITATIVE,
 }
 
@@ -89,6 +97,7 @@ _MLFLOW_SOURCE_TYPE: dict[LabelSource, str] = {
     LabelSource.SELF_REPORTED: "LLM_JUDGE",
     LabelSource.CONVENIENCE_VERIFIER: "CODE",
     LabelSource.OFFICIAL_HARNESS: "CODE",
+    LabelSource.BENCHMARK_GRADER: "CODE",
     LabelSource.HUMAN: "HUMAN",
 }
 

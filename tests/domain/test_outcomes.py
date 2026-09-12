@@ -141,3 +141,19 @@ def test_tenant_and_code_revision_have_no_defaults() -> None:
         RunRecordCreate(code_revision="abc123")
     with pytest.raises(ValueError):
         RunRecordCreate(tenant="hpml")
+
+
+def test_a_benchmarks_own_grader_is_authoritative_and_citable() -> None:
+    """tau, Terminal-Bench and ARE ship a grader and no separate harness; their verdict is the
+    benchmark's own, and a consumer must not have to file it as a convenience check."""
+    from agentic_base.domain.outcomes import (
+        CITABLE_LABEL_SOURCES,
+        LabelAuthority,
+        LabelSource,
+        authority_of,
+        mlflow_source_type,
+    )
+
+    assert LabelSource.BENCHMARK_GRADER in CITABLE_LABEL_SOURCES
+    assert authority_of(LabelSource.BENCHMARK_GRADER) is LabelAuthority.AUTHORITATIVE
+    assert mlflow_source_type(LabelSource.BENCHMARK_GRADER) == "CODE"
