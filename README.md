@@ -57,7 +57,9 @@ resource, in every deployed environment.
 Here. Changes land on `main` through pull requests that the gate has passed on both ends of the
 supported Python range. SURF's own deployment of this service, the environment overlays and the
 internal pipeline definition, is kept apart from this repository because it describes where the
-software runs rather than what it does.
+software runs rather than what it does. The mechanism is general and is documented in
+`docs/architecture/deployment-overlay.md`: a deployment repository is this one plus an additive
+overlay, kept current by merging `main`, with `scripts/overlay.py` to compose, check and sync.
 
 ## Versioning and releases
 

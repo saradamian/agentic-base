@@ -22,8 +22,10 @@ service dependency, the suite tells you.
 
 Anything that is a fact about *where* this runs rather than *what* it does, a registry, a
 hostname, a pull secret, an environment name, does not go in code, chart defaults or the
-Dockerfile. It goes in a deployment overlay outside this repository. The Dockerfile takes
-registries as build arguments for this reason.
+Dockerfile. It goes in a deployment overlay outside this repository, and the overlay may only
+add files, never modify ours; `overlay.cfg` declares which paths it owns and a guard refuses a
+change here that creates one. The Dockerfile takes registries as build arguments for this reason.
+The pattern and its tool are in `docs/architecture/deployment-overlay.md`.
 
 ## Running the gate
 
