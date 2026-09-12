@@ -89,3 +89,44 @@ def test_the_attribute_names_are_the_standards_even_without_the_packages() -> No
     assert c.OI_SPAN_KIND == "openinference.span.kind"
     assert c.GEN_AI_REQUEST_MODEL == "gen_ai.request.model"
     assert c.OI_LLM_TOKEN_COUNT_PROMPT == "llm.token_count.prompt"
+
+
+def test_both_vocabularies_are_installed_so_the_fallback_is_not_what_runs() -> None:
+    """The literal fallbacks exist for an install without the packages. The suite is not one."""
+    import openinference.semconv.trace  # noqa: F401
+    from opentelemetry.semconv._incubating.attributes import (
+        gen_ai_attributes,  # noqa: F401
+    )
+
+
+def test_every_fallback_literal_equals_the_installed_vocabulary() -> None:
+    """A fallback that drifts from the package is a private dialect that appears only on the
+    installs least likely to notice. Read the except branches and hold them to the live values."""
+    import ast
+    from pathlib import Path
+
+    from agentic_base.observability import conventions
+
+    source = Path(conventions.__file__).read_text()
+    checked = 0
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Try):
+            continue
+        for handler in node.handlers:
+            for stmt in handler.body:
+                if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
+                    continue
+                target, value = stmt.targets[0], stmt.value
+                if isinstance(target, ast.Name) and isinstance(value, ast.Constant):
+                    assert getattr(conventions, target.id) == value.value, target.id
+                    checked += 1
+                elif isinstance(target, ast.Tuple) and isinstance(value, ast.Tuple):
+                    for name, const in zip(target.elts, value.elts, strict=True):
+                        assert isinstance(name, ast.Name) and isinstance(
+                            const, ast.Constant
+                        )
+                        assert getattr(conventions, name.id) == const.value, name.id
+                        checked += 1
+    assert checked >= 20, (
+        f"only {checked} fallback literals found; the parser missed a branch"
+    )

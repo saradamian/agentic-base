@@ -94,7 +94,7 @@ something maintained already do this? Rows that were missing are added; one defe
 | `main.py` | FastAPI, the Prometheus instrumentator, correlation ids, structlog | ADOPT, all from the golden-path template |
 | `routers/health.py` | liveness and readiness | ADOPT, template |
 | `routers/runs.py` | the write path that refuses an outcome without a scorer, and the validity endpoint | BUILD. Measured 2026-09-12: MLflow accepts an unsourced outcome from any client and stamps it `CODE/default`, so the refusal has to live at a boundary of ours. Revisit when a tracker refuses an unsourced outcome at its own API |
-| `recording.py` | the observer seam a served call passes through | BRIDGE. `mcp` 2.x ships `ServerMiddleware`, which is the same seam for that one transport; ours stays framework-neutral and the MCP surface should adapt it through the SDK's middleware rather than a second hook |
+| `recording.py` | the observer seam a served call passes through | BRIDGE. `mcp` 2.x ships `ServerMiddleware`, the same seam for that transport; `mcp.server.ObservingMiddleware` adapts ours through it, so a host implements one observer and every served call reaches it |
 | `domain/run_record.py` | the table behind the BUILD row above | BUILD, see the build table. Revisit when that row says to |
 | `domain/outcomes.py` | the label vocabulary and the rules over a structural protocol | BRIDGE onto MLflow's assessment source, see the 2026-09-11 check below |
 | `domain/epochs.py` | declaring that a revision changed a field's meaning, and refusing to pool across it | BUILD. No tracker records a dependency version as a pooling key. Revisit when one does |
@@ -175,7 +175,10 @@ both of the failing checks would then pass.
 **MCP moved under us.** The SDK went to 2.x for the 2026-07-28 protocol, with OpenTelemetry
 tracing on by default and an in-memory client for tests. Our hand-rolled server still announced
 `2025-06-18`. It is replaced by the SDK in the service extra; the four tools and the pure dispatch
-are what remain ours.
+are what remain ours. Two consequences were only half-taken at first and are now taken: the SDK
+traces through the API's global provider, so `configure_tracing` sets it, and a test proves an
+SDK span reaches the exporter; and the recording seam runs as the SDK's own `ServerMiddleware`
+(`ObservingMiddleware`), so the `recording.py` row's BRIDGE is real rather than intended.
 
 **The AI Act dates moved; the requirement did not.** Regulation (EU) 2026/1744, the Digital
 Omnibus, in force 27 July 2026, defers the Annex III high-risk obligations to 2 December 2027 and
@@ -189,7 +192,11 @@ fixed in 8.3). It does not change the BRIDGE verdict, and it is the reason the p
 docstring says what it says: nothing at this layer is an isolation boundary.
 
 **The GenAI conventions are where they were.** Every `gen_ai.*` attribute is still Development,
-in the dedicated repository. The 2026-09-11 note stands.
+in the dedicated repository. The 2026-09-11 note stands, with two changes on our side: both
+vocabulary packages are now pinned in the service extra, so the literal fallbacks are no longer
+what runs in the suite, and a test holds every fallback literal to the installed value. The two
+attributes named on 2026-09-11 are written up as proposals in `docs/architecture/proposals.md`,
+ready to file.
 
 **Agent observability is being standardised under the Linux Foundation's Agentic AI Foundation**,
 with MCP, goose and AGENTS.md as founding projects and structured observability on the 2026

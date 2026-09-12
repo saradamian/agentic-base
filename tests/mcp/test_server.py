@@ -134,3 +134,104 @@ async def test_the_row_cap_is_reported_rather_than_silent(server, monkeypatch) -
     payload = result.structured_content
     assert payload["total"] == 3
     assert payload["returned"] == 1
+
+
+class _Recorder:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def inspect_arguments(self, tool, arguments):
+        return {**arguments, "limit": 1} if tool == "list_runs" else arguments
+
+    def inspect_result(self, tool, result, success):
+        return (
+            result.replace('"returned"', '"returned_after_boundary"')
+            if success
+            else result
+        )
+
+    def record(self, tool, arguments, result, success, elapsed_ms, **extra):
+        self.calls.append(
+            {
+                "tool": tool,
+                "arguments": arguments,
+                "success": success,
+                "elapsed_ms": elapsed_ms,
+                **extra,
+            }
+        )
+
+
+@pytest.mark.asyncio
+async def test_every_served_call_reaches_the_observer_and_its_argument_rewrite_is_honoured(
+    engine,
+) -> None:
+    recorder = _Recorder()
+    server = build_server(lambda: Session(engine), observer=recorder)
+
+    async with Client(server, raise_exceptions=True) as client:
+        result = await client.call_tool("list_runs", {"tenant": "hpml"})
+
+    assert (
+        result.structured_content["returned"] == 1
+    )  # the observer's argument rewrite applied
+    assert (
+        "returned_after_boundary" in result.content[0].text
+    )  # and its result rewrite reached the client
+    (call,) = recorder.calls
+    assert call["tool"] == "list_runs"
+    assert call["arguments"]["limit"] == 1
+    assert call["success"] is True
+    assert call["elapsed_ms"] > 0
+    assert call["method"] == "tools/call"
+
+
+@pytest.mark.asyncio
+async def test_a_failed_call_is_recorded_as_a_failure_not_dropped(engine) -> None:
+    recorder = _Recorder()
+    server = build_server(lambda: Session(engine), observer=recorder)
+
+    async with Client(server) as client:
+        result = await client.call_tool("list_runs", {})
+
+    assert result.is_error is True
+    assert [c["success"] for c in recorder.calls] == [False]
+
+
+@pytest.mark.asyncio
+async def test_a_broken_observer_cannot_break_a_call(engine) -> None:
+    class Broken(_Recorder):
+        def record(self, *a, **k):
+            raise RuntimeError("recorder down")
+
+    server = build_server(lambda: Session(engine), observer=Broken())
+
+    async with Client(server, raise_exceptions=True) as client:
+        result = await client.call_tool("corpus_stats", {"tenant": "hpml"})
+
+    assert result.is_error is False
+
+
+@pytest.mark.asyncio
+async def test_the_sdk_traces_a_served_call_into_the_configured_provider(
+    engine, monkeypatch
+) -> None:
+    """The MCP SDK traces through the global provider. If configure_tracing did not set it,
+    every span the SDK emits would be dropped by the API's no-op default."""
+    from fastapi import FastAPI
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+        InMemorySpanExporter,
+    )
+
+    from agentic_base.observability.tracing import configure_tracing
+
+    monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
+    exporter = InMemorySpanExporter()
+    assert configure_tracing(FastAPI(), exporter=exporter) is not None
+    server = build_server(lambda: Session(engine))
+
+    async with Client(server, raise_exceptions=True) as client:
+        await client.call_tool("corpus_stats", {"tenant": "hpml"})
+
+    scopes = {s.instrumentation_scope.name for s in exporter.get_finished_spans()}
+    assert "mcp-python-sdk" in scopes, scopes
