@@ -44,11 +44,8 @@ class MeaningChange(BaseModel):
     must not thereby acquire a database driver.
     """
 
-    __tablename__ = "meaning_change"
-
     commit: str = Field(description="The commit at which the new meaning starts.")
     subject: str = Field(
-        index=True,
         description="What changed meaning: a field name, a metric, an arm label, a scorer.",
     )
     description: str = Field(description="What it meant before, and what it means now.")
