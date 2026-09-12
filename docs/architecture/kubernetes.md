@@ -52,7 +52,7 @@ seconds to between sixty-four and eighty-two at concurrency 39.
 An autoscaler reading utilisation sees the degraded state as healthy and scales the wrong way.
 Scale on queued requests, and alert on the preemption counter.
 
-Stated honestly, that is two operating points and not a tuning study. The peak was never located.
+That is two operating points, not a tuning study. The peak was never located.
 
 ## What Kubernetes does not give you
 

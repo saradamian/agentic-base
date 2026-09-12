@@ -4,7 +4,8 @@
 
 | version | supported |
 |---|---|
-| 0.1.x | yes |
+| 0.3.x | yes |
+| 0.2.x and earlier | no |
 
 While the major version is `0`, only the latest minor receives fixes.
 
@@ -18,7 +19,7 @@ You will get an acknowledgement within five working days, and a decision on whet
 accepted within fifteen. Accepted reports get a fix, a release, and a credit in the advisory
 unless you ask otherwise.
 
-## Scope worth knowing
+## Scope
 
 The library half fetches URLs on behalf of agents and filters generated code before it runs.
 Both are documented as bounding accidental damage, not as boundaries against an adversary; see

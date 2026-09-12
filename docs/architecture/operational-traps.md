@@ -101,7 +101,7 @@ Driving concurrency up to keep the accelerators busy made a production run two a
 slower and produced nothing usable, with utilisation pinned at full throughout. Throughput is not
 monotonic in concurrency. Optimise completed work per hour.
 
-Stated honestly: that is two operating points, not a tuning study. We never located the peak.
+That is two operating points, not a tuning study. We never located the peak.
 
 ## Local databases on shared filesystems
 

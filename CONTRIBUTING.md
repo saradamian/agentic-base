@@ -67,7 +67,8 @@ One behaviour per pull request. The description says what changes, what does not
 deliberately left for later. It must not claim more than the diff delivers.
 
 `main` accepts pull requests only, with the gate green on both interpreters, every review thread
-resolved, and a linear history. There is no required reviewer count while the repository has one
+resolved, and a linear history. Push everything before arming auto-merge: a commit pushed after
+the checks pass reaches the branch and never reaches `main`. There is no required reviewer count while the repository has one
 maintainer; the gate is the reviewer. That changes the day there is a second.
 
 ## Versioning and releases
@@ -79,9 +80,12 @@ Semantic versioning. The version is the git tag; nothing is edited to cut a rele
   `0.2.0`. The distribution name is `surf-agentic-base` since `0.3.0`, because `agentic-base` on
   PyPI belongs to an unrelated project and a pin against it would have installed theirs.
 - Patch releases fix without changing an interface.
-- Tag `vX.Y.Z` on `main`. The release workflow builds the distribution, refuses if the built
-  version differs from the tag, and publishes a GitHub release with generated notes. Nothing goes
-  to a package index from here.
+- Tag `vX.Y.Z` on `main`. The release workflow verifies the tag's signature against
+  `.github/allowed_signers`, builds the distribution, refuses if the built version differs from
+  the tag, checks the wheel imports on Python 3.10, attests it, publishes a GitHub release with
+  generated notes, and publishes to PyPI by trusted publishing. No token is stored anywhere.
+- One version per merge a consumer is waiting on. A local tag is never re-pointed after it has
+  been announced; three releases in one day crossed with a push that way.
 - `CITATION.cff` carries the version and the release date; update both in the same change that
   tags.
 
