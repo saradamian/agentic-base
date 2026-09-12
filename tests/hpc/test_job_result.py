@@ -1,6 +1,12 @@
 """Recovering a value from job output that nobody controls."""
 
-from agentic_base.hpc.job_result import ResultState, encode_result, parse_result
+from agentic_base.hpc.job_result import (
+    RESULT_END,
+    RESULT_START,
+    ResultState,
+    encode_result,
+    parse_result,
+)
 
 NOISE = """Lmod is loading modules
 [rank1] warning: deprecated call
@@ -72,3 +78,14 @@ def test_a_consumer_can_read_the_markers_it_already_prints() -> None:
 
     assert parse_result(text).state is ResultState.ABSENT
     assert parse_result(text, start=start, end=end).value == [1, 2]
+
+
+def test_the_two_corrupt_details_say_what_the_first_consumer_already_asserts() -> None:
+    """agentic-env's tests read these substrings; changing the wording breaks a consumer."""
+    started = parse_result(f"{RESULT_START}\neyJhIjog")
+    assert started.state is ResultState.CORRUPT and "never terminated" in started.detail
+
+    not_json = parse_result(
+        f"{RESULT_START}\ncGxhaW4gdGV4dA==\n{RESULT_END}"
+    )  # base64 of plain text
+    assert not_json.state is ResultState.CORRUPT and "not JSON" in not_json.detail
