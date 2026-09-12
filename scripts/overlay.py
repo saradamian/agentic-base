@@ -164,6 +164,30 @@ def compose(overlay: Path, out: Path, ref: str, upstream: str | None) -> int:
     return check(out)
 
 
+def _advance_upstream_ref(root: Path, new: str) -> None:
+    """Move the recorded upstream commit forward, never back.
+
+    Syncing to a ref older than the one composed from must not make later upstream changes look
+    like deployment-side edits. A bookmark that only advances makes the edited-file check a
+    function of what the deployment side did, not of which ref was asked for.
+    """
+    current = _git(
+        root, "rev-parse", "--verify", "-q", "refs/overlay/upstream", check=False
+    )
+    if current.returncode == 0:
+        behind = _git(
+            root,
+            "merge-base",
+            "--is-ancestor",
+            new,
+            current.stdout.strip(),
+            check=False,
+        )
+        if behind.returncode == 0:
+            return
+    _git(root, "update-ref", "refs/overlay/upstream", new)
+
+
 def sync(root: Path, ref: str) -> int:
     contract = Contract(root)
     _git(root, "fetch", "-q", contract.upstream, ref)
@@ -180,7 +204,7 @@ def sync(root: Path, ref: str) -> int:
             print(f"  {f}: {why}", file=sys.stderr)
         _git(root, "merge", "--abort", check=False)
         return 1
-    _git(root, "update-ref", "refs/overlay/upstream", "FETCH_HEAD")
+    _advance_upstream_ref(root, "FETCH_HEAD")
     print(
         f"sync: merged upstream {ref} ({_git(root, 'rev-parse', '--short', 'FETCH_HEAD').stdout.strip()})"
     )
