@@ -17,7 +17,30 @@ from typing import Any
 
 import yaml
 
-DEFAULT_PROFILE_DIR = Path(__file__).resolve().parents[3] / "config" / "clusters"
+BUNDLED_PROFILE_DIR = Path(__file__).resolve().parent / "profiles"
+"""Worked examples, shipped inside the package.
+
+They sit beside the module rather than at the repository root because the previous location
+resolved through `parents[3]`, which is the repository root in a source tree and the parent of
+`site-packages` in an installed one. Every import succeeded and `load_profile` then raised for
+every name, so the failure appeared only once somebody installed the distribution.
+
+Two public clusters are bundled because a profile is easier to copy than to describe. They are
+not a claim that this layer targets them.
+"""
+
+
+def default_profile_dir() -> Path:
+    """Where profiles are looked up when a caller names one rather than passing a path.
+
+    `AB_PROFILE_DIR` points this at a site's own profiles, which is where site-specific values
+    belong: the bundled pair are examples, and a site should not have to edit the package to
+    add its cluster. Resolved on each call rather than at import, so setting the variable after
+    import still takes effect.
+    """
+    override = os.environ.get("AB_PROFILE_DIR")
+    return Path(override) if override else BUNDLED_PROFILE_DIR
+
 
 SECRET_MARKERS = ("token", "password", "secret", "key")
 """Substrings that suggest a value rather than a variable name has been pasted into a profile."""
@@ -105,7 +128,7 @@ def load_profile(
     """Load a profile by name from the profile directory, or from an explicit path."""
     candidate = Path(name_or_path)
     if not candidate.suffix:
-        candidate = (profile_dir or DEFAULT_PROFILE_DIR) / f"{name_or_path}.yaml"
+        candidate = (profile_dir or default_profile_dir()) / f"{name_or_path}.yaml"
     if not candidate.is_file():
         raise ProfileError(f"no cluster profile at {candidate}")
 
@@ -136,7 +159,7 @@ def load_profile(
 
 def available_profiles(profile_dir: Path | None = None) -> list[str]:
     """Names of the profiles on disk."""
-    directory = profile_dir or DEFAULT_PROFILE_DIR
+    directory = profile_dir or default_profile_dir()
     if not directory.is_dir():
         return []
     return sorted(p.stem for p in directory.glob("*.yaml"))

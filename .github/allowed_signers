@@ -1,0 +1,5 @@
+# Who may sign a release tag. `.github/workflows/release.yml` verifies the tag against this
+# file before it builds anything, so a tag signed by a key absent from here does not release.
+# Rotating a key means a commit, which is the point: the set of people who can cut a release
+# is reviewable. The principal must equal the tagger email, or the signature does not match.
+26249073+saradamian@users.noreply.github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEj+dDHYzSSo0LOhb8OzHcyAumQsrXnzkH2yYwlKEKud
