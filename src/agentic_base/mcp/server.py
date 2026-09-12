@@ -26,9 +26,9 @@ from typing import Any
 
 from sqlmodel import Session, select
 
-from app.domain.run_record import RunRecord
-from app.domain.validity import check_comparison
-from app.limits import get_limits
+from agentic_base.domain.run_record import RunRecord
+from agentic_base.domain.validity import check_comparison
+from agentic_base.limits import get_limits
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_INFO = {"name": "agentic-base", "version": "0.1.0"}

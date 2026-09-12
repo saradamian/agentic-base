@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.limits import Limits, get_limits
+from agentic_base.limits import Limits, get_limits
 
 
 @pytest.fixture(autouse=True)

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from app.domain.outcomes import (
+from agentic_base.domain.outcomes import (
     LabelAuthority,
     LabelSource,
     RunRecordCreate,

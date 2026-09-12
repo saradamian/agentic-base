@@ -91,7 +91,7 @@ pre-flight check and the client for consuming external servers.
 defence for calls that bypass a runtime, and it is the reason MCP-with-logging is worth having.
 It is also the most coupled file in that package, reaching into a journal, a trace store, lineage,
 an OpenTelemetry bridge and two security modules. So this layer declares the seam and the host
-fills it: see `app/recording.py`. An application with nothing to record gets the no-op.
+fills it: see `agentic_base/recording.py`. An application with nothing to record gets the no-op.
 
 **The GSAR resolution inside limits.** It reads a file written by the self-improvement loop, which
 makes it a hook into that loop wearing a constants module's clothes. The constants can move; that

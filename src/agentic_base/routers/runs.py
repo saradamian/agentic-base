@@ -8,9 +8,14 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 from starlette import status
 
-from app.db import get_session
-from app.domain.run_record import LabelUpdate, RunRecord, RunRecordCreate, to_record
-from app.domain.validity import ChannelSpread, check_comparison
+from agentic_base.db import get_session
+from agentic_base.domain.run_record import (
+    LabelUpdate,
+    RunRecord,
+    RunRecordCreate,
+    to_record,
+)
+from agentic_base.domain.validity import ChannelSpread, check_comparison
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 

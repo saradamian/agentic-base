@@ -19,7 +19,7 @@ fix:
     uv run ruff check . --fix
 
 run:
-    uv run uvicorn --app-dir src app.main:get_app --factory --port 8080 --reload
+    uv run uvicorn --app-dir src agentic_base.main:get_app --factory --port 8080 --reload
 
 suspend cluster:
     flux suspend helmrelease --context {{cluster}} -n services-agentic-base agentic-base

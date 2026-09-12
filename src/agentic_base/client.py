@@ -34,7 +34,7 @@ from typing import Any, Literal
 
 import httpx
 
-from app.domain.outcomes import LabelSource, RunStatus
+from agentic_base.domain.outcomes import LabelSource, RunStatus
 
 
 def git_revision(path: str = ".") -> str:

@@ -75,8 +75,8 @@ maintainer; the gate is the reviewer. That changes the day there is a second.
 Semantic versioning. The version is the git tag; nothing is edited to cut a release.
 
 - `0.y.z` while the interface is settling. A minor bump may change the public interface, and it
-  is stated in the notes when it does. The import name of the package is one of the things that
-  may change before `1.0`.
+  is stated in the notes when it does. The import name is `agentic_base`; it was `app` until
+  `0.2.0`, and the reason it changed is in the release notes for that version.
 - Patch releases fix without changing an interface.
 - Tag `vX.Y.Z` on `main`. The release workflow builds the distribution, refuses if the built
   version differs from the tag, and publishes a GitHub release with generated notes. Nothing goes

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.recording import CallObserver, NullObserver, SafeObserver
+from agentic_base.recording import CallObserver, NullObserver, SafeObserver
 
 
 class _Recording:

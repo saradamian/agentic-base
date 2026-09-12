@@ -5,8 +5,8 @@ import json
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
-from app.domain.run_record import LabelSource, RunRecord, RunStatus
-from app.mcp.server import call_tool, handle_request
+from agentic_base.domain.run_record import LabelSource, RunRecord, RunStatus
+from agentic_base.mcp.server import call_tool, handle_request
 
 
 @pytest.fixture()

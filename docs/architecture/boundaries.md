@@ -42,14 +42,14 @@ maintains both and splitting early costs more than it saves.
 This is not an agent framework. Applications bring their own agent, whether that is a
 commercial SDK, a graph library, or a loop they wrote. What they get here:
 
-- **recording**: `app.client`, about ten lines at the call site
-- **outbound safety**: `app.security.netsec`, which refuses to fetch internal addresses
-- **a structural filter over generated code**: `app.code_policy`, a cheap pre-filter in front of
+- **recording**: `agentic_base.client`, about ten lines at the call site
+- **outbound safety**: `agentic_base.security.netsec`, which refuses to fetch internal addresses
+- **a structural filter over generated code**: `agentic_base.code_policy`, a cheap pre-filter in front of
   real isolation and never a substitute for it
-- **resilience against self-hosted endpoints**: `app.llm`, including a probe that asks for a
+- **resilience against self-hosted endpoints**: `agentic_base.llm`, including a probe that asks for a
   completion instead of trusting a status code, and a retry policy that recycles the transport
-- **cluster facts without credentials**: `app.hpc.clusters`
-- **a value back from a batch job**: `app.hpc.job_result`
+- **cluster facts without credentials**: `agentic_base.hpc.clusters`
+- **a value back from a batch job**: `agentic_base.hpc.job_result`
 
 ### The service: the system of record and the referee
 

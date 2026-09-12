@@ -49,4 +49,4 @@ USER $USER
 EXPOSE 8080
 
 ENTRYPOINT ["/app/.venv/bin/uvicorn",  "--factory", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
-CMD ["app.main:get_app"]
+CMD ["agentic_base.main:get_app"]

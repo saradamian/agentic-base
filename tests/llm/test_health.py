@@ -6,7 +6,7 @@ healthy, and those are the two misconfigurations that actually occur. The first 
 below are the ones that would have caught it.
 """
 
-from app.llm.health import EndpointState, interpret_response
+from agentic_base.llm.health import EndpointState, interpret_response
 
 
 def _completion(content: str | None = "hi") -> dict:

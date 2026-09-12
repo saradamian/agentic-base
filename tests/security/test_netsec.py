@@ -9,7 +9,7 @@ import ipaddress
 
 import pytest
 
-from app.security import netsec
+from agentic_base.security import netsec
 
 
 def test_a_public_address_literal_is_allowed() -> None:
@@ -116,7 +116,11 @@ def test_validate_url_is_silent_for_a_safe_target() -> None:
 
 import httpx  # noqa: E402
 
-from app.security.netsec import FetchResult, pin_target, safe_fetch_text  # noqa: E402
+from agentic_base.security.netsec import (  # noqa: E402
+    FetchResult,
+    pin_target,
+    safe_fetch_text,
+)
 
 
 def _client(handler) -> httpx.Client:

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from app.limits import get_limits
-from app.tools.types import (
+from agentic_base.limits import get_limits
+from agentic_base.tools.types import (
     FatalToolError,
     ScopedBackend,
     Tool,

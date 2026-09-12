@@ -10,7 +10,7 @@ deliberately skewed input, this module is not measuring anything.
 
 from dataclasses import dataclass
 
-from app.domain.validity import (
+from agentic_base.domain.validity import (
     INCLUDED,
     check_comparison,
     flow_by_arm,

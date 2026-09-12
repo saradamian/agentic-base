@@ -14,13 +14,13 @@ are the only thing that stops a rebuild reproducing a year of mistakes.
 
 | what | shape here |
 |---|---|
-| the run record, with the system prompt the model actually received | `app.domain.run_record.RunRecord` |
+| the run record, with the system prompt the model actually received | `agentic_base.domain.run_record.RunRecord` |
 | outcome-label provenance | `label_source`, with `CITABLE_LABEL_SOURCES` making the distinction structural, not advisory |
 | the degraded flag on automated verdicts | `RunRecord.degraded`, and `citable` refuses a degraded verdict from any source |
 | which instrument actually ran | `RunRecord.instrument` |
 | configuration fingerprinting for an arm | `RunRecord.arm_fingerprint`, so two runs sharing a label but not a configuration can never be pooled |
 | exclusion channels as first-class data | `RunStatus`, `EXCLUDED_STATUSES`, `exclusion_channel` |
-| arm-correlated missingness detection | `app.domain.validity` |
+| arm-correlated missingness detection | `agentic_base.domain.validity` |
 | energy as an axis beside tokens | `RunRecord.joules` |
 | free-form join keys with no core vocabulary | `RunRecord.extra` |
 

@@ -66,7 +66,7 @@ do not let their presence suggest what this project is about.
 
 ## The first useful thing to do
 
-Instrument something you already have. `src/app/client.py` is about ten lines at the call site.
+Instrument something you already have. `src/agentic_base/client.py` is about ten lines at the call site.
 Record twenty runs of anything, label half of them, and ask for the validity report. You will
 find out quickly whether the required fields are in the right places, and that is worth more than
 any opinion in this document.

@@ -1,6 +1,6 @@
 """Recovering a value from job output that nobody controls."""
 
-from app.hpc.job_result import ResultState, encode_result, parse_result
+from agentic_base.hpc.job_result import ResultState, encode_result, parse_result
 
 NOISE = """Lmod is loading modules
 [rank1] warning: deprecated call

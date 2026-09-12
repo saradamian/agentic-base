@@ -2,7 +2,7 @@
 
 import httpx
 
-from app.llm.resilience import (
+from agentic_base.llm.resilience import (
     TransportPool,
     is_wrapped_timeout,
     should_retry_exception,

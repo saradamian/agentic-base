@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.client import PendingRun, RunRecorder, git_revision
-from app.domain.run_record import RunStatus
+from agentic_base.client import PendingRun, RunRecorder, git_revision
+from agentic_base.domain.run_record import RunStatus
 
 
 def test_a_recorder_without_a_code_revision_is_refused_at_construction() -> None:

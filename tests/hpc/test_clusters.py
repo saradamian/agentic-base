@@ -10,8 +10,8 @@ if sys.version_info >= (3, 11):
 else:  # the consumer floor; see tests/test_portable_surface.py
     import tomli as tomllib
 
-from app.hpc import clusters
-from app.hpc.clusters import ProfileError, available_profiles, load_profile
+from agentic_base.hpc import clusters
+from agentic_base.hpc.clusters import ProfileError, available_profiles, load_profile
 
 
 def test_both_clusters_have_a_profile() -> None:
@@ -114,8 +114,8 @@ def test_the_build_declares_the_profiles_as_package_data() -> None:
 
     assert any(
         pattern.endswith("profiles/*.yaml")
-        for pattern in package_data.get("app.hpc", [])
-    ), "app.hpc package-data does not carry profiles/*.yaml"
+        for pattern in package_data.get("agentic_base.hpc", [])
+    ), "agentic_base.hpc package-data does not carry profiles/*.yaml"
 
 
 def test_a_site_can_point_the_lookup_at_its_own_profiles(

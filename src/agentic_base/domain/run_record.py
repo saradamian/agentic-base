@@ -1,7 +1,7 @@
 """The stored run record — one row per agent run.
 
 This module is the *service's* persistence. The vocabulary and the rules live in
-:mod:`app.domain.outcomes` and do not import a database, because a consumer must be able to take
+:mod:`agentic_base.domain.outcomes` and do not import a database, because a consumer must be able to take
 the discipline without taking the storage. Importing this module costs you SQLModel; importing
 ``outcomes`` costs you nothing beyond pydantic. Consumers want the second.
 
@@ -35,7 +35,7 @@ from typing import Any
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
 
-from app.domain.outcomes import (
+from agentic_base.domain.outcomes import (
     CITABLE_LABEL_SOURCES,
     EXCLUDED_STATUSES,
     Judgeable,

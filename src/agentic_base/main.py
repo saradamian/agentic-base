@@ -11,12 +11,12 @@ from fastapi.middleware.gzip import GZipMiddleware
 from prometheus_client import start_http_server
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from app.config import get_settings
-from app.db import get_engine, init_db
-from app.routers.health import health_api_prefix
-from app.routers.health import router as health_router
-from app.routers.runs import router as runs_router
-from app.utils.logging import LogMiddleware, setup_logging
+from agentic_base.config import get_settings
+from agentic_base.db import get_engine, init_db
+from agentic_base.routers.health import health_api_prefix
+from agentic_base.routers.health import router as health_router
+from agentic_base.routers.runs import router as runs_router
+from agentic_base.utils.logging import LogMiddleware, setup_logging
 
 
 def get_app() -> FastAPI:
