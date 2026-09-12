@@ -11,6 +11,7 @@ schema file per format under ``docs/schemas``.
 from agentic_base.provenance.emit import (
     OUTCOME_FACET_SCHEMA,
     PROCESS_RUN_CRATE_PROFILE,
+    build_process_run_crate,
     openlineage_run_id,
     to_openlineage,
     to_process_run_crate,
@@ -20,6 +21,7 @@ from agentic_base.provenance.emit import (
 __all__ = [
     "OUTCOME_FACET_SCHEMA",
     "PROCESS_RUN_CRATE_PROFILE",
+    "build_process_run_crate",
     "openlineage_run_id",
     "to_openlineage",
     "to_process_run_crate",

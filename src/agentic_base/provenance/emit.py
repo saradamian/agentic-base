@@ -14,6 +14,7 @@ from agentic_base.domain.outcomes import RunRecordCreate, authority_of
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import RunEvent
     from prov.model import ProvDocument
+    from rocrate.rocrate import ROCrate
 
 NAMESPACE = "https://github.com/saradamian/agentic-base/ns#"
 PRODUCER = "https://github.com/saradamian/agentic-base"
@@ -207,14 +208,17 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
     )
 
 
-def to_process_run_crate(
-    run: RunRecordCreate, run_id: str, created_at: datetime, out_dir: Path
-) -> Path:
-    """A Process Run Crate written to *out_dir*. Returns the metadata file's path.
+def build_process_run_crate(
+    run: RunRecordCreate, run_id: str, created_at: datetime
+) -> ROCrate:
+    """The Process Run Crate as a library object, not yet written anywhere.
 
-    The run is a ``CreateAction`` whose instrument is the software that ran it and whose result
-    is the outcome with its provenance as ``PropertyValue`` entities, which is how the profile
-    says to attach facts the vocabulary does not name.
+    Returned unwritten so a consumer can add its own entities, the files a run produced, the
+    tool activities inside it, a Slurm job, before serialising, the way :func:`to_prov` and
+    :func:`to_openlineage` already hand back a document to extend. The run is a
+    ``CreateAction`` whose instrument is the software that ran it and whose result is the
+    outcome with its provenance as ``PropertyValue`` entities, which is how the profile says to
+    attach facts the vocabulary does not name.
     """
     try:
         from rocrate.model import ContextEntity
@@ -286,5 +290,12 @@ def to_process_run_crate(
     action["object"] = objects
     if results:
         action["result"] = results
-    crate.write(out_dir)
+    return crate
+
+
+def to_process_run_crate(
+    run: RunRecordCreate, run_id: str, created_at: datetime, out_dir: Path
+) -> Path:
+    """:func:`build_process_run_crate`, written to *out_dir*. Returns the metadata file's path."""
+    build_process_run_crate(run, run_id, created_at).write(out_dir)
     return Path(out_dir) / "ro-crate-metadata.json"

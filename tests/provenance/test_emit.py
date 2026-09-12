@@ -232,3 +232,23 @@ def test_a_run_id_that_is_a_uuid_is_kept_as_is() -> None:
         openlineage_run_id("C5A4B1E0-0000-4000-8000-000000000001")
         == "c5a4b1e0-0000-4000-8000-000000000001"
     )
+
+
+def test_the_crate_can_be_extended_before_it_is_written(tmp_path) -> None:
+    """A consumer folds its own entities, the files a run produced, onto the base's crate."""
+    from rocrate.rocrate import ROCrate
+
+    from agentic_base.provenance import build_process_run_crate
+
+    crate = build_process_run_crate(_run(), "abc", CREATED)
+    (tmp_path / "patch.diff").write_text("--- a\n+++ b\n")
+    produced = crate.add_file(tmp_path / "patch.diff", properties={"name": "the patch"})
+    action = crate.dereference("#abc")
+    action["result"] = [*action["result"], produced]
+    out = tmp_path / "crate"
+    crate.write(out)
+
+    reloaded = ROCrate(out)
+    results = [r["@id"] for r in reloaded.dereference("#abc")["result"]]
+    assert "patch.diff" in results
+    assert (out / "patch.diff").exists()
