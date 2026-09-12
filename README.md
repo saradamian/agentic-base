@@ -5,8 +5,10 @@
 [![python](https://img.shields.io/badge/python-3.10%20to%203.14-blue.svg)](pyproject.toml)
 [![cite](https://img.shields.io/badge/cite-CITATION.cff-green.svg)](CITATION.cff)
 
-The agentic base layer for SURF: **run provenance, comparison validity, and the shared
-primitives an agent needs**.
+The agentic base layer for SURF: **the record and referee for agent runs, the security
+primitives an agent needs on a shared platform, and the engineering standard that keeps both
+honest**. It is the contracts layer under a set of capability blocks, one per SURF system, that
+live in their own packages; see `docs/architecture/blocks.md`.
 
 It is built on the SURF Developer Platform golden path and adopts the common stack wherever the
 common stack has an answer. It contains only the parts we could not find anywhere else.

@@ -34,7 +34,7 @@ already supported, and already have an owner.
 | secrets | SDP secret management, per its guide | ADOPT. It is the fix for secrets-in-job-scripts |
 | identity and collaboration groups | SURFconext, SRAM | ADOPT |
 | shared model inference | Willma (`research/hpml/willma`, the AI Hub back office) | ADOPT where it serves the model needed |
-| Slurm access from services | `snellius/pyslurm`, `SOIL/slurm-bridge`, Slurm REST | ADOPT. Evaluate both before writing a third |
+| Slurm access from services | slurmrestd, the scheduler's own REST API with a published OpenAPI specification, plus a thin site wrapper. Surveyed 2026-09-13: three hand-written REST clients exist at SURF (willma2, the AI4Science prototype, the `hpml-llms/python_slurm_wrapper` stub) and one SSH backend (agentic-env); `snellius/pyslurm` and `SOIL/slurm-bridge`, named here earlier, could not be found on the GitLab | ADOPT the REST API and generate the client from its specification; the wrapper is one package in the **hpc block**, not this repository (`blocks.md`) |
 | software environments on HPC | EasyBuild (`easybuild-surf`), EESSI | ADOPT |
 
 ## External, where SURF has no internal equivalent

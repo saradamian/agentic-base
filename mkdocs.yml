@@ -11,6 +11,7 @@ nav:
   - Observability: OBSERVABILITY.md
   - Architecture:
     - The picture: architecture/picture.md
+    - Blocks and layers: architecture/blocks.md
     - Layering: architecture/layering.md
     - Boundaries: architecture/boundaries.md
     - Move plan: architecture/move-plan.md
