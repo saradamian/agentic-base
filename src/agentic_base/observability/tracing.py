@@ -24,6 +24,7 @@ import os
 from importlib.metadata import PackageNotFoundError, version
 
 from fastapi import FastAPI
+from opentelemetry import trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.resources import SERVICE_NAME, SERVICE_VERSION, Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -93,5 +94,16 @@ def configure_tracing(
     FastAPIInstrumentor.instrument_app(
         app, tracer_provider=provider, excluded_urls=excluded_urls or None
     )
+    # Libraries that trace themselves, the MCP SDK among them, ask the API for the global
+    # provider at import time and get a proxy that forwards to whatever is set later. Nothing
+    # they emit leaves the process unless this is set. It can be set once; a second call sees
+    # the first provider and attaches its exporter there instead of losing it.
+    current = trace.get_tracer_provider()
+    if isinstance(current, TracerProvider):
+        for processor in provider._active_span_processor._span_processors:  # noqa: SLF001
+            current.add_span_processor(processor)
+        provider = current
+    else:
+        trace.set_tracer_provider(provider)
     app.state.tracer_provider = provider
     return provider
