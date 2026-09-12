@@ -48,11 +48,27 @@ class Contract:
         return False
 
 
+def _identity(root: Path) -> list[str]:
+    """A committer identity when the environment has none, as a pipeline runner often has not.
+
+    Supplied only when nothing is configured, so a repository or a job that sets its own keeps it.
+    """
+    probe = subprocess.run(
+        ["git", "-C", str(root), "config", "user.email"], text=True, capture_output=True
+    )
+    if probe.stdout.strip():
+        return []
+    return ["-c", "user.name=overlay tool", "-c", "user.email=overlay@noreply.invalid"]
+
+
 def _git(
     root: Path, *args: str, check: bool = True
 ) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
-        ["git", "-C", str(root), *args], text=True, capture_output=True, check=check
+        ["git", "-C", str(root), *_identity(root), *args],
+        text=True,
+        capture_output=True,
+        check=check,
     )
 
 
