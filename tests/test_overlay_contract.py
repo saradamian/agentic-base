@@ -128,3 +128,18 @@ def test_check_refuses_a_site_identifier_in_an_upstream_owned_file_downstream(
 )
 def test_git_is_available() -> None:
     assert shutil.which("git")
+
+
+def test_sync_to_an_older_upstream_ref_does_not_mistake_newer_upstream_work_for_local_edits(
+    tmp_path: Path,
+) -> None:
+    """The bookmark of the last merged upstream commit only moves forward."""
+    up, ov = _upstream(tmp_path), _overlay(tmp_path)
+    _git(up, "branch", "older")
+    (up / "code.py").write_text("VALUE = 2\n")
+    _commit_all(up, "newer upstream work on main")
+    out = tmp_path / "composed"
+    assert overlay.compose(ov, out, "main", "file://" + str(up)) == 0
+
+    assert overlay.sync(out, "older") == 0
+    assert overlay.check(out) == 0
