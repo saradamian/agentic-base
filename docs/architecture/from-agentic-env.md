@@ -23,6 +23,22 @@ are the only thing that stops a rebuild reproducing a year of mistakes.
 | arm-correlated missingness detection | `agentic_base.domain.validity` |
 | energy as an axis beside tokens | `RunRecord.joules` |
 | free-form join keys with no core vocabulary | `RunRecord.extra` |
+| the job-result protocol over batch stdout | `agentic_base.hpc.job_result`, with the consumer's markers as parameters |
+| the outbound URL check with DNS pinning | `agentic_base.security.netsec` |
+| the structural pre-filter on generated code | `agentic_base.code_policy` |
+| the completion probe that asks for an answer, not a status | `agentic_base.llm.health` |
+| the span vocabulary, from the standard packages | `agentic_base.observability.conventions` |
+| limits resolved when read, not at import | `agentic_base.limits` |
+| the tool contract | `agentic_base.tools.types` |
+| the curated MCP surface and the recording seam | `agentic_base.mcp.server`, `agentic_base.recording` |
+
+## What has moved back, as imports
+
+As of 2026-09-13, agentic-env's merge request !279 imports the job-result protocol from here and
+records the installed base-layer version beside every rung fingerprint. Three follow-ups are open
+on top of it: the span vocabulary read from here, the provenance emitters replaced by
+`agentic_base.provenance`, and the MCP transport on the official SDK. Each one deletes an
+agentic-env copy.
 
 ## Left out
 
@@ -81,8 +97,8 @@ it destroys the finding the store exists to get.
 
 ## What the first import found did not fit
 
-Recorded here because the prediction in `START_HERE.md` was that the first consumer would
-falsify more of the design than another month of guards, and it should be visible whether it did.
+Recorded here because the first consumer was expected to falsify more of the design than another
+month of guards would, and it should be visible whether it did. It did, five times in two days.
 
 **The markers.** `agentic-env` adopted this protocol before this package existed and its jobs
 print `###AGENTIC_JOB_RESULT_START###`. A reader that knew only our marker would have reported
@@ -92,6 +108,22 @@ protocol and the parameter is the migration.
 
 **The decoder.** Ours joined every line inside the block and decoded the result, so a log line
 from another rank landing inside the block turned a correctly printed result into a corrupt one.
-That is the exact case the protocol exists for, and the consumer's decoder already handled it by
-trying each line and taking the one that decodes. The consumer's behaviour was the measured one,
-so it is now ours.
+That is the case the protocol exists for, and the consumer's decoder already handled it by trying
+each line and taking the one that decodes. The consumer's behaviour was the measured one, so it
+is now ours.
+
+**The wording.** The consumer's tests read two substrings of the corrupt detail. The base's
+wording was changed to carry them, and lost twice to the auto-merge race; the consumer loosened
+its assertions to what both wordings share. Message text is not a contract.
+
+**A run id is not always a UUID.** OpenLineage requires one; the consumer keys runs by an integer.
+The base derives a stable UUID and carries the original id in the facet, so three emitters agree
+on one rule.
+
+**A benchmark's own grader had no label source.** tau, Terminal-Bench and ARE ship a grader and
+no separate harness. `benchmark_grader` is authoritative and citable, named apart from the
+SWE-bench harness so nobody assumes its calibration.
+
+**The crate was written before it could be extended.** The consumer wants to fold its own
+entities, the files a run produced, onto the base's document. `build_process_run_crate` now
+returns the unwritten crate; the writer calls it.

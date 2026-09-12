@@ -1,5 +1,12 @@
 # Moving the shared primitives here, and having agentic-env import them
 
+*Status 2026-09-13.* The first move, `core/job_result.py`, is in agentic-env's merge request
+!279 with the version-recording condition below met. The span vocabulary, the provenance emitters
+and the MCP transport follow as separate merge requests, each deleting an agentic-env copy. The
+MCP layer here runs on the official SDK rather than the port this page proposed; agentic-env is
+moving to the same SDK, which makes that section moot. The rest of the page is the plan as
+written on 2026-09-11 and is kept for the reasoning.
+
 The direction is that this repository holds the shared primitives and `agentic-env` imports them,
 not the reverse. That gives each primitive one home. It also corrects what I did when
 seeding this repository, which was to rewrite eight modules that already existed, smaller and in

@@ -20,10 +20,10 @@ The mermaid block at the bottom needs a mermaid-capable viewer.
                               │
   BLOCKS                      │   one per system, curated surface, own package, own owner
   ┌───────┬──────────┬──────────┬──────────┬──────┬──────────┬──────────┐
-  │ runs  │ hpc      │inference │knowledge │ data │ software │ artifacts│
+  │ runs  │ hpc      │inference │knowledge │ data │ stacks   │ artifacts│
   │ (here)│          │          │          │      │          │          │
   ├───────┼──────────┼──────────┼──────────┴──────┴──────────┴──────────┤
-  │ code  │ execute  │ web      │ channels     what an agent DOES        │
+  │ forge │execution │ web      │ channels │ workspace   what an agent DOES │
   └───┬───┴────┬─────┴────┬─────┴────┬─────────┬────────┬───────────┬───┘
       │  scoped by IDENTITY and DELEGATED CREDENTIALS · billed by ACCOUNTING │
       │  started by TRIGGERS · gated by HUMAN APPROVAL                       │
@@ -56,33 +56,28 @@ every surface and accounting bills every run, and both are named because a desig
 them implicit gets them wrong. The full list, with what exists behind each block and the order
 to build them, is in `blocks.md`.
 
-## What "moving things" would actually mean
+## What has moved, and what has to be true for the rest
 
-Nothing moves into this repository from AI4Science. Its job is the control plane and it keeps it.
+Nothing moves into this repository from the control plane. Its job is the control plane and it
+keeps it. What moves is the part of agentic-env that is not experiment-specific, so agentic-env
+keeps its experiments and stops being everyone's library.
 
-What moves is narrower: pieces of agentic-env that are not experiment-specific, so that
-agentic-env keeps its experiments and stops also being everyone's library. Roughly 3,300 lines,
-in three groups.
-
-| group | what | why here |
+| group | what | status on 2026-09-13 |
 |---|---|---|
-| primitives | job result, url safety, atomic write, container, slurm types | every consumer needs them and each writes them wrong differently |
-| contracts | tool types, span vocabulary | a capability must have one name and one vocabulary or telemetry cannot be joined |
-| protocol | the MCP layer, minus its chokepoint | publishing a capability is the same job every time |
+| primitives | job result, url safety, completion probe, limits mechanism, code pre-filter | in this repository; job result imported by agentic-env in merge request !279 |
+| contracts | tool types, span vocabulary, recording seam, curated surfaces | in this repository; agentic-env reading the vocabulary from here in a follow-up |
+| record and emitters | run record, validity, epochs, PROV, OpenLineage, RO-Crate, MLflow | in this repository; agentic-env replacing its hand-built emitters in a follow-up |
+| protocol | the MCP surface on the official SDK | in this repository; agentic-env's transport moving to the same SDK in a follow-up |
 
-## Three things must be true before any of it moves
+Two conditions hold for every move.
 
-1. **The repository exists on the server.** It does not yet. One merge request, waiting on the
-   platform team.
-2. **The consumer records which version of this layer it ran against.** Otherwise two runs share a
-   configuration fingerprint, share a code revision, and have run different software. This is on
-   the consumer's side, not ours.
-3. **Relocation lands separately from behaviour change.** Moving a module that behaves identically
-   changes nothing observable. Changing what a health probe asserts does. Bundled, neither can be
-   attributed later.
-
-Until then the work here is building the capability so the move is a deletion on the other side
-rather than a migration.
+1. **The consumer records which version of this layer it ran against.** Otherwise two runs share
+   a configuration fingerprint and a code revision and have run different software. agentic-env
+   does this now: the installed version is written beside every rung fingerprint and into the
+   environment snapshot, and its ledger reader refuses to pool across an undeclared version.
+2. **Relocation and behaviour change land separately.** Moving a module that behaves identically
+   changes nothing observable. Changing what a probe asserts does. Bundled, neither can be
+   attributed afterwards.
 
 ## The same thing as mermaid
 
@@ -102,12 +97,13 @@ flowchart TB
         I[inference]
         K[knowledge]
         D[data]
-        S[software]
+        S[stacks]
         A[artifacts]
-        CO[code]
-        EX[execute]
+        CO[forge]
+        EX[execution]
         WB[web]
         CH[channels]
+        WS[workspace]
     end
     subgraph scope[Every block is scoped and billed]
         ID[identity and delegated credentials: SURFconext, SRAM]
@@ -129,6 +125,7 @@ flowchart TB
         RG[GitLab, Harbor, MLflow registries]
         GL[GitLab and GitHub]
         MX[Matrix, Microsoft 365]
+        JH[JupyterHub, code-server]
     end
     AE --> blocks
     MW --> blocks
@@ -144,5 +141,6 @@ flowchart TB
     A --> RG
     CO --> GL
     CH --> MX
+    WS --> JH
     R --> C4
 ```

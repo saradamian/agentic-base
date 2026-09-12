@@ -9,7 +9,7 @@ names its guard, and where there is none it says so rather than implying one.
 
 ## Where it comes from
 
-Two repositories in the same group, mature on opposite axes, measured rather than recalled:
+Two repositories in the same group, mature on opposite axes. The numbers were counted, not recalled:
 
 | | willma2 | agentic-env |
 |---|---|---|
@@ -22,7 +22,7 @@ Two repositories in the same group, mature on opposite axes, measured rather tha
 Neither is the model on its own. willma2 has the process and not the rigor; agentic-env has the
 rigor and not the process. This repository takes both, and it could because it had no history to
 migrate when the choice was made. That window closes once a repository has contributors and a
-release, so the settings are worth applying on the first day rather than the first incident.
+release, so the settings go in on the first day, not after the first incident.
 
 ## A guard that cannot fail is worse than none
 
@@ -102,6 +102,19 @@ information is unrecoverable: a scorer cannot be reconstructed once a run is ove
 scorer is refused, and that a verdict from a degraded instrument is not citable however
 authoritative its source.
 
+## The ledger is held to the code
+
+The reuse ledger says which concerns are adopted, bridged or built, and its own closing rule is
+that an ADOPT verdict implemented by hand is a defect. For its first week nothing failed when
+that happened, and it happened: the MCP surface hand-rolled the protocol while the ledger said
+ADOPT.
+
+**Guard:** `tests/test_reuse_ledger.py` parses every table in the ledger, reports how many rows
+each check read, and fails when a module has no verdict, a BUILD row has no revisit condition, an
+ADOPT module still carries the signature of doing the thing by hand, or an adopted vocabulary is
+restated instead of imported. It was verified red on the hand-rolled server before that server
+was replaced.
+
 ## Site facts live in escaped configuration
 
 Anything that describes *where* software runs rather than *what* it does belongs outside the
@@ -164,9 +177,9 @@ verified commit.
 So the guarantee lives in the repository settings: rebase was removed from the allowed merge
 methods. A rule that can be bypassed by choosing the other button is not a rule.
 
-Worth stating plainly, because the green tick invites a stronger reading than it earns: a
-squash-merged commit is signed by the forge, not by the author. It attests that the forge performed
-the merge, not who wrote the content.
+One caveat, because the green tick invites a stronger reading than it earns: a squash-merged
+commit is signed by the forge, not by the author. It attests that the forge performed the merge,
+not who wrote the content.
 
 **Guard:** the branch ruleset permits squash only, with no bypass actors.
 
