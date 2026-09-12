@@ -13,6 +13,7 @@ from starlette import status
 
 from agentic_base.db import get_session
 from agentic_base.domain.run_record import (
+    Approval,
     LabelUpdate,
     RunRecord,
     RunRecordCreate,
@@ -153,6 +154,27 @@ def run_provenance(
             )
             body = metadata.read_text()
     return Response(content=body, media_type=_MEDIA_TYPE[format])
+
+
+@router.post("/{run_id}/approvals")
+def record_approval(
+    run_id: str, approval: Approval, session: Session = Depends(get_session)
+) -> RunRecord:
+    """Record that a person approved, refused or overrode an action of this run.
+
+    Kept beside the run rather than in a prompt log, because human oversight is a thing an
+    audit asks to see, and the answer has to be who, what and when.
+    """
+    record = session.get(RunRecord, run_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        )
+    record.approvals = [*record.approvals, approval.model_dump()]
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    return record
 
 
 @router.post("/{run_id}/label")

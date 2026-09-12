@@ -93,6 +93,11 @@ def to_mlflow(
             f"{METADATA_PREFIX}.precision": run.precision,
             f"{METADATA_PREFIX}.joules": run.joules,
             f"{METADATA_PREFIX}.elapsed_ms": run.elapsed_ms,
+            f"{METADATA_PREFIX}.principal": run.principal,
+            f"{METADATA_PREFIX}.classification": run.classification.value,
+            f"{METADATA_PREFIX}.isolation_tier": run.isolation_tier.value,
+            f"{METADATA_PREFIX}.redaction": run.redaction,
+            f"{METADATA_PREFIX}.approvals": len(run.approvals),
         }
     )
     with mlflow.start_span(name=f"run {run_id}", attributes=attributes) as span:

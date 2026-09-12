@@ -49,6 +49,7 @@ already supported, and already have an owner.
 | rollout / RL training | verl, SkyRL, Agent Lightning | ADOPT as trainers |
 | agent security taxonomy | OWASP Top Ten for Agentic Applications, and for agentic skills | ADOPT as the conformance target |
 | retry and backoff | tenacity | ADOPT |
+| personal-data detection and redaction | Microsoft Presidio (MIT) | ADOPT, when redaction is built: it sits at the recording seam and writes its name into `RunRecordCreate.redaction`. Not wired yet, and the field says `none` until it is |
 
 ## Build, and only these
 

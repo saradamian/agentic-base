@@ -81,6 +81,8 @@ def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[st
                     "label_source": r.label_source.value,
                     "degraded": r.degraded,
                     "citable": r.citable,
+                    "classification": r.classification.value,
+                    "principal": r.principal,
                 }
                 for r in rows[:cap]
             ],

@@ -189,6 +189,61 @@ def is_citable(record: Judgeable) -> bool:
     )
 
 
+class DataClass(str, enum.Enum):
+    """What class of data a run touched. Set per tenant or per run, never by the agent.
+
+    The level selects the isolation tier, the logging depth and the retention; that is the rule
+    the healthcare advice asked for and it can only be applied if the class is recorded.
+    """
+
+    UNCLASSIFIED = "unclassified"
+    """Not stated. Its own population: a reader must not assume it means public."""
+
+    PUBLIC = "public"
+    INTERNAL = "internal"
+    CONFIDENTIAL = "confidential"
+    PERSONAL = "personal"
+    """Personal data under the GDPR."""
+
+    HEALTH = "health"
+    """Personal health data. NEN 7510 territory if the platform processes it itself."""
+
+
+class IsolationTier(str, enum.Enum):
+    """The platform's isolation tier the run executed under."""
+
+    UNSPECIFIED = "unspecified"
+    COMMUNITY = "community"
+    VIRTUALISED = "virtualised"
+    ISOLATED = "isolated"
+
+
+SENSITIVE_CLASSES = frozenset({DataClass.PERSONAL, DataClass.HEALTH})
+"""Classes that may not run on the community tier."""
+
+
+class Approval(BaseModel):
+    """A person said yes to an action, and the record keeps that beside the run.
+
+    Human oversight under the AI Act and the evidence NIS2 asks for are this: not a prompt that
+    was shown, but who decided what, when.
+    """
+
+    action: str
+    """What was approved: a repository write, a job submission, a message sent for someone."""
+
+    decision: str
+    """approved, refused, or overridden."""
+
+    by: str
+    """The person's identity, as the federation names it."""
+
+    at: str
+    """When, ISO 8601."""
+
+    note: str = ""
+
+
 class LabelUpdate(BaseModel):
     """Back-fill an outcome. ``label_source`` is mandatory by construction."""
 
@@ -235,6 +290,19 @@ class RunRecordCreate(BaseModel):
     model: str = ""
     endpoint: str = ""
     precision: str = ""
+    principal: str = ""
+    """The person the run acted for, as the federation names them. Empty means a service identity,
+    which every block will refuse once credentials are delegated; until then it is recorded so
+    the corpus can say which runs predate that."""
+
+    classification: DataClass = DataClass.UNCLASSIFIED
+    isolation_tier: IsolationTier = IsolationTier.UNSPECIFIED
+    redaction: str = "none"
+    """What removed personal data from the transcript before it was written: ``none``, or the
+    instrument's name and version. A transcript with ``none`` and a personal classification is
+    a finding, not a default."""
+
+    approvals: list[Approval] = Field(default_factory=list)
     status: RunStatus = RunStatus.COMPLETED
     failure_kind: str = ""
     resolved: bool | None = None
@@ -256,6 +324,21 @@ class RunRecordCreate(BaseModel):
             raise ValueError(
                 "resolved was supplied without a label_source. Record the run without an "
                 "outcome and attach one later, or name the scorer now."
+            )
+        return self
+
+    @model_validator(mode="after")
+    def sensitive_data_does_not_run_on_the_community_tier(self) -> RunRecordCreate:
+        """Classification decides the tier. A run that says it touched personal or health data
+        and ran on the shared tier is refused, because that is the one combination no regime
+        permits. An unspecified tier passes: unknown is not the same as wrong."""
+        if (
+            self.classification in SENSITIVE_CLASSES
+            and self.isolation_tier is IsolationTier.COMMUNITY
+        ):
+            raise ValueError(
+                f"a run classified {self.classification.value} cannot have run on the "
+                "community isolation tier"
             )
         return self
 
