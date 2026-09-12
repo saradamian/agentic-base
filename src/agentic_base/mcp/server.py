@@ -1,96 +1,41 @@
 """Read-only MCP surface over the run corpus.
 
-Why this exists. The run records are the most useful thing the platform holds, and the people
-who want them are usually sitting in a chat client rather than writing a query. MCP is how a
-chat client reaches a tool, so publishing the corpus as an MCP server means a researcher can ask
-what their runs did, and what their comparison is worth, without an account on anything new.
+The run records are the most useful thing the platform holds, and the people who want them are
+usually in a chat client. Publishing the corpus over MCP lets a researcher ask what their runs
+did and what their comparison is worth without an account on anything new.
 
-Two decisions worth stating.
+The protocol belongs to the official SDK. This module owns two things: the four tools, and the
+pure dispatch in :func:`call_tool`, which takes a request and a session and is tested without a
+transport. Everything else, the handshake, JSON-RPC, schemas derived from signatures, structured
+output, the in-memory client tests run against, is the SDK's.
 
 The surface is read-only and small. A manifest that registers everything costs the caller a tool
-schema on every turn and hands out capabilities written for a trusted in-process caller. Four
-tools cover what people actually ask.
-
-Rows come back capped. A chat client pays for every row in its context window, so a query that
-would return thousands returns the cap and says how many it left.
-
-Dispatch is a pure function of the request and a session, so it is tested without a transport.
+schema on every turn and hands out capabilities written for a trusted in-process caller. Rows
+come back capped, because a chat client pays for every row in its context window.
 """
 
 from __future__ import annotations
 
 import json
-import sys
 from collections.abc import Callable
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
+from mcp.server import MCPServer
 from sqlmodel import Session, select
 
 from agentic_base.domain.run_record import RunRecord
 from agentic_base.domain.validity import check_comparison
 from agentic_base.limits import get_limits
 
-PROTOCOL_VERSION = "2025-06-18"
-SERVER_INFO = {"name": "agentic-base", "version": "0.1.0"}
+SERVER_NAME = "agentic-base"
 
-TOOLS: list[dict[str, Any]] = [
-    {
-        "name": "list_runs",
-        "description": (
-            "List run records for a tenant, newest first. Returns identifiers, arm, status, "
-            "outcome and the provenance of the outcome label."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {
-                "tenant": {
-                    "type": "string",
-                    "description": "Owning project or research group.",
-                },
-                "arm": {"type": "string", "description": "Optional filter on the arm."},
-                "limit": {"type": "integer", "description": "Rows to return."},
-            },
-            "required": ["tenant"],
-        },
-    },
-    {
-        "name": "get_run",
-        "description": (
-            "One run in full, including the transcript the model received and the resolved "
-            "environment it ran in."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {"run_id": {"type": "string"}},
-            "required": ["run_id"],
-        },
-    },
-    {
-        "name": "validity_report",
-        "description": (
-            "Whether a comparison across a tenant's arms is sound enough to report. Detects "
-            "exclusion channels whose rate differs by arm, which does not cancel in a contrast. "
-            "Read could_have_flagged before believing sound."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {"tenant": {"type": "string"}},
-            "required": ["tenant"],
-        },
-    },
-    {
-        "name": "corpus_stats",
-        "description": (
-            "Counts per arm for a tenant: runs, how many carry a citable outcome label, and how "
-            "many verdicts came from a degraded instrument."
-        ),
-        "inputSchema": {
-            "type": "object",
-            "properties": {"tenant": {"type": "string"}},
-            "required": ["tenant"],
-        },
-    },
-]
+
+def _distribution_version() -> str:
+    try:
+        return version("agentic-base")
+    except PackageNotFoundError:
+        return "0"
 
 
 class _Observation:
@@ -107,7 +52,7 @@ def _runs_for(session: Session, tenant: str) -> list[RunRecord]:
 
 
 def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[str, Any]:
-    """Run one tool. Returns the structured payload, not the MCP envelope."""
+    """Run one tool. Returns the structured payload, not the protocol envelope."""
     limits = get_limits()
 
     if name == "list_runs":
@@ -140,7 +85,7 @@ def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[st
         record = session.get(RunRecord, arguments["run_id"])
         if record is None:
             return {"error": "run not found"}
-        return json.loads(record.model_dump_json())
+        return dict(json.loads(record.model_dump_json()))
 
     if name == "validity_report":
         rows = _runs_for(session, arguments["tenant"])
@@ -176,72 +121,48 @@ def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[st
     return {"error": f"unknown tool: {name}"}
 
 
-def handle_request(request: dict[str, Any], session: Session) -> dict[str, Any] | None:
-    """Handle one JSON-RPC request. Returns None for a notification, which takes no reply."""
-    method = request.get("method", "")
-    request_id = request.get("id")
+def build_server(session_factory: Callable[[], Session]) -> MCPServer:
+    """The four tools over a session factory. Schemas come from the signatures."""
+    server = MCPServer(
+        SERVER_NAME,
+        version=_distribution_version(),
+        instructions=(
+            "Read-only access to agent run records. Before quoting a number, read "
+            "label_source and degraded on the run, and could_have_flagged on a validity report."
+        ),
+    )
 
-    if request_id is None:
-        return None  # a notification
+    def _call(name: str, **arguments: Any) -> dict[str, Any]:
+        with session_factory() as session:
+            return call_tool(name, arguments, session)
 
-    if method == "initialize":
-        return _result(
-            request_id,
-            {
-                "protocolVersion": PROTOCOL_VERSION,
-                "capabilities": {"tools": {}},
-                "serverInfo": SERVER_INFO,
-            },
-        )
-    if method == "tools/list":
-        return _result(request_id, {"tools": TOOLS})
-    if method == "tools/call":
-        params = request.get("params") or {}
-        name = params.get("name", "")
-        arguments = params.get("arguments") or {}
-        try:
-            payload = call_tool(name, arguments, session)
-        except KeyError as exc:
-            return _error(request_id, -32602, f"missing argument: {exc}")
-        return _result(
-            request_id,
-            {
-                "content": [
-                    {"type": "text", "text": json.dumps(payload, default=str, indent=2)}
-                ]
-            },
-        )
-    return _error(request_id, -32601, f"unknown method: {method}")
+    @server.tool(name="list_runs")
+    def list_runs(tenant: str, arm: str = "", limit: int = 0) -> dict[str, Any]:
+        """List run records for a tenant, newest first, with the provenance of each outcome."""
+        return _call("list_runs", tenant=tenant, arm=arm or None, limit=limit or None)
 
+    @server.tool(name="get_run")
+    def get_run(run_id: str) -> dict[str, Any]:
+        """One run in full: the transcript the model received and the environment it ran in."""
+        return _call("get_run", run_id=run_id)
 
-def _result(request_id: Any, result: dict[str, Any]) -> dict[str, Any]:
-    return {"jsonrpc": "2.0", "id": request_id, "result": result}
+    @server.tool(name="validity_report")
+    def validity_report(tenant: str) -> dict[str, Any]:
+        """Whether a comparison across a tenant's arms is sound enough to report.
 
+        Detects exclusion channels whose rate differs by arm, which does not cancel in a
+        contrast. Read could_have_flagged before believing sound.
+        """
+        return _call("validity_report", tenant=tenant)
 
-def _error(request_id: Any, code: int, message: str) -> dict[str, Any]:
-    return {
-        "jsonrpc": "2.0",
-        "id": request_id,
-        "error": {"code": code, "message": message},
-    }
+    @server.tool(name="corpus_stats")
+    def corpus_stats(tenant: str) -> dict[str, Any]:
+        """Counts per arm: runs, citable outcomes, verdicts from a degraded instrument."""
+        return _call("corpus_stats", tenant=tenant)
+
+    return server
 
 
 def serve_stdio(session_factory: Callable[[], Session]) -> None:
-    """Read requests from stdin and write replies to stdout.
-
-    Nothing else may write to stdout while this runs. A stray print corrupts the protocol and
-    presents as a client that connects and immediately disconnects, so logging goes to stderr.
-    """
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            request = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        with session_factory() as session:
-            response = handle_request(request, session)
-        if response is not None:
-            sys.stdout.write(json.dumps(response) + "\n")
-            sys.stdout.flush()
+    """Serve over stdio. Nothing else may write to stdout while this runs."""
+    build_server(session_factory).run("stdio")
