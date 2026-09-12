@@ -16,8 +16,9 @@ common stack has an answer. It contains only the parts we could not find anywher
 Agent runs are a fourth execution pattern beside training, fine-tuning and inference: a long-lived
 loop that consumes inference and executes code. They are expensive, hard to reproduce, and easy to
 report wrongly. This service records what actually ran with enough provenance to replay it and to
-audit it, adjudicates whether a comparison between two configurations is sound enough to publish,
-and drives execution on batch-scheduled HPC where the usual cloud-native answers do not reach.
+audit it, and adjudicates whether a comparison between two configurations is sound enough to
+publish. It does not drive execution: the job orchestrator and the model server are other
+systems, and the two HPC modules here are a result channel and cluster facts, nothing more.
 
 ## Adopted, not written here
 
@@ -47,6 +48,17 @@ missing is not the idea. No experiment tracker implements the check, and no repo
 agent evaluation requires the accounting, so `validity` implements the check and
 `flow_by_arm` produces the accounting in the standard's vocabulary: assessed, excluded with
 reasons, analysed.
+
+## Installing
+
+```bash
+pip install surf-agentic-base                # the library half: four dependencies, Python 3.10+
+pip install 'surf-agentic-base[provenance]'  # plus the three provenance-standard libraries
+pip install 'surf-agentic-base[service]'     # the service: FastAPI, storage, tracing, MCP
+```
+
+The import name is `agentic_base`. The distribution is named `surf-agentic-base` because
+`agentic-base` on PyPI belongs to an unrelated project.
 
 ## Running locally
 
