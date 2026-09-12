@@ -21,7 +21,7 @@ already supported, and already have an owner.
 | concern | component | verdict |
 |---|---|---|
 | source, CI/CD, package registry | GitLab (`the internal GitLab`) | ADOPT |
-| pipeline definitions for a Python service | `sdp/components/pipelines/python-application` | ADOPT. This repo's entire CI is four lines because of it |
+| pipeline definitions for a Python service | `sdp/components/pipelines/python-application` | ADOPT for the deployment. The public repository cannot run it, so `.github/workflows/ci.yml` carries the same five commands as a six-step workflow, and the deployment overlay carries the SDP one. Two pipelines for one gate is a P1 tension, named here so it is not mistaken for a choice; the commands are one list in `CONTRIBUTING.md` |
 | container and Helm registry | Harbor (`the internal registry`), via `sdp/components/docker`, `sdp/components/helm` | ADOPT |
 | dependency vulnerabilities and SBOM | Dependency Track, via `sdp/components/dependency-track` | ADOPT |
 | dependency updates | Renovate, via `sdp/apps/renovate-runner` | ADOPT |
@@ -85,7 +85,22 @@ something maintained already do this? Rows that were missing are added; one defe
 | `code_policy/policy.py` | an AST pre-filter, deliberately not an isolation boundary. **RestrictedPython** (8.5, 2026-08, `>=3.10`) covers the runtime half, guarded builtins and attribute access, and has been attacked for twenty years | BRIDGE. Keep the zero-dependency pre-filter in the library half; any executor added to this repository adopts RestrictedPython for the runtime guard rather than extending this file |
 | `security/netsec.py` | SSRF validation and DNS pinning. The one wrapper that did this, `advocate`, last released 2020-07 and targets `requests` | BUILD. Revisit when httpx ships an SSRF-safe transport or a maintained library appears |
 | `hpc/job_result.py` | a delimited single-line base64 result channel over Slurm stdout | BUILD. Nothing models a value coming back from a batch job. Revisit when Slurm exposes a result channel |
-| `domain/validity.py` | see the standards table | BUILD the check, ADOPT the standard |
+| `domain/validity.py` | see the standards table | BUILD the check, ADOPT the standard. Revisit when the build table's row for comparison validity says to |
+| `client.py` | an httpx client for the service's write path, one call per record | ADOPT httpx. The ten lines around it are the call site, not a client library |
+| `config.py` | `pydantic-settings` over environment variables | ADOPT |
+| `db.py` | engine and session from SQLModel | ADOPT |
+| `limits.py` | a settings object read through a cached accessor | ADOPT `pydantic-settings`. The accessor is the fix for import-time constants and is ours |
+| `main.py` | FastAPI, the Prometheus instrumentator, correlation ids, structlog | ADOPT, all from the golden-path template |
+| `routers/health.py` | liveness and readiness | ADOPT, template |
+| `routers/runs.py` | the write path that refuses an outcome without a scorer, and the validity endpoint | BUILD. Measured 2026-09-12: MLflow accepts an unsourced outcome from any client and stamps it `CODE/default`, so the refusal has to live at a boundary of ours. Revisit when a tracker refuses an unsourced outcome at its own API |
+| `recording.py` | the observer seam a served call passes through | BRIDGE. `mcp` 2.x ships `ServerMiddleware`, which is the same seam for that one transport; ours stays framework-neutral and the MCP surface should adapt it through the SDK's middleware rather than a second hook |
+| `domain/run_record.py` | the table behind the BUILD row above | BUILD, see the build table. Revisit when that row says to |
+| `domain/outcomes.py` | the label vocabulary and the rules over a structural protocol | BRIDGE onto MLflow's assessment source, see the 2026-09-11 check below |
+| `domain/epochs.py` | declaring that a revision changed a field's meaning, and refusing to pool across it | BUILD. No tracker records a dependency version as a pooling key. Revisit when one does |
+| `domain/integrity.py` | a hash chain over audit fields, `hashlib` only | BUILD, deliberately modest. Revisit when the store moves to a database with native tamper evidence, at which point delete this |
+| `hpc/clusters.py` | cluster facts as YAML data with a no-secrets guard | ADOPT PyYAML and pydantic; the profile schema is ours and small |
+| `llm/health.py` | a probe that asks for a completion rather than trusting a status code | BUILD. Revisit when vLLM or Willma expose a readiness signal that means "answers", not "listens" |
+| `tools/types.py` | the in-process tool contract | BRIDGE. `mcp.types.Tool` is the wire schema; this is the in-process one it is derived from, and the names must match across backends (D1) |
 
 ## The rule this file encodes
 
@@ -133,30 +148,48 @@ compute bottleneck in its own right. The acceptance suite has no agentic workloa
 already remark A1, and no evaluation workload either, which nobody had noticed.
 
 
-## The open question this ledger has not answered
+## The store question, measured 2026-09-12
 
-The ledger says **ADOPT MLflow** and this repository still carries its own run store. The
-vocabulary is bridged; the storage is not. That is a gap between a verdict and the code, and it is
-recorded here rather than left as an intention.
+The ledger says **ADOPT MLflow** and this repository carries its own run store. Whether the
+*store* is load-bearing, or only the *write-path rule*, was left as three measurable checks. They
+were run against MLflow 3.16 with a SQLite backend, using MLflow's own client, and the script is
+one screen long.
 
-The test for keeping a store you have been told to replace is whether the thing you keep does
-something the thing you would adopt cannot. Here it does: MLflow cannot express *this label came
-from a checker whose false-fail rate differs several-fold across arms and must never be differenced
-against another arm's*. That is a schema property, and a schema gap cannot be bridged by writing
-into an optional free-text field.
+| check | result |
+|---|---|
+| 1. Does a refusal at our boundary survive the round trip, or can a client write past it? | **A client writes past it.** `log_feedback` with no source is accepted and the store records `source_type=CODE, source_id=default`. The SDK's own default supplies the scorer the caller did not |
+| 2. Can the authority vocabulary be reconstructed on read? | **Yes.** Carried in assessment metadata under `agentic_base.*` keys, it comes back intact, and the two modalities that collapse to `CODE` are told apart by it |
+| 3. Can a reader tell a reconstructed authority from a natively stored one? | **No.** There is no native field, and an assessment written by a raw client with the same metadata is byte-identical in every field the store exposes. The store records no writer identity |
 
-But the sharper question is whether the **store** is load-bearing or only the **write-path rule**.
-One could adopt MLflow's storage and still refuse a write that does not name a scorer, enforcing
-at our boundary and persisting through theirs. Three things decide it, and all three are
-measurable rather than arguable:
+So the store stays, and the reason is now a measurement rather than a preference: the property
+this platform exists to guarantee, that an outcome cannot be recorded without naming its scorer,
+is enforced at exactly one place, and MLflow's API is not that place. MLflow remains ADOPT for
+what it is good at, the trace UI and the export target, through `mlflow_source_type`. Revisit
+when MLflow makes the assessment source mandatory at the API and records who wrote it, since
+both of the failing checks would then pass.
 
-1. Does the refusal survive the round trip, or can a client write past it?
-2. Can the authority vocabulary be reconstructed on read?
-3. **Can a reader tell a reconstructed authority level from a natively stored one?** If it cannot,
-   the vocabulary has survived in form and not in force, which is the failure that looks most like
-   success.
+## Checked against the world, 2026-09-12
 
-If all three hold, the store goes and the rule stays, and the ledger is satisfied without losing
-the part that matters. If any fails, there is a written reason to keep the store, which is what
-the ledger actually wants. Until that is measured, this section is the honest statement of where
-the repository stands.
+**MCP moved under us.** The SDK went to 2.x for the 2026-07-28 protocol, with OpenTelemetry
+tracing on by default and an in-memory client for tests. Our hand-rolled server still announced
+`2025-06-18`. It is replaced by the SDK in the service extra; the four tools and the pure dispatch
+are what remain ours.
+
+**The AI Act dates moved; the requirement did not.** Regulation (EU) 2026/1744, the Digital
+Omnibus, in force 27 July 2026, defers the Annex III high-risk obligations to 2 December 2027 and
+Annex I to 2 August 2028. GPAI provider duties and the Commission's enforcement powers stay on
+2 August 2026. `integrity.py` and `compliance.md` say so now.
+
+**The Dutch Cybersecurity Act is live.** In force 15 August 2026, no transition period. Unchanged.
+
+**RestrictedPython had a complete sandbox escape** (CVE-2026-55830, positional-only parameters,
+fixed in 8.3). It does not change the BRIDGE verdict, and it is the reason the pre-filter's
+docstring says what it says: nothing at this layer is an isolation boundary.
+
+**The GenAI conventions are where they were.** Every `gen_ai.*` attribute is still Development,
+in the dedicated repository. The 2026-09-11 note stands.
+
+**Agent observability is being standardised under the Linux Foundation's Agentic AI Foundation**,
+with MCP, goose and AGENTS.md as founding projects and structured observability on the 2026
+roadmap. That is the venue for the two attributes named above, scaffold identity and label
+authority, not a private schema.
