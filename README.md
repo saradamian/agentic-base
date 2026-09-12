@@ -33,6 +33,11 @@ adopted and from where.
 | `agentic_base.domain.run_record` | one row per run: the transcript the model actually received, the provenance of its environment, and the provenance of its outcome label | experiment trackers record what a run produced; almost none record *who decided* whether it was right, or whether the instrument that decided was working |
 | `agentic_base.domain.validity` | adjudicates whether a contrast across arms is sound, by detecting exclusion channels whose rate differs by arm, and reports the per-arm accounting behind the verdict | trackers store, version and visualise runs. None of them tell you your comparison is invalid, and no reporting standard in agent evaluation asks for the accounting that would show it |
 
+Neither is exported in a private format. `agentic_base.provenance` turns one record into W3C
+PROV, an OpenLineage run event and a Process Run Crate, each through that standard's own library,
+with the scorer and its authority carried as a declared extension whose schema is in
+`docs/schemas/`.
+
 The second is not a new mechanism, and the README used to overclaim it as one. Clinical trials
 have shipped exactly this artifact for two decades: the **CONSORT flow diagram**, a per-arm
 accounting of everyone who left the denominator and why, mandatory for publication since 2001,

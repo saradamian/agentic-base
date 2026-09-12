@@ -28,7 +28,7 @@ The mermaid block at the bottom needs a mermaid-capable viewer.
   ┌──────────────▼────────────────────▼───────────▼────────────┐
   │ tool contract │ span vocabulary │ recording seam │ prims   │
   ├────────────────────────────────────────────────────────────┤
-  │ run record · label provenance · validity · epochs          │
+  │ run record · label provenance · validity · epochs · emit   │
   └────────────────────────────────────────────────────────────┘
 
   ALREADY EXIST, not ours to rebuild
@@ -101,6 +101,7 @@ flowchart TB
         C2[span vocabulary]
         C3[recording seam]
         C4[run record and validity and epochs]
+        C6[provenance emission: PROV, OpenLineage, RO-Crate]
         C5[primitives]
     end
     subgraph sys[Systems that already exist]
@@ -120,4 +121,5 @@ flowchart TB
     S --> EB
     D --> AI4
     R --> C4
+    R --> C6
 ```

@@ -101,6 +101,7 @@ something maintained already do this? Rows that were missing are added; one defe
 | `domain/integrity.py` | a hash chain over audit fields, `hashlib` only | BUILD, deliberately modest. Revisit when the store moves to a database with native tamper evidence, at which point delete this |
 | `hpc/clusters.py` | cluster facts as YAML data with a no-secrets guard | ADOPT PyYAML and pydantic; the profile schema is ours and small |
 | `llm/health.py` | a probe that asks for a completion rather than trusting a status code | BUILD. Revisit when vLLM or Willma expose a readiness signal that means "answers", not "listens" |
+| `provenance/emit.py` | W3C PROV through `prov`, OpenLineage through `openlineage-python`, a Process Run Crate through `rocrate`; the outcome's scorer and authority ride as declared extensions with a schema file each | ADOPT the three libraries and the profile. The facet is a BRIDGE, and `docs/schemas/OutcomeRunFacet.json` is its contract |
 | `tools/types.py` | the in-process tool contract | BRIDGE. `mcp.types.Tool` is the wire schema; this is the in-process one it is derived from, and the names must match across backends (D1) |
 
 ## The rule this file encodes
