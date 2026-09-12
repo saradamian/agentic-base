@@ -130,3 +130,14 @@ def test_every_fallback_literal_equals_the_installed_vocabulary() -> None:
     assert checked >= 20, (
         f"only {checked} fallback literals found; the parser missed a branch"
     )
+
+
+def test_the_evaluation_attributes_are_the_standard_ones() -> None:
+    """An evaluation span names its metric, score and label the way the incubating GenAI
+    conventions do, so a consumer's evaluation spans stop carrying a local copy."""
+    from agentic_base.observability import conventions as c
+
+    assert c.GEN_AI_EVALUATION_NAME == "gen_ai.evaluation.name"
+    assert c.GEN_AI_EVALUATION_SCORE_VALUE == "gen_ai.evaluation.score.value"
+    assert c.GEN_AI_EVALUATION_SCORE_LABEL == "gen_ai.evaluation.score.label"
+    assert c.GEN_AI_EVALUATION_EXPLANATION == "gen_ai.evaluation.explanation"
