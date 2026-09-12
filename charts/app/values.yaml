@@ -1,13 +1,14 @@
 replicaCount: 1
 
 image:
+  # Site-specific. Set per environment in the deployment overlay, not here.
   repository: agentic-base
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
-imagePullSecrets:
-  - name: registry-credentials
+# Site-specific. Set per environment in the deployment overlay, not here.
+imagePullSecrets: []
 
 nameOverride: ""
 fullnameOverride: ""
