@@ -8,6 +8,7 @@ nav:
   - Home: index.md
   - Readme: include-readme.md
   - Decisions: decisions.md
+  - Observability: OBSERVABILITY.md
   - Architecture:
     - The picture: architecture/picture.md
     - Layering: architecture/layering.md

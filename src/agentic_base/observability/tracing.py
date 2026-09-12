@@ -8,8 +8,9 @@ service and nothing here is a private knob:
 * ``OTEL_SDK_DISABLED=true`` turns it off.
 * ``OTEL_SERVICE_NAME`` and ``OTEL_RESOURCE_ATTRIBUTES`` name the service; the default name is
   the distribution's.
-* ``OTEL_TRACES_EXPORTER`` selects ``otlp`` (the default when an endpoint is set), ``console``
-  or ``none``; ``OTEL_EXPORTER_OTLP_ENDPOINT`` and its siblings configure the OTLP exporter.
+* ``OTEL_TRACES_EXPORTER`` selects ``otlp`` (the default when either endpoint variable is set),
+  ``console`` or ``none``; ``OTEL_EXPORTER_OTLP_ENDPOINT``, ``OTEL_EXPORTER_OTLP_TRACES_ENDPOINT``
+  and their siblings configure the OTLP exporter.
 
 With no exporter selected and no endpoint set, spans are recorded and dropped rather than sent
 to a default address that is not listening. That case is instrumented and silent, and it is the
@@ -55,7 +56,14 @@ def exporter_from_env() -> SpanExporter | None:
     """The exporter the SDK's variables select, or None for none."""
     choice = os.environ.get("OTEL_TRACES_EXPORTER", "").strip().lower()
     if not choice:
-        choice = "otlp" if os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT") else "none"
+        endpoint_set = any(
+            os.environ.get(k)
+            for k in (
+                "OTEL_EXPORTER_OTLP_ENDPOINT",
+                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+            )
+        )
+        choice = "otlp" if endpoint_set else "none"
     if choice == "none":
         return None
     if choice == "console":
