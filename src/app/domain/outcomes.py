@@ -12,15 +12,19 @@ So everything here is either a value or a function over a structural protocol. A
 On the vocabulary itself. MLflow's assessment model already records who produced a judgement,
 typed as human, LLM judge, or code, and attaches it to the trace. That is the same instinct and
 it arrived first, so this is not a new idea and should not be presented as one. Two things it
-does not do, both of which cost us real numbers:
+does not do:
 
 * Its taxonomy separates judgements by *modality*. A convenience checker and the benchmark's own
   authoritative harness are both ``CODE`` to it, and those two disagreed on a measured corpus in
   both directions, with the flattering direction accounting for roughly a quarter of the
   disagreements. Modality does not tell you whether a number may be cited. Authority does.
-* Its source field is optional and additive. Optional provenance is not supplied. Across 33 trace
-  stores holding 10,920 outcomes, 4,742 named no scorer and not one named the authoritative one,
-  and that is what an optional field looks like at scale rather than a failure of diligence.
+* Its source field is optional and additive, and an optional provenance field is not supplied.
+  That second half is an argument by analogy and must be stated as one: **MLflow did not produce
+  the corpus below.** We ran the experiment on ourselves, with our own optional field, and across
+  33 trace stores holding 10,920 outcomes 4,742 named no scorer and not one named the
+  authoritative one. Forty-three percent empty is what optional provenance looks like at scale
+  rather than a failure of diligence, and nothing about that mechanism is specific to our
+  implementation of it.
 
 Hence :class:`LabelAuthority`, which is the axis MLflow lacks, and a create model that refuses
 the write. ``mlflow_source_type`` maps our vocabulary onto theirs so a record can be exported

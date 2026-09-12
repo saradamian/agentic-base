@@ -78,8 +78,9 @@ wrong and is withdrawn. What survives is narrower and still load-bearing: that t
 judgements by *modality*, so a convenience checker and a benchmark's authoritative harness are
 both `CODE` to it, and on our own corpus those two disagreed in both directions with roughly a
 quarter of the disagreements running in the flattering direction. Modality cannot tell you whether
-a number may be cited. The field is also optional, and optional provenance is not supplied: 4,742
-of 10,920 outcomes named no scorer at all. So `LabelAuthority` is a **BRIDGE**, not a **BUILD**,
+a number may be cited. The field is also optional, and optional provenance is not supplied, which
+is an argument by analogy rather than a measurement of MLflow: the corpus where 4,742 of 10,920
+outcomes named no scorer was produced by *our* optional field, not theirs. So `LabelAuthority` is a **BRIDGE**, not a **BUILD**,
 and `mlflow_source_type` exists so a record exports into their schema instead of a private one.
 
 **HAL is the complement, not the competitor.** It went to ICLR 2026 on 21,730 rollouts and

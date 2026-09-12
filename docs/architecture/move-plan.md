@@ -51,7 +51,21 @@ Three sessions proposed three orders. Measured, there is no conflict: the candid
 have zero internal imports, and the tool-types module is the root of the *tool* subtree
 specifically, not of the leaves.
 
-**First, the leaves.** `core/job_result.py`, `security/netsec.py`, `llm/health.py`,
+**Start with `core/job_result.py`, and choose it for process risk rather than value.** It is
+stdlib-only and already written to be portable, because its emitting half runs inside cluster jobs
+where the package is not installed. That makes it the cheapest possible rehearsal of the
+import-then-delete loop: if the loop has a flaw, it should surface on 148 lines that cannot break
+anything, not on a module something depends on. The first move is chosen to de-risk the process.
+
+**And `limits.py` should not move at all, only its mechanism.** The file holds 94 constants,
+measured, among them `DECK_MAX_WORDS_PER_SLIDE`, `MEETING_RAID_MAX_TOKENS` and
+`GITLAB_MR_CHANGES_PAGE_SIZE`. Those are `agentic-env` product policy, not base-layer primitives,
+and a bottom layer carrying a slide word count has stopped being one. What is generic is the
+mechanism: env-configurable, resolved when read rather than at import, one source of truth. Move
+that; leave the constants at home. Otherwise the first thing a second consumer inherits is our
+deck builder's opinions.
+
+**Then the rest of the leaves.** `core/job_result.py`, `security/netsec.py`, `llm/health.py`,
 `core/atomic_write.py`, `observability/conventions.py`, `core/container.py`, `core/slurm.py`. Each
 has no internal imports, each is independently revertible, and none forces an interface decision.
 The job-result protocol is already written to be portable, because its emitting half runs inside
@@ -133,3 +147,23 @@ the dependency lands.
 Re-check that no campaign is running, immediately before, not hours before. The reading that
 says it is safe is a point in time, and the action that falsifies it is usually someone else's and
 looks like progress.
+
+
+## One challenge recorded rather than acted on
+
+A peer's review argues that `tenant` should be demoted from required, on the grounds that
+multi-user infrastructure for one and a half single-user consumers produces a required field
+filled with the same constant string forever, which is a required field carrying no information.
+That is the failure mode the scorer rule exists to prevent, one field over, and the parallel is
+fair.
+
+It is not being acted on, for one asymmetry that decides it. **A tenant is recoverable after the
+fact and a scorer is not.** You can always work out which project a run belonged to; you can never
+work out which checker produced a verdict once the run is over. So the cost of getting `tenant`
+wrong is an annoying backfill, while the cost of getting `label_source` wrong is a corpus that
+cannot be cited. Requiredness is worth spending where the information is unrecoverable.
+
+The second reason is weaker and should be stated as weaker: the declared destination is a
+multitenant facility, so the constant string is expected to stop being constant. Arguments from a
+future deployment are exactly the kind this repository is supposed to distrust, so it is the
+asymmetry above that carries the decision, not this.

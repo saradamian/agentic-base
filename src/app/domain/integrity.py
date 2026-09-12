@@ -1,4 +1,8 @@
-"""Tamper-evident run records.
+"""Integrity of the run record chain.
+
+Not tamper-evidence, which presupposes an adversary this platform does not have. This detects
+accidental edits, partial writes and silent corruption in a corpus nobody can afford to re-run,
+which is a smaller claim and the one the mechanism actually supports.
 
 Both regimes the platform has to answer to ask for records that can be shown to be intact. The
 AI Act asks providers of high-risk systems to keep automatically generated logs. The Dutch
