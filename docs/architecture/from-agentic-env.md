@@ -78,3 +78,20 @@ it destroys the finding the store exists to get.
   is a field, not something a reader has to infer.
 - State whether a number was measured, derived, or guessed. A guessed expected value is an untested
   assertion, not a reference.
+
+## What the first import found did not fit
+
+Recorded here because the prediction in `START_HERE.md` was that the first consumer would
+falsify more of the design than another month of guards, and it should be visible whether it did.
+
+**The markers.** `agentic-env` adopted this protocol before this package existed and its jobs
+print `###AGENTIC_JOB_RESULT_START###`. A reader that knew only our marker would have reported
+every one of those results absent, which is the failure the third state exists to prevent, one
+layer up. `parse_result` and `encode_result` take the markers as parameters; the default is the
+protocol and the parameter is the migration.
+
+**The decoder.** Ours joined every line inside the block and decoded the result, so a log line
+from another rank landing inside the block turned a correctly printed result into a corrupt one.
+That is the exact case the protocol exists for, and the consumer's decoder already handled it by
+trying each line and taking the one that decodes. The consumer's behaviour was the measured one,
+so it is now ours.
