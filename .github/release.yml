@@ -8,6 +8,8 @@ changelog:
       labels: [feat, enhancement]
     - title: Fixes
       labels: [fix, bug]
+    - title: Documentation
+      labels: [documentation]
     - title: Dependencies
       labels: [dependencies]
     - title: Other
