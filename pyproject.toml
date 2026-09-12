@@ -72,6 +72,12 @@ dev = [
 
 ]
 
+# The bundled cluster profiles are runtime data, not documentation: `load_profile` reads them.
+# A wheel ships no non-Python file unless it is named, and the failure is silent until somebody
+# installs the distribution and calls the function.
+[tool.setuptools.package-data]
+"app.hpc" = ["profiles/*.yaml"]
+
 [tool.setuptools.dynamic]
 readme = { file = ["README.md"], content-type = "text/markdown" }
 

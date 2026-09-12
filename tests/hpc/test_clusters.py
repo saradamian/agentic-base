@@ -1,7 +1,16 @@
 """Cluster profiles load, and refuse to carry secrets."""
 
+import sys
+from pathlib import Path
+
 import pytest
 
+if sys.version_info >= (3, 11):
+    import tomllib
+else:  # the consumer floor; see tests/test_portable_surface.py
+    import tomli as tomllib
+
+from app.hpc import clusters
 from app.hpc.clusters import ProfileError, available_profiles, load_profile
 
 
@@ -61,3 +70,46 @@ def test_a_missing_credential_is_reported_by_variable_name(monkeypatch) -> None:
 def test_an_unknown_profile_is_reported_with_the_path_it_looked_for() -> None:
     with pytest.raises(ProfileError, match="no cluster profile"):
         load_profile("does-not-exist")
+
+
+def test_every_bundled_profile_sits_inside_the_package_so_a_wheel_carries_it() -> None:
+    """A profile outside the package directory cannot ship, and fails only once installed.
+
+    The previous location resolved through `parents[3]`: the repository root in a source tree,
+    the parent of `site-packages` in an installed one. The suite passed, every import succeeded,
+    and `load_profile` raised for every name on any installed copy.
+    """
+    package_root = Path(clusters.__file__).resolve().parent
+
+    for name in available_profiles():
+        path = clusters.default_profile_dir() / f"{name}.yaml"
+        assert path.is_file(), f"{name} is listed but absent"
+        assert package_root in path.parents, (
+            f"{path} is outside {package_root}, so no wheel will carry it"
+        )
+
+
+def test_the_build_declares_the_profiles_as_package_data() -> None:
+    """Naming the directory is not enough; a wheel ships no non-Python file unless it is listed."""
+    config = tomllib.loads(
+        (Path(clusters.__file__).resolve().parents[3] / "pyproject.toml").read_text(
+            encoding="utf-8"
+        )
+    )
+    package_data = config["tool"]["setuptools"]["package-data"]
+
+    assert any(
+        pattern.endswith("profiles/*.yaml")
+        for pattern in package_data.get("app.hpc", [])
+    ), "app.hpc package-data does not carry profiles/*.yaml"
+
+
+def test_a_site_can_point_the_lookup_at_its_own_profiles(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Site-specific values belong outside the artifact, so the bundled pair are examples."""
+    (tmp_path / "ourcluster.yaml").write_text("name: ourcluster\n", encoding="utf-8")
+    monkeypatch.setenv("AB_PROFILE_DIR", str(tmp_path))
+
+    assert available_profiles() == ["ourcluster"]
+    assert load_profile("ourcluster").name == "ourcluster"
