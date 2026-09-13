@@ -52,7 +52,8 @@ found.
 | requirement | what serves it here |
 |---|---|
 | automatic event recording over a system's lifetime | the run record, written while the run happens, not reconstructed after |
-| evidence that a record has not been altered | the hash chain in `agentic_base.domain.integrity`, verifiable on demand |
+| evidence that a record has not been altered | the hash chain in `agentic_base.domain.integrity`, verifiable on demand. It detects an edit; it is not a signature and not an append-only store |
+| who a run acted for, what class of data it touched, who approved what | `principal`, `classification`, `isolation_tier`, `approvals` on every record |
 | provenance of a performance claim | `label_source`, which refuses citability to a self-reported or convenience-scored outcome |
 | evidence that a verdict came from a working instrument | `degraded` and `instrument` |
 | reproducibility of a reported result | model, endpoint, precision, code revision and configuration fingerprint on every record |
@@ -72,10 +73,13 @@ core controls, so most of the second half of that table is inherited.
   can be deleted and the chain will detect it, which is not the same as preventing it.
 - **No incident workflow.** The 24, 72 and 30 day clock needs a path from detection to a report,
   and there is none here. What exists is the evidence such a report would draw on.
-- **No human oversight record.** Article 14 expects oversight measures for high-risk systems.
-  Approvals, overrides and interventions are not modelled.
-- **No data classification.** Sensitive-data handling is the AI Factory's central commitment, and
-  nothing in the record says what class of data a run touched.
+- **Human oversight is recorded, not required.** Article 14 expects oversight measures for
+  high-risk systems. The record carries approvals, overrides and interventions with who decided
+  and when, and an endpoint to add one; nothing yet forces a block to obtain one before it acts.
+- **Data classification is recorded, not enforced by the tenant.** Sensitive-data handling is the
+  AI Factory's central commitment. Every run carries the class of data it touched and the
+  isolation tier it ran under, and personal or health data on the community tier is refused;
+  what is not built is the tenant's use case setting both, so today the writer states them.
 - **The chain is not a ledger.** It detects tampering by anyone who does not rewrite it wholesale.
   It is not a signature and not an append-only store, and it must not be presented as either.
 - **No conformity documentation generator.** Annex IV asks for a document. The material for one is
