@@ -22,12 +22,12 @@ and a package that imports something must not also contain it. That is also why 
 client is not here, whatever the temptation; `boundaries.md` says this repository must not
 submit jobs, and a block that does belongs with the people who run the scheduler.
 
-## The blocks the existing systems imply
+## The blocks
 
-The first list had six, and the second nine. Checking it against what SURF runs and what the AI Factory names as its
-common denominators, identity and access, a data plane with object and POSIX tiers, accounting
-and quota, a shared GPU pool, a common home for artifacts, uniform observability, and tenant
-isolation, adds three and sharpens two.
+One per system. The list follows what SURF runs and what the AI Factory names as its common
+denominators: identity and access, a data plane with object and POSIX tiers, accounting and
+quota, a shared GPU pool, a common home for artifacts, uniform observability, and tenant
+isolation.
 
 | block | wraps | what exists today | status |
 |---|---|---|---|
@@ -48,17 +48,15 @@ execution of such a package; the Process Run Crate is that record in a standard.
 itself lives with the artifacts block, next to containers, datasets and model versions, and the
 runs block references it. Nothing today produces one.
 
-Two of the nine are not agent tools at all. Identity is what scopes every surface, and
+Two of the blocks are not agent tools at all. Identity is what scopes every surface, and
 accounting is what the platform bills on; they appear because a design that leaves them implicit
 gets them wrong, which the AI Factory memo says in its own words.
 
-## What the first list missed: the blocks for what an agent does
+## The blocks for what an agent does
 
-The nine above are what an agent reads and submits to. Checked against agentic-env's twelve
-products, counting the external systems each one actually calls, and against the AI Factory's
-scope, five capabilities used by most products appear in no block: the forge, sandboxed
-execution, web egress, the channels people talk to an agent through, and the workspace a person
-and an agent share. Without them no SURF-run agent can exist, whatever the other blocks offer.
+The blocks above are what an agent reads and submits to. These five are what it acts through,
+and agentic-env's products, counted by the external systems each one calls, use them more than
+any of the others. Without them no SURF-run agent can exist.
 
 | block | wraps | what agentic-env does today | why it is a block |
 |---|---|---|---|

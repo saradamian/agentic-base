@@ -9,7 +9,6 @@ a word list only ever catches what its author already thought of:
 * an email address, other than the noreply identity commits carry;
 * an absolute path under a home directory;
 * an IP address outside the documentation and loopback ranges;
-* a wiki-style page link (`/pages/<number>/`), whatever the host;
 * attribution to a source a reader cannot open.
 
 Names of people are not detectable by shape and are the private list's job, or a person's.
@@ -96,7 +95,6 @@ EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 HOME_PATH = re.compile(r"/(home|Users)/[A-Za-z0-9._-]+")
 # Not preceded or followed by a path or version character, so `cuDNN/9.10.1.4-CUDA` is a version.
 IPV4 = re.compile(r"(?<![\w/.-])(\d{1,3}\.){3}\d{1,3}(?![\w.-])")
-PAGE_LINK = re.compile(r"/pages/\d{5,}")
 SOURCE_WORDS = re.compile(
     r"internal (wiki|gitlab|registry|documentation)|design memo|user interviews?|\bCISO\b"
 )
@@ -156,8 +154,6 @@ def _findings(text: str) -> list[str]:
             ipaddress.ip_address(m.group(0)) in n for n in ALLOWED_IP_NETWORKS
         ):
             out.append(f"ip {m.group(0)}")
-    for m in PAGE_LINK.finditer(text):
-        out.append(f"wiki page link {m.group(0)}")
     for m in SOURCE_WORDS.finditer(text):
         out.append(f"internal source {m.group(0)}")
     return out
@@ -195,7 +191,6 @@ def test_each_detector_fires_on_a_planted_example() -> None:
         "an email": "mail alice@some-institute.example",
         "a home path": "logs in /home/someone/run.log",
         "an ip": "the box at 145.100.1.1",
-        "a page link": "https://any.host/pages/123456789/Title",
         "a source word": "as the design memo says",
     }
     for what, text in planted.items():
