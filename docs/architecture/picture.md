@@ -57,8 +57,10 @@ and the rest do not. The band between the blocks and the contracts is not a bloc
 calls. It is the capabilities every block is subject to: identity and delegated credentials
 scope every surface, accounting bills every run, triggers start one, oversight can stop one,
 classification picks the tier it runs on, redaction runs before the write, transparency tells the
-person they are dealing with an AI, and a ledger keeps the result. Each has a field on the record now and most have no implementation yet; they are
-named because a design that leaves them implicit gets them wrong. The full list, with what
+person they are dealing with an AI, and a ledger keeps the result. Most already have a place on
+the record, `principal`, `joules`, `approvals`, `classification`, `redaction`, `disclosure`, and
+the hash chain stands in for the ledger; redaction is the only one that also runs. They are named
+because a design that leaves them implicit gets them wrong. The full list, with what
 exists behind each block and the order to build them, is in `blocks.md`.
 
 ## What has moved, and what has to be true for the rest
@@ -117,6 +119,7 @@ flowchart TB
         CL[classification: the level selects the tier]
         LG[ledger: append-only, signed; the chain until then]
         RD[redaction before the write]
+        TP[transparency: told it is an AI]
     end
     subgraph base[Contracts - this repository]
         C1[tool contract]

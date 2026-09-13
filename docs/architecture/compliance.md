@@ -6,8 +6,7 @@ technical requirement, and which of those requirements this platform already mee
 
 ## What is already in force, read on 2026-09-13
 
-Four regimes bite before the high-risk AI rules do, and two of them are newer than the rest of
-this page.
+Four regimes bite before the high-risk AI rules do.
 
 | in force | what it asks of a platform like this |
 |---|---|
@@ -71,8 +70,7 @@ and belongs to SURF, not to this service.
 
 ### Cyber Resilience Act
 
-The one nobody on this project had written down, and its first obligation started on
-11 September 2026: a manufacturer of a product with digital elements reports an actively
+Its first obligation started on 11 September 2026: a manufacturer of a product with digital elements reports an actively
 exploited vulnerability in it, within 24 hours, 72 hours and then 14 days after a fix exists. The
 rest of the regulation applies from 11 December 2027, and the obligations of an *open-source
 software steward*, a lighter category for an entity that supports open-source software it does
@@ -119,8 +117,8 @@ this service alone.
 | reproducibility of a reported result | model, endpoint, precision, code revision and configuration fingerprint on every record |
 | soundness of a comparison between configurations | `agentic_base.domain.validity` |
 | data and workflow provenance in a standard format | PROV, RO-Crate and OpenLineage emission |
-| dependency and supply-chain evidence | Dependency Track through the platform pipeline, on every build |
-| vulnerability handling | the same, plus Renovate |
+| dependency and supply-chain evidence | on GitHub, a dependency review, an advisory audit of the pinned set and a secret scan on every change, and an SBOM and build provenance attested on every release; on the platform, Dependency Track on every build |
+| vulnerability handling | the same, plus Renovate, and a private reporting channel with a stated response window in `SECURITY.md` |
 | access control and authentication | SURFconext and SRAM through the platform |
 | log aggregation and retention | Loki and Prometheus through the platform |
 
@@ -137,10 +135,12 @@ core controls, so most of the second half of that table is inherited.
   log-keeping duty compatible rather than opposed. What is missing is the part that belongs to a
   deployment: something that runs the sweep on a schedule, and a tenant setting to read the policy
   from.
-- **The incident path is written down but has never been walked.** `incident-response.md` now
-  says which clock is which, who is told, and where each thing a report asks for lives. What is
-  missing is a named person for the software's vulnerability duty, an answer to the Cyber
-  Resilience Act scope question, and one drill to find out whether the table is true.
+- **The incident path has been walked once, on paper.** `incident-response.md` says which clock
+  is which, who is told, and where each thing a report asks for lives. A tabletop against v0.3.4
+  found that PyPI served a rebuilt wheel no attestation covered, now fixed for the next release,
+  and that no release yet carries an SBOM. What is missing is a named person for the software's
+  vulnerability duty, an answer to the Cyber Resilience Act scope question, an account on the
+  reporting platform, and a drill of the service rows once there is a service.
 - **Human oversight is recorded, not required.** Article 14 expects oversight measures for
   high-risk systems. The record carries approvals, overrides and interventions with who decided
   and when, and an endpoint to add one; nothing yet forces a block to obtain one before it acts.
@@ -154,8 +154,7 @@ core controls, so most of the second half of that table is inherited.
   here; assembling it is not.
 - **Article 50 is recorded, not discharged.** A person must be told they are dealing with an AI,
   and synthetic content must be marked machine-readably. Both happen where an agent speaks to a
-  person, which is the channels block, and that block does not exist. What exists since this was
-  written is the record: `disclosure` names how the person was told, `content_marking` names the
+  person, which is the channels block, and that block does not exist. What exists is the record: `disclosure` names how the person was told, `content_marking` names the
   standard and identifier the output carries, and both default to `none`, so a corpus can separate
   runs that predate the answer from runs that lack it.
 

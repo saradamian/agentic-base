@@ -5,11 +5,10 @@ for each one, in the form of what this repository must never do.
 
 ## The neighbours
 
-**Willma** (`the internal Willma repository`) is the AI Hub back office. It serves models and
+**Willma** is the AI Hub back office. It serves models and
 gives users a shared endpoint. It is live and it has an owner.
 
-**AI4Science PoC** (`the internal AI4Science repository`),
-is a job orchestrator: an HTTP API, per-user authentication, Prefect workflows, jobs submitted to
+**The AI4Science proof of concept** is a job orchestrator: an HTTP API, per-user authentication, Prefect workflows, jobs submitted to
 Slurm through its REST API, deployed on Kubernetes. It is a prototype with one author, and it
 already submits agent runs as Slurm jobs.
 

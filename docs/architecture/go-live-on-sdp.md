@@ -8,8 +8,8 @@ platform's own onboarding documentation.
 
 This repository plus SURF's private overlay, composed with `scripts/overlay.py` and kept current
 by merging `main`. The overlay carries everything that says where the software runs: the pipeline
-definition that includes the platform's pipeline component for Python applications, the Flux and Kustomize
-manifests per environment, the Backstage catalogue entry, the owners file, the platform's
+definition that includes the platform's pipeline component for Python applications, the Flux
+and Kustomize manifests per environment, the Backstage catalogue entry, the owners file, the platform's
 Renovate configuration, and this runbook's site-specific half. See `deployment-overlay.md` for
 the contract and the commands.
 
@@ -38,7 +38,7 @@ the request timeout, not a literal; registries are build arguments.
    and add an Alembic migration step. SQLite is for local development only.
 8. **Push, and let the pipeline deploy** to development first, then promote.
 
-## Two things to settle before it is useful
+## What to settle before it is useful
 
 **Where the execution plane lives.** The platform's Kubernetes is the right home for this
 service: the API, the record store, the validity checks. Agent runs execute on batch-scheduled
@@ -63,6 +63,11 @@ image too, so nothing is downloaded at start, and a GPU in the pod if one is ava
 CPU a long transcript holds the write for tens of seconds. Put the site's cluster and service names
 in `REDACTION_ALLOW_LIST` in the overlay, never in this repository. `redaction.md` has the
 measurements and what happens when both detectors fail.
+
+**Retention.** The library decides which transcripts are older than a policy and erases them
+without breaking the chain; nothing runs it yet. The deployment needs a scheduled job that runs
+the sweep, a tenant setting to read the policy from, and a decision on who is told what was
+erased.
 
 **What the tenant sets.** Every run carries the class of data it touched and the isolation tier
 it ran under. Today the writer states both. On the platform the tenant's use case should set

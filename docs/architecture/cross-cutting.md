@@ -19,10 +19,10 @@ for counsel and the compliance officer.
 
 ## The gaps, set in the structure
 
-Each of these was a gap in the first version of this page. None has a full solution today. All
-of them are now fields on the record, with defaults that keep every existing writer working, so a
-corpus recorded from now on can say which runs predate the solution, and a solution has a place
-to write to when it arrives.
+Each of these is a gap an obligation opens. Each is a field on the record, with a default that
+keeps every existing writer working, so a corpus can say which runs predate the solution, and a
+solution has a place to write to when it arrives. Redaction is the one that also runs; the others
+wait for the block that does them.
 
 | gap | in the structure now | what fills it later | AI Factory task |
 |---|---|---|---|
@@ -44,7 +44,7 @@ the high-risk evidence cheap to produce without assuming every run needs it.
 
 | asks for | what it means for agents | lands in |
 |---|---|---|
-| automatic recording of events over the system's lifetime, kept at least six months | every run, every tool call, every outcome, with who decided it, written at the time | runs; the recording seam; retention enforced by the platform |
+| automatic recording of events over the system's lifetime, kept at least six months | every run, every tool call, every outcome, with who decided it, written at the time | runs; the recording seam; `agentic_base.domain.retention` refuses a policy under six months, and the deployment runs the sweep |
 | technical documentation and declared performance | the configuration fingerprint, the model, the instrument and its authority on every record; the validity check before a number is reported | runs |
 | human oversight | a person can approve, override or stop, and the record shows that they did | `approvals` on every run, with an endpoint to add one; a block obtaining one before it acts is not built |
 | transparency: a person knows they are dealing with an AI, and generated content is marked, **in force since 2 August 2026** | `disclosure` and `content_marking` on every run say whether it was done and by what means; the doing belongs to the channel that speaks to the person | channels; the fields exist, the channel does not |
@@ -67,14 +67,23 @@ from outside the EU, what the operator can see.
 
 Ten risk-management measures and a reporting clock: early warning within 24 hours, notification
 within 72, final report within a month. The clock is the requirement. It is meetable only if the
-evidence exists when the incident is found.
+evidence exists when the incident is found. For higher education the intended start is March 2027,
+with SURFcert as the sector's incident response team.
 
 | asks for | what it means for agents | lands in |
 |---|---|---|
 | logging that stands up afterwards | who did what, through which block, with which credential, when; intact | runs, the hash chain, identity |
-| incident handling | a path from detection to a report; the platform's, drawing on the record | platform |
-| supply-chain security and vulnerability handling | pinned actions, attested wheels, an SBOM per release, dependency review and audit on every change, an image scan on every build | this repository; the platform pipeline |
+| incident handling | a path from detection to a report; the platform's, drawing on the record | platform; `incident-response.md` is the runbook |
+| supply-chain security and vulnerability handling | pinned actions, attested wheels, an SBOM per release, dependency review, audit and a secret scan on every change, an image scan on every build | this repository; the platform pipeline |
 | access control and multi-factor authentication | the federation's; an agent never holds a credential wider than the person it acts for | identity; delegated credentials, not built |
+
+### Cyber Resilience Act and Data Act
+
+Two more, both already applying, and both treated in `compliance.md`. The Cyber Resilience Act's
+reporting duty for an actively exploited vulnerability has run since 11 September 2026; whether it
+applies to this package, and in which role, is open, and the evidence either answer needs is
+produced by every release. The Data Act lets a tenant of a data processing service leave with its
+data; `GET /runs/export?tenant=...` is that exit for the corpus.
 
 ### ISO 27001, the baseline every SURF service meets
 

@@ -8,8 +8,9 @@ tenants depend on.
 Most of the process lives in settings that are not in this repository: protected branches, squash
 on merge, a pipeline that must pass, discussions that must be resolved. Those are managed as
 Terraform elsewhere and are listed in `docs/architecture/process.md`. What is asserted here is
-only the part a commit can change. The guards on the GitLab pipeline itself are in
-`test_gitlab_pipeline.py`, kept apart because the public mirror has no such pipeline.
+only the part a commit can change. The deployment pipeline belongs to the overlay, and its standing
+check on permitted failures is `scripts/assert_no_permitted_failures.py`, tested in
+`test_permitted_failures.py`.
 """
 
 from __future__ import annotations

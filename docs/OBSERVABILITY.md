@@ -9,8 +9,9 @@ the way they configure every other OpenTelemetry service.
 | metrics | Prometheus, via the FastAPI instrumentator | `METRICS_PORT`, or scrape the app |
 | traces | OpenTelemetry SDK: HTTP server spans, and every MCP call the SDK traces | the standard `OTEL_*` variables below |
 
-The service opens no LLM or agent spans, because it makes no LLM calls: it is the record, not
-the agent. The span vocabulary in `agentic_base.observability.conventions` is for a consumer
+The service opens no agent or LLM spans: it is the record, not the agent. Its one model call is
+the redaction detector when `REDACTION` is `names`, an outbound request whose outcome lands on the
+record itself, in `redaction` and `extra.redaction`, rather than in a span. The span vocabulary in `agentic_base.observability.conventions` is for a consumer
 that runs an agent and wants its spans labelled the way Phoenix, Langfuse and LangSmith read
 them.
 
@@ -53,9 +54,10 @@ OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://cloud.langfuse.com/api/public/otel/v1
 OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic $(printf '%s:%s' "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64 -w0)"
 ```
 
-Use the traces-specific endpoint variable, because Langfuse's path already ends in `/otel` and
-the generic one would have `/v1/traces` appended after it, which is what you want, but only
-once. For a self-hosted Langfuse replace the host.
+The traces-specific variable is used exactly as given. The generic
+`OTEL_EXPORTER_OTLP_ENDPOINT=https://cloud.langfuse.com/api/public/otel` reaches the same path,
+because the exporter appends `/v1/traces` to it; set one of the two, not both. For a self-hosted
+Langfuse replace the host.
 
 ### Arize Phoenix
 

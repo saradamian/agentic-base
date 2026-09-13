@@ -47,8 +47,8 @@ running service can be one, the other, or both.
 | who the runs acted for and what class of data they touched | `principal`, `classification`, `isolation_tier` on every record |
 | whether a person approved the action | `approvals` on the record |
 | what was in the affected transcripts | the transcripts, redacted as `redaction` on each record describes |
-| which dependencies were in the affected release | the SBOM attested with every release, and the lock file at that tag |
-| that the release is the one we published | the build provenance attestation on the release artefacts |
+| which dependencies were in the affected release | the lock file at that tag, for the library and every extra; the SBOM attested with a release lists the library as installed on Python 3.10 |
+| that the release is the one we published | `gh attestation verify <file> --repo saradamian/agentic-base`, which needs GitHub CLI 2.49 or later |
 | everything for one tenant, for a regulator or for the tenant | `GET /runs/export?tenant=...` |
 
 What it cannot give you is the report itself, the decision that an incident is significant, or
@@ -68,6 +68,30 @@ steward*, an entity that supports software it does not sell, carries lighter dut
 is owed at all, and it is a question for counsel rather than for this page. The technical evidence
 either answer would need is already produced by the release.
 
-**No drill has been run.** A runbook nobody has walked through is a document, not a capability.
-The cheapest version is an hour: take last month's release, pretend a vulnerability in a
-dependency is being exploited, and see how long it takes to answer the table above.
+**Nobody holds an account on the reporting platform.** A first report is the wrong moment to
+find out what registering takes.
+
+**The service rows are unwalked.** There is no deployed service yet, so the run records, the
+chain check and the export have been exercised only by the test suite.
+
+## The drill
+
+A runbook nobody has walked is a document, not a capability, so this one was walked on
+13 September 2026 as a tabletop against v0.3.4. The scenario: an actively exploited
+vulnerability in `h11`, which reaches the library through httpx, a core dependency, so every
+install is affected and not only the service.
+
+| question | answer | how long |
+|---|---|---|
+| which version was in the release | `h11` 0.16.0, through httpcore 1.0.9 and httpx 0.28.1, read from the lock at the tag | seconds |
+| does the release carry an SBOM | no. The SBOM step was added after v0.3.4, so no release carries one yet | seconds |
+| is the file people install the one we published | the wheel on the GitHub release verified. The wheel on PyPI did not: the publish job built the distribution a second time, so what `pip install` fetches had a different hash and no attestation | five seconds, after installing a current GitHub CLI |
+| who is told | nobody is named | |
+| where the report goes | not tried: it needs an account nobody has | |
+
+What changed because of it. The publish job now uploads the files the release job attested and
+verifies each before it does, and a test fails if it builds again; v0.3.4 on PyPI stays as it
+was, and the next release is the first whose PyPI wheel verifies. The table above now says which
+version of the GitHub CLI the verify command needs, because the responder's machine had one from
+2022 without it. And it says what the SBOM covers, the library installed on the consumer floor,
+so that for the service extras the lock at the tag is the answer.

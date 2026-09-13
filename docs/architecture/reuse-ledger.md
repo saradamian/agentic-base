@@ -1,8 +1,8 @@
 # Reuse ledger
 
-Every concern gets one of three verdicts. A verdict must rest on a checked fact: the component exists, is maintained, and models the
-thing. An impression is not a verdict. "Feels commodity" is not a
-verdict, and neither is "we already have one".
+Every concern gets one of three verdicts. A verdict must rest on a checked fact: the component
+exists, is maintained, and models the thing. An impression is not a verdict. "Feels commodity" is
+not a verdict, and neither is "we already have one".
 
 | verdict | meaning |
 |---|---|
@@ -21,7 +21,7 @@ already supported, and already have an owner.
 | concern | component | verdict |
 |---|---|---|
 | source, CI/CD, package registry | GitLab, SURF's own instance | ADOPT |
-| pipeline definitions for a Python service | the Developer Platform's pipeline component for Python applications | ADOPT for the deployment. The public repository cannot run it, so `.github/workflows/ci.yml` carries the same five commands as a six-step workflow, and the deployment overlay carries the SDP one. Two pipelines for one gate is a P1 tension, named here so it is not mistaken for a choice; the commands are one list in `CONTRIBUTING.md` |
+| pipeline definitions for a Python service | the Developer Platform's pipeline component for Python applications | ADOPT for the deployment. The public repository cannot run it, so `.github/workflows/ci.yml` runs the gate's commands from `CONTRIBUTING.md` plus a lock check, and the deployment overlay carries the SDP one. Two pipelines for one gate is a P1 tension, named here so it is not mistaken for a choice; the commands are one list in `CONTRIBUTING.md` |
 | container and Helm registry | Harbor, through the platform's container and Helm components | ADOPT |
 | dependency vulnerabilities and SBOM | Dependency Track, through the platform's component | ADOPT |
 | dependency updates | Renovate, the platform's runner | ADOPT |
@@ -34,7 +34,7 @@ already supported, and already have an owner.
 | secrets | SDP secret management, per its guide | ADOPT. It is the fix for secrets-in-job-scripts |
 | identity and collaboration groups | SURFconext, SRAM | ADOPT |
 | shared model inference | Willma, the AI Hub back office | ADOPT where it serves the model needed |
-| Slurm access from services | slurmrestd, the scheduler's own REST API with a published OpenAPI specification, plus a thin site wrapper. Surveyed 2026-09-13: three hand-written REST clients exist at SURF (willma2, the AI4Science prototype, an internal stub) and one SSH backend (agentic-env); the two internal projects this row named earlier could not be found | ADOPT the REST API and generate the client from its specification; the wrapper is one package in the **hpc block**, not this repository (`blocks.md`) |
+| Slurm access from services | slurmrestd, the scheduler's own REST API with a published OpenAPI specification, plus a thin site wrapper. Surveyed 2026-09-13: three hand-written REST clients exist at SURF (willma2, the AI4Science prototype, an internal stub) and one SSH backend (agentic-env) | ADOPT the REST API and generate the client from its specification; the wrapper is one package in the **hpc block**, not this repository (`blocks.md`) |
 | software environments on HPC | EasyBuild, SURF's easyconfigs, EESSI | ADOPT |
 
 ## External, where SURF has no internal equivalent
@@ -49,6 +49,7 @@ already supported, and already have an owner.
 | rollout / RL training | verl, SkyRL, Agent Lightning | ADOPT as trainers |
 | agent security taxonomy | OWASP Top Ten for Agentic Applications, and for agentic skills | ADOPT as the conformance target |
 | retry and backoff | tenacity | ADOPT |
+| dependency advisories on the public repository | GitHub's dependency review, `pip-audit` (Apache-2.0) over the exported lock, and Renovate through its GitHub app | ADOPT. They cover what Dependency Track covers on the platform, for the repository the platform does not build |
 | credential scanning of files and history | gitleaks (MIT), as willma2 runs it | ADOPT, with one rule added for a key in the shape a SURF service issues: measured, gitleaks misses it, and GitHub's generic patterns need paid Secret Protection. The rule is the redaction layer's own pattern, and a test holds the two together. The binary is pinned by version and checksum rather than the action, which needs a licence key for an organisation-owned repository |
 | personal-data detection and redaction | a language model on Willma for people and places, GLiNER (Apache-2.0) as the fallback, patterns for the rest. Microsoft Presidio was adopted and then removed | ADOPT GLiNER; the rest is in the source audit below. Presidio is not adopted: with names from a model its remaining job is patterns, and for that it brings spaCy, 56 packages and 285 MB, and its anonymizer pins cryptography below a release with six advisories |
 
@@ -57,7 +58,7 @@ already supported, and already have an owner.
 | concern | why nothing else does it | revisit when |
 |---|---|---|
 | **run record with label and instrument provenance** | trackers record outcomes, not who decided them or whether the decider was working. A corpus that cannot name its scorers can be neither cited nor trained on | a tracker adds a first-class evaluator-provenance field |
-| **comparison validity** | no experiment tracker adjudicates whether a contrast is sound, and no reporting standard in agent evaluation asks for the per-arm accounting that would show it. The check is ours; the accounting is CONSORT's flow diagram, adopted as a standard below rather than reinvented | any tracker ships arm-correlated missingness detection, or an agent-evaluation reporting standard mandates a per-arm exclusion flow |
+| **comparison validity** | no experiment tracker adjudicates whether a contrast is sound, and we found no reporting standard in agent evaluation that asks for the per-arm accounting that would show it. The check is ours; the accounting is CONSORT's flow diagram, adopted as a standard below rather than reinvented | any tracker ships arm-correlated missingness detection, or an agent-evaluation reporting standard mandates a per-arm exclusion flow |
 | **agentic execution on batch-scheduled HPC** | the published position is that rollout training does not work on Slurm, for four named reasons: no service discovery, jobs must terminate, no component-level recovery, no dynamic scaling. A national facility cannot leave Slurm | Slurm grows service-level primitives, or the workload moves to Kubernetes |
 | **cross-replica request placement** | **ADOPT on Kubernetes.** The Endpoint Picker in the Gateway API Inference Extension routes on queue depth, KV-cache utilisation, prefix-cache locality and adapter affinity, which is the same signal set we arrived at independently. Build only where there is no cluster to run it on | already the case wherever Kubernetes is available |
 | **the join across planes** | tying a trajectory to the replica that served it, the weights that produced it and the bytes it read, keyed on content hashes. Each plane's tooling knows its own plane only | an exporter publishes the join, at which point delete ours |
@@ -95,10 +96,10 @@ something maintained already do this? `tests/test_reuse_ledger.py` fails when a 
 | `limits.py` | a settings object read through a cached accessor | ADOPT `pydantic-settings`. The accessor is the fix for import-time constants and is ours |
 | `main.py` | FastAPI, the Prometheus instrumentator, correlation ids, structlog | ADOPT, all from the golden-path template |
 | `routers/health.py` | liveness and readiness | ADOPT, template |
-| `routers/runs.py` | the write path that refuses an outcome without a scorer, the validity endpoint, a run served in any of the three provenance standards, and the endpoint that records an approval | BUILD. Measured 2026-09-12: MLflow accepts an unsourced outcome from any client and stamps it `CODE/default`, so the refusal has to live at a boundary of ours. Revisit when a tracker refuses an unsourced outcome at its own API |
+| `routers/runs.py` | the write path that refuses an outcome without a scorer, the validity endpoint, a run served in any of the three provenance standards, the endpoint that records an approval, and a tenant's corpus as one export | BUILD. Measured 2026-09-12: MLflow accepts an unsourced outcome from any client and stamps it `CODE/default`, so the refusal has to live at a boundary of ours. Revisit when a tracker refuses an unsourced outcome at its own API |
 | `recording.py` | the observer seam a served call passes through | BRIDGE. `mcp` 2.x ships `ServerMiddleware`, the same seam for that transport; `mcp.server.ObservingMiddleware` adapts ours through it, so a host implements one observer and every served call reaches it |
 | `domain/run_record.py` | the table behind the BUILD row above | BUILD, see the build table. Revisit when that row says to |
-| `domain/outcomes.py` | the label vocabulary, the rules over a structural protocol, and the fields the cross-cutting capabilities write: principal, classification, isolation tier, redaction, approvals | BRIDGE onto MLflow's assessment source for the label; see the store question below. The other fields are ours: no tracker has a place for who approved what or what class of data a run touched |
+| `domain/outcomes.py` | the label vocabulary, the rules over a structural protocol, and the fields the cross-cutting capabilities write: principal, classification, isolation tier, redaction, approvals, disclosure, content marking | BRIDGE onto MLflow's assessment source for the label; see the store question below. The other fields are ours: no tracker has a place for who approved what, what class of data a run touched, or whether a person was told they were dealing with an AI |
 | `domain/epochs.py` | declaring that a revision changed a field's meaning, and refusing to pool across it | BUILD. No tracker records a dependency version as a pooling key. Revisit when one does |
 | `domain/retention.py` | how long a transcript is kept, the AI Act's six-month floor as a refusal rather than a clamp, and an erasure that empties the transcript and leaves everything the hash chain covers | BUILD. The two regimes are reconcilable only against this record's own shape: which fields are personal and which are evidence. Revisit when the platform offers retention as a tenant resource |
 | `domain/integrity.py` | a hash chain over audit fields, `hashlib` only | BUILD, deliberately modest. Revisit when the store moves to a database with native tamper evidence, at which point delete this |
@@ -149,20 +150,13 @@ workload" is no longer ours to claim. What remains ours is cross-replica placeme
 Slurm, which every upstream implementation assumes Kubernetes for, and the acceptance argument
 that throughput is non-monotonic in concurrency so utilisation scores the collapse as healthy.
 
-**The GenAI conventions are still Development, in their own repository, on their own cadence.**
-Not one attribute is marked stable. Read as a reason to wait, that is wrong; it is the window in
-which proposals land. Two attributes would carry most of our argument into a standard other people
-implement: one naming the scaffold identity that produced a trace, one naming the authority of an
-outcome label rather than only its modality. Neither is a new standard.
-
 **One thing to carry to the AI Factory's requirements.** Evaluation is being discussed as a
 compute bottleneck in its own right. The acceptance suite has no agentic workload and no
 evaluation workload either; `cross-cutting.md` says so as its sixth sentence.
 
 **MCP moved under us.** The SDK went to 2.x for the 2026-07-28 protocol, with OpenTelemetry
-tracing on by default and an in-memory client for tests. The hand-rolled server here still
-announced `2025-06-18`. It is replaced by the SDK in the service extra; the four tools and the
-pure dispatch are what remain ours. Two consequences: the SDK traces through the API's global
+tracing on by default and an in-memory client for tests. This repository serves on it, in the
+service extra; the four tools and the pure dispatch are what remain ours. Two consequences: the SDK traces through the API's global
 provider, so `configure_tracing` sets it, and a test proves an SDK span reaches the exporter; and
 the recording seam runs as the SDK's own `ServerMiddleware`, so the `recording.py` row's BRIDGE
 is real rather than intended.
@@ -172,14 +166,19 @@ high-risk obligations to 2 December 2027 and Annex I to 2 August 2028. GPAI prov
 the Commission's enforcement powers stay on 2 August 2026. `integrity.py` and `compliance.md` say
 so.
 
-**The Dutch Cybersecurity Act is live.** In force 15 August 2026, no transition period.
+**The Dutch Cybersecurity Act is live.** In force 15 August 2026; the intended date for higher
+education is March 2027.
+
+**The Cyber Resilience Act's reporting duty started on 11 September 2026.** Whether it reaches
+this package is open, and `compliance.md` says what either answer would ask for.
 
 **RestrictedPython had a complete sandbox escape** (positional-only parameters, fixed in 8.3). It
 does not change the BRIDGE verdict, and it is the reason the pre-filter's docstring says what it
 says: nothing at this layer is an isolation boundary.
 
 **The GenAI conventions are Development, in their own repository, on their own cadence.** Not one
-attribute is marked stable. Both vocabulary packages are pinned in the service extra, so the
+attribute is marked stable. Read as a reason to wait, that is wrong; it is the window in which
+proposals land. Both vocabulary packages are pinned in the service extra, so the
 literal fallbacks are not what runs in the suite, and a test holds every fallback literal to the
 installed value. The two attributes this repository keeps carrying as extensions, scaffold
 identity and label authority, are written up in `proposals.md`, ready to file. The venue is the

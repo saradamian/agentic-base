@@ -68,7 +68,7 @@ any of the others. Without them no SURF-run agent can exist.
 
 ## Capabilities that cut across every block
 
-Six more things are capabilities in their own right and not blocks. They are listed with
+Seven more things are capabilities in their own right and not blocks. They are listed with
 identity and accounting because leaving them implicit is how a platform ends up with a service
 account that can do everything, and a record nobody can classify, audit or overrule.
 
