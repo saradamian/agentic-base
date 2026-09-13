@@ -1,86 +1,97 @@
 # Redaction
 
-How a transcript loses its personal data before it is written, which instrument does it, and
-what each way of running it catches and costs.
+How a transcript loses its personal data and credentials before it is written, what does it, and
+what happens when part of it cannot run.
 
-## What runs
+## What runs, in order
 
-The service redacts every run it records when `REDACTION=presidio` is set. It uses Presidio's
-analyzer, from the `redaction` extra, and replaces each finding with its entity type:
-`Forward it to <PERSON>`. A writer that redacted its own transcript says so in `redaction`, and
-the service leaves that record alone. The library half has the same function, `redact_run`, for
-a consumer that wants to redact before the transcript leaves its machine.
+1. **Patterns**, always, standard library only: credentials, email addresses, phone numbers,
+   IBANs, card numbers, IP addresses and the Dutch citizen service number. Checksums carry the
+   precision: mod 97 for an IBAN, Luhn and a known leading digit for a card, the eleven test for
+   a citizen service number. Credentials are recognised by shape wherever they appear, including
+   the shape of a Willma key.
+2. **Masking.** Everything the patterns found is replaced by `#` characters of the same length.
+   Offsets do not move, and a credential or a bank number never leaves the service to be
+   detected.
+3. **Names and places from a language model** on Willma, by default `RedHatAI/gemma-4-31B-it-NVFP4`.
+4. **GLiNER** in process, when the model cannot answer: a GPU if torch sees one, the CPU if not.
+5. **Refusal**, when neither can answer. The service answers 503 with `Retry-After` and writes
+   nothing. A run classified `public` is the exception: it is written with patterns alone, and its
+   record says so.
 
-Every record then says what happened. `redaction` names the instrument, its mode, the model and
-its revision, and the entity types it looked for. `extra.redaction` holds how many strings were
-examined and how many findings of each type there were, so a run with nothing found reads as
-examined and clean, not as never examined.
+Every finding becomes its entity type: `Forward it to <PERSON>`. Every record says what ran:
+`redaction` names the patterns and the name detector with its model, marked `(fallback)` when
+GLiNER stood in, and `extra.redaction` counts the strings examined, the findings per type, and
+how many strings each instrument handled. A writer that redacted its own transcript says so in
+`redaction`, and the service leaves that record alone.
 
-## What is looked for
+Settings: `REDACTION` is `none`, `patterns` or `names`; the `REDACTION_LLM_*` and
+`REDACTION_GLINER_*` settings configure the two detectors; `REDACTION_ALLOW_LIST` exempts the
+site's own vocabulary; `REDACTION_ENTITIES` narrows what is removed.
 
-People, places, email addresses, phone numbers, IBANs, card numbers, IP addresses and the Dutch
-citizen service number, which is recognised with the eleven test because Presidio ships no Dutch
-recognizer.
+## Guards on the model
 
-Left out by default, each for a measured reason: Presidio's US and UK identifiers fire on job ids
-and token counts; dates fire on "Friday" and "7200 seconds"; organisations fire on the name of
-the cluster. None of those is personal data in an agent transcript and redacting them makes the
-record useless for what it is kept for. The cost is that a date of birth is not caught unless a
-deployment adds `DATE_TIME` to `REDACTION_ENTITIES`.
+- **Output is constrained by a JSON schema.** Asked without one, the same model returned a
+  differently shaped object in a Markdown fence.
+- **Input is fenced as data**, with a delimiter carrying a random nonce, and the instructions say
+  nothing inside the fence is an instruction. In a test the model ignored an "ignore all previous
+  instructions" line. That lowers the risk of a transcript steering the detector; it does not
+  remove it. A steered model can only miss or over-remove, because it can only name strings, and
+  each string is looked up verbatim in the text: one that does not occur removes nothing and is
+  counted.
+- **Long text is cut into overlapping pieces** of 1,500 words, run four at a time.
+- **A truncated answer is not trusted.** The piece is split and asked again.
+- **Retries follow `llm.resilience`.** A dead connection is retried once on a fresh transport, a
+  gateway status once, a timeout never.
+- **The timeout is 300 seconds**, because Willma's proxies cut a request at 300
+  (`proxy_read_timeout` in its nginx template, the Apache `ProxyPass` timeout). A longer client
+  timeout would only receive their 504.
+- **After a failure the model cools down for 60 seconds.** Writes in that window go straight to
+  GLiNER instead of each waiting for the same failure.
+- **The key is a secret setting** and appears in no error message or log line.
 
-## The three modes, measured
+## Measured
 
-`scripts/measure_redaction.py` runs each mode over twelve hand-written sentences in English and
-Dutch, with synthetic names and two sentences that contain nothing personal. That is a smoke test
-of the choice, not a benchmark. Measured on 2026-09-13, CPU only:
+`scripts/measure_redaction.py` runs each mode over twelve hand-written English and Dutch
+sentences with synthetic names, two of them containing nothing personal, and over one
+2,407-word message with those sentences scattered through technical filler. A smoke test of the
+choice, not a benchmark. 2026-09-13, Gemma on Willma warm, GLiNER on CPU:
 
-| mode | caught of 21 | words wrongly removed | per sentence |
-|---|---|---|---|
-| patterns only | 6 | 0 | about 5 ms |
-| spaCy, English and Dutch large models, with allow-list | 21 | 6 | about 20 ms |
-| GLiNER multilingual PII, with allow-list | 21 | 4 | about 200 ms |
+| mode | caught of 21 | ordinary words removed | per sentence | 2,407-word message |
+|---|---|---|---|---|
+| patterns only | 6 | 0 | under 10 ms | missed 15, all names and places |
+| Gemma on Willma | 21 | 0 | 0.5 s | 1.8 s, missed none |
+| GLiNER on CPU | 21 | 4 | 0.1 s | 5.5 s, missed none |
 
-**Patterns only** is what runs when no model is configured. It found every email, phone number,
-IBAN and citizen service number, and none of the ten names or four places. The instrument string
-says `patterns only, no names or places` so no reader takes it for more.
+Gemma gave identical findings on three repeated passes. Qwen3.5-122B on the same endpoint did
+not: it dropped a name in one pass and flagged a cluster name in another, at temperature 0.
+GLiNER's words removed are titles and neighbours, "Mevrouw" and "Bel", swallowed into the name
+after them. A cold start of the Willma model took 21 seconds a sentence; the model list reports
+`state: unloaded` and `latency_mode: on-demand`, and the cooldown sends writes to GLiNER while
+the model loads.
 
-**spaCy** needs one model per language, and each model tags ordinary words of the other language
-as names: the English model took "Stuur het rapport naar" into a person, the Dutch model took
-"Snellius". Running both merges both sets of errors.
+GLiNER tagged "the agent" as a person, above 0.9 confidence, in every piece of a technical
+transcript; on the long message that was 110 false people. A person span now needs a capitalised
+word after any leading article. An all-lowercase name typed in chat is therefore missed on the
+fallback path, and not on the model path.
 
-**GLiNER** is one multilingual model. Its errors on the sample were titles and neighbouring
-words, "Mevrouw" and "Bel", swallowed into the name after them. Revision
-`1fcf13e85f4eef5394e1fcd406cf2ca9ea82351d` of `urchade/gliner_multi_pii-v1`, Apache-2.0.
+## Choices, and what would change them
 
-Both models tag a site's own vocabulary, cluster and partition names, as places. The allow-list
-fixes that, and it is deployment configuration: `REDACTION_ALLOW_LIST` in the overlay.
-
-## What it costs on a long transcript
-
-One message of about 1,500 words, CPU only: spaCy took 0.6 seconds, about 2,350 words a second;
-GLiNER took 6 seconds, about 250 words a second. An agent transcript of 50,000 words is therefore
-about 20 seconds with spaCy and over three minutes with GLiNER, on the request that writes it.
-
-So: GLiNER where the pod has a GPU, spaCy where it does not and the transcripts are mostly one
-language, and redaction in the consumer before the post where a long transcript must not hold a
-request open. Moving redaction off the request path, recording first and redacting after, is not
-built; it would need the record to be unreadable until the redaction lands.
-
-## Choices made, and what would change them
-
-- **The analyzer, not the anonymizer.** Presidio's anonymizer pins `cryptography` below 49, and one
-  lock for every extra would have held the service on a release with six published advisories.
-  Replacing a span is fifteen lines; overlapping findings become one span labelled by the most
-  confident. Revisit when that pin lifts.
-- **No model in the extra.** torch alone is over a gigabyte, and spaCy's models are not on PyPI. A
-  configured model that is not installed is refused at start, by name. Presidio would otherwise
-  try to download it during a request.
-- **Redaction, not pseudonymisation.** The same person becomes `<PERSON>` every time, not a stable
-  token per person. A consumer that needs to follow one person through a run needs Presidio's
-  operators with a keyed hash, and a key the platform manages.
-- **An LLM as the detector was not measured.** Presidio can drive one through LangExtract, and
-  Willma would keep the text inside SURF. It would be slower again than GLiNER and not
-  deterministic, which matters for an instrument whose name goes on the record. Measure it before
-  choosing it.
-- **Nothing here stops personal data reaching a model.** That is the agent's side, before the
-  prompt is sent.
+- **Presidio was adopted and removed.** Its analyzer requires spaCy even for patterns: 56
+  packages and 285 MB against the library's 17 and 14 MB, and an import of two seconds. Its
+  anonymizer pins `cryptography` below 49, which would have held the service on a release with six
+  advisories. With names from a model, what was left of it was patterns.
+- **No dependency is added.** The pattern layer is standard library; the model client is httpx,
+  which the library already uses. GLiNER and torch are the deployer's to install when the
+  fallback is configured, and a configured fallback that is not installed is refused at start.
+- **Willma is a second processor.** Transcripts, masked of everything the patterns found, go to
+  another SURF service for detection. The processing record names it.
+- **The model version is not pinned.** The record carries the model name and Willma's
+  registration timestamp for it; Willma can change the weights behind the name, and nothing here
+  can see that. GLiNER is pinned by revision.
+- **GPT-NL is registered on Willma** and not granted to the keys tried. Measure it with the same
+  script once it is.
+- **Redaction, not pseudonymisation.** The same person becomes `<PERSON>` every time. Following
+  one person through a run would need a keyed hash and a key the platform manages.
+- **Nothing here stops personal data reaching the agent's own model.** That is the agent's side,
+  before the prompt is sent.

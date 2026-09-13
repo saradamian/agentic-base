@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 from starlette import status
 
 from agentic_base.db import get_session
+from agentic_base.domain.outcomes import DataClass
 from agentic_base.domain.run_record import (
     Approval,
     LabelUpdate,
@@ -23,7 +24,7 @@ from agentic_base.domain.run_record import (
 from agentic_base.domain.validity import ChannelSpread, check_comparison
 from agentic_base.provenance import to_openlineage, to_process_run_crate, to_prov
 from agentic_base.redaction.configured import get_redactor
-from agentic_base.redaction.redact import Redactor, redact_run
+from agentic_base.redaction.redact import RedactionUnavailable, Redactor, redact_run
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -79,6 +80,23 @@ class _Observation:
     channel: str
 
 
+def _redacted(payload: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
+    """Redact, or refuse the write. A run classified public may be written with patterns alone
+    when no detector for names can run, and its record says so; every other run is refused
+    with 503, so nothing personal is stored under a redaction that did not happen."""
+    try:
+        return redact_run(payload, redactor)
+    except RedactionUnavailable as exc:
+        patterns_only = getattr(redactor, "patterns_only", None)
+        if payload.classification is DataClass.PUBLIC and patterns_only is not None:
+            return redact_run(payload, patterns_only())
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"the run was not recorded: {exc}",
+            headers={"Retry-After": "60"},
+        ) from None
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_run(
     payload: RunRecordCreate,
@@ -92,7 +110,7 @@ def create_run(
     is written, unless the writer already redacted it and said with what.
     """
     if redactor is not None:
-        payload = redact_run(payload, redactor)
+        payload = _redacted(payload, redactor)
     record = to_record(payload)
     session.add(record)
     session.commit()

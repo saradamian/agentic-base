@@ -1,26 +1,26 @@
-"""Run the redaction instrument in each mode over a small hand-written sample.
+"""Run each redaction mode over a small hand-written sample, and over one long message.
 
 Not a benchmark: twelve sentences, English and Dutch, synthetic names, two with nothing personal
-in them. It exists so the claim that a model is needed, and the choice between models, can be
-rerun rather than trusted. A gold item counts as caught when its text no longer appears in the
-output. Over-redaction is counted in words: a word that belongs to no gold item and that some
-finding covers, so a wrong span that swallows the words beside a real name is counted too.
+in them. It exists so the choice of detectors can be rerun rather than trusted. A gold item counts
+as caught when its text no longer appears in the output; over-redaction is counted in words that
+belong to no gold item and were removed anyway.
 
-Needs the redaction extra, plus gliner and the two spaCy models for the model rows; a row whose
-model is not installed is reported as skipped, with the reason.
+    python scripts/measure_redaction.py                      # patterns only
+    REDACTION_LLM_URL=... REDACTION_LLM_API_KEY=... REDACTION_LLM_MODEL=... \
+    REDACTION_GLINER_MODEL=urchade/gliner_multi_pii-v1 REDACTION_GLINER_REVISION=... \
+        python scripts/measure_redaction.py
 
-    python scripts/measure_redaction.py
+A mode whose settings or packages are missing is reported as skipped, with the reason.
 """
 
 from __future__ import annotations
 
-import logging
+import os
+import re
 import time
-import warnings
 
-from agentic_base.redaction.presidio import PresidioRedactor
+from agentic_base.redaction.layered import LayeredRedactor
 
-GLINER = ("urchade/gliner_multi_pii-v1", "1fcf13e85f4eef5394e1fcd406cf2ca9ea82351d")
 ALLOW = ["Snellius", "LUMI", "gpu_h100", "vLLM"]
 
 SAMPLE: list[tuple[str, list[str]]] = [
@@ -62,70 +62,94 @@ SAMPLE: list[tuple[str, list[str]]] = [
     ("Zet max_model_len op 262144 en herstart de vLLM serve op node gcn42.", []),
 ]
 
-MODES = {
-    "patterns only": {},
-    "spaCy en + nl": {
-        "spacy_models": {"en": "en_core_web_lg", "nl": "nl_core_news_lg"}
-    },
-    "GLiNER multi PII": {"gliner_model": GLINER[0], "gliner_revision": GLINER[1]},
-}
 
-
-def _findings(redactor: PresidioRedactor, text: str) -> list[tuple[int, int]]:
-    spans = []
-    for engine, language in redactor._engines:
-        for r in engine.analyze(
-            text=text,
-            language=language,
-            entities=redactor.entities,
-            allow_list=redactor.allow_list or None,
-        ):
-            spans.append((r.start, r.end))
-    return spans
+FILLER = (
+    "The agent rebuilt the environment on Snellius and resubmitted the job to partition "
+    "gpu_h100 after raising max_model_len to 262144. "
+)
 
 
 def _words(text: str) -> list[tuple[int, int]]:
-    spans, start = [], None
-    for i, ch in enumerate(text + " "):
-        if ch.isalnum() or ch in "@.+-_":
-            start = i if start is None else start
-        elif start is not None:
-            spans.append((start, i))
-            start = None
-    return spans
+    return [m.span() for m in re.finditer(r"[\w@.+-]+", text)]
+
+
+def _removed_outside_gold(text: str, out: str, gold: list[str]) -> int:
+    kept = set(out.split())
+    gold_spans = [(text.index(g), text.index(g) + len(g)) for g in gold]
+    return sum(
+        1
+        for a, b in _words(text)
+        if not any(a < ge and b > gs for gs, ge in gold_spans)
+        and text[a:b] not in kept
+        and text[a:b].strip(".,;") not in {w.strip(".,;") for w in kept}
+    )
+
+
+def _modes() -> dict[str, object]:
+    modes: dict[str, object] = {
+        "patterns only": lambda: LayeredRedactor(allow_list=ALLOW)
+    }
+    url, key, model = (
+        os.environ.get(f"REDACTION_LLM_{k}", "") for k in ("URL", "API_KEY", "MODEL")
+    )
+    if url and key and model:
+        from agentic_base.redaction.llm import LlmDetector
+
+        modes["language model"] = lambda: LayeredRedactor(
+            primary=LlmDetector(
+                base_url=url, api_key=key, model=model, chunk_words=600
+            ),
+            allow_list=ALLOW,
+        )
+    else:
+        modes["language model"] = (
+            "set REDACTION_LLM_URL, REDACTION_LLM_API_KEY, REDACTION_LLM_MODEL"
+        )
+    gliner_model = os.environ.get("REDACTION_GLINER_MODEL", "")
+    if gliner_model:
+        from agentic_base.redaction.gliner import GlinerDetector
+
+        revision = os.environ.get("REDACTION_GLINER_REVISION", "")
+        modes["GLiNER"] = lambda: LayeredRedactor(
+            primary=GlinerDetector(model=gliner_model, revision=revision),
+            allow_list=ALLOW,
+        )
+    else:
+        modes["GLiNER"] = "set REDACTION_GLINER_MODEL"
+    return modes
 
 
 def main() -> None:
-    warnings.filterwarnings("ignore")
-    logging.disable(logging.WARNING)
-    gold_total = sum(len(g) for _, g in SAMPLE)
+    total = sum(len(g) for _, g in SAMPLE)
+    long_text = " ".join(FILLER * 10 + text for text, _ in SAMPLE)
+    long_gold = sorted({g for _, gs in SAMPLE for g in gs})
     print(
-        f"{'mode':18} {'allow-list':>10} {'caught':>8} {'words over-redacted':>20} {'ms/sentence':>12}"
+        f"{'mode':16} {'caught':>7} {'over':>5} {'s/sentence':>10} {'long message':>28}"
     )
-    for name, kwargs in MODES.items():
-        for allow in ((), ALLOW):
-            try:
-                redactor = PresidioRedactor(allow_list=allow, **kwargs)
-            except ImportError as exc:
-                print(f"{name:18} skipped: {exc}")
-                break
-            caught = over = 0
-            start = time.perf_counter()
-            for text, gold in SAMPLE:
-                out = redactor.redact(text).text
-                caught += sum(item not in out for item in gold)
-                gold_spans = [(text.index(g), text.index(g) + len(g)) for g in gold]
-                found = _findings(redactor, text)
-                over += sum(
-                    1
-                    for ws, we in _words(text)
-                    if not any(ws < ge and we > gs for gs, ge in gold_spans)
-                    and any(ws < fe and we > fs for fs, fe in found)
-                )
-            ms = (time.perf_counter() - start) * 1000 / len(SAMPLE)
-            print(
-                f"{name:18} {'yes' if allow else 'no':>10} {caught:>4}/{gold_total:<3} {over:>20} {ms:>12.0f}"
-            )
+    for name, build in _modes().items():
+        if isinstance(build, str):
+            print(f"{name:16} skipped: {build}")
+            continue
+        try:
+            redactor = build()
+        except ImportError as exc:
+            print(f"{name:16} skipped: {exc}")
+            continue
+        caught = over = 0
+        start = time.perf_counter()
+        for text, gold in SAMPLE:
+            out = redactor.redact(text).text
+            caught += sum(item not in out for item in gold)
+            over += _removed_outside_gold(text, out, gold)
+        per = (time.perf_counter() - start) / len(SAMPLE)
+        start = time.perf_counter()
+        long_out = redactor.redact(long_text).text
+        missed = sum(g in long_out for g in long_gold)
+        words = len(long_text.split())
+        long_s = time.perf_counter() - start
+        print(
+            f"{name:16} {caught:>3}/{total:<3} {over:>5} {per:>10.2f} {f'{words} words, {long_s:.1f}s, missed {missed}':>28}"
+        )
 
 
 if __name__ == "__main__":
