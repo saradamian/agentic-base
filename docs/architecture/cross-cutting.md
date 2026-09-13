@@ -24,12 +24,12 @@ four are now fields on the record, with defaults that keep every existing writer
 corpus recorded from now on can say which runs predate the solution, and a solution has a place
 to write to when it arrives.
 
-| gap | in the structure now | what fills it later | AI Factory area it belongs to |
+| gap | in the structure now | what fills it later | AI Factory task |
 |---|---|---|---|
-| nothing redacts personal data before a transcript is written | `redaction` on every run: `none`, or the instrument's name and version. A transcript with `none` and a personal classification is a finding | Presidio at the recording seam, in the ledger as ADOPT-when-built | the LLM sandbox with safety filters and logging; data governance |
-| no record says what class of data a run touched; sensitive data is the AI Factory's central commitment | `classification` on every run, six levels from unclassified to health, and `isolation_tier`. One rule already enforced: personal or health data cannot have run on the community tier | the tenant's use case sets both; the execution block reads them to pick the tier | data governance; the sandbox architecture with its isolation and access policies |
-| no block demands a delegated credential | `principal` on every run: the person it acted for, empty for a service identity. Recorded so the corpus can separate the two populations | scoped, expiring credentials issued by the federation and demanded by every block | user access; the identity federation the platform already runs |
-| no human oversight record; the AI Act's article 14 expects one for high-risk systems | `approvals` on every run, each with action, decision, who and when, and an endpoint to add one | the channels and forge blocks write one before a write, a submission or a send | evaluation and compliance: the logging, evidence and audit infrastructure |
+| nothing redacts personal data before a transcript is written | `redaction` on every run: `none`, or the instrument's name and version. A transcript with `none` and a personal classification is a finding | Presidio at the recording seam, in the ledger as ADOPT-when-built | T2.6, the LLM sandbox with safety filters and logging; T4.4 data governance |
+| no record says what class of data a run touched; sensitive data is the AI Factory's central commitment | `classification` on every run, six levels from unclassified to health, and `isolation_tier`. One rule already enforced: personal or health data cannot have run on the community tier | the tenant's use case sets both; the execution block reads them to pick the tier | T4.4 data governance; D2.1, the sandbox architecture with its isolation and access policies |
+| no block demands a delegated credential | `principal` on every run: the person it acted for, empty for a service identity. Recorded so the corpus can separate the two populations | scoped, expiring credentials issued by the federation and demanded by every block | T2.10 user access; the identity federation the platform already runs |
+| no human oversight record; the AI Act's article 14 expects one for high-risk systems | `approvals` on every run, each with action, decision, who and when, and an endpoint to add one | the channels and forge blocks write one before a write, a submission or a send | T2.7 and T2.8 evaluation and compliance: the logging, evidence and audit infrastructure |
 
 ## The obligations, and what each asks of an agent platform
 

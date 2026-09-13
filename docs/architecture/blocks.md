@@ -161,26 +161,27 @@ internal generative AI platform. Internal use is not a separate design; it is th
 the second way, which is why the GitLab companion is the right first service: SURF is its first
 customer.
 
-## Where the blocks land in the AI Factory's scope
+## Where the blocks land in the AI Factory's plan
 
-The AI Factory's areas of work against the blocks. Every block maps to an area; two areas have
+The plan's tasks and deliverables against the blocks. Every block maps to a task; two tasks have
 no block because they are the platform's own work, not an agent capability.
 
-| area of work | blocks |
-|---|---|
-| model experimentation: an LLM sandbox with safety filters and logging | execution, inference, runs |
-| evaluation and compliance: logging, evidence and audit infrastructure | runs; the cross-cutting page |
-| model management: a model registry with versioning | artifacts |
-| user access: co-creation environments, Jupyter and VS Code in the browser | workspace, identity |
-| user productivity: standardised APIs and a command line | the contracts layer; every block's client |
-| multi-site workflows: a portability toolkit, workflow import and export | artifacts (workflows), runs |
-| data engineering: landing zones on object storage | data |
-| data governance: provenance and versioning, quality, personal data | data; the run record's classification and redaction |
-| federated learning infrastructure | execution, data; no agent capability of its own |
-| secure enclaves for sensitive data | execution's isolated tier; the platform's, not a block |
+| task | what it delivers | blocks | fields on the run |
+|---|---|---|---|
+| T2.6 model experimentation | an LLM sandbox with safety filters and logging | execution, inference, runs | `redaction` |
+| T2.7 / T2.8 evaluation and compliance | logging, evidence and audit infrastructure | runs; `cross-cutting.md` | `approvals`, `principal` |
+| T2.9 model management | a model registry with versioning | artifacts | |
+| T2.10 user access | co-creation environments, Jupyter and VS Code in the browser | workspace, identity | `principal` |
+| T2.8 user productivity | standardised APIs and a command line | the contracts layer; every block's client | |
+| T2.3 multi-site workflows | a portability toolkit, workflow import and export | artifacts (workflows), runs | |
+| T4.1 data engineering | landing zones on object storage | data | |
+| T4.4 data governance | provenance and versioning, quality, personal data | data; runs | `classification`, `redaction` |
+| T4.5 / T2.14 | federated learning infrastructure | execution, data; no agent capability of its own | |
+| D2.1 sandbox architecture | governance, isolation and access policies | execution's isolated tier; the platform's | `isolation_tier` |
+| D4.1 data governance guidelines | | data | `classification` |
 
-Not in that scope and present here: forge, channels, web, and delegated credentials. Those are
-the four things a SURF-run agent needs that a model-serving scope does not think of.
+Not in the plan and present here: forge, channels, web, and delegated credentials. Those are
+the four things a SURF-run agent needs that a model-serving plan does not think of.
 
 ## What makes a block composable
 
