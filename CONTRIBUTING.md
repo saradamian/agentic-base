@@ -45,8 +45,9 @@ scope a `filterwarnings` entry to that one message, name the upstream cause, and
 be removed.
 
 Continuous integration runs the same five steps on 3.10 and 3.14. If your machine has only one,
-the runner is the other. Two more checks are required to merge and do not run locally: a
-dependency review of what the change adds, and an audit of the fully pinned set.
+the runner is the other. Three more checks are required to merge and run on GitHub: a dependency
+review of what the change adds, an audit of the fully pinned set, and a secret scan over every file
+and every commit.
 
 ## What a public page may not carry
 
@@ -77,8 +78,8 @@ deliberately left for later. It must not claim more than the diff delivers.
 
 `main` accepts pull requests only, with the gate green on both interpreters, every review thread
 resolved, and a linear history. Push everything before arming auto-merge: a commit pushed after
-the checks pass reaches the branch and never reaches `main`. There is no required reviewer count while the repository has one
-maintainer; the gate is the reviewer. That changes the day there is a second.
+the checks pass reaches the branch and never reaches `main`. There is no required reviewer count
+while the repository has one maintainer; the gate is the reviewer. That changes the day there is a second.
 
 ## Versioning and releases
 

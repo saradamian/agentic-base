@@ -141,7 +141,7 @@ consumer keeps its own record type and still gets them.
 
 **Guard:** `tests/test_portable_surface.py` lists the portable modules and checks that each parses
 under the consumer's grammar, uses no runtime name newer than its floor, and loads no service
-dependency when imported — the last in a fresh interpreter, because in-process it would pass
+dependency when imported, the last in a fresh interpreter, because in-process it would pass
 whenever an earlier test had already imported the database layer. It also checks the linter's
 target version, which had been set to demand exactly the syntax the consumer cannot run.
 
@@ -156,6 +156,19 @@ one declared cannot fail on the class of defect that regime exists for.
 
 Continuous integration runs the suite on both ends of the supported range precisely because a
 developer machine usually has one of them.
+
+## A test that writes to a real file tests yesterday's schema
+
+A suite that writes to a database file in the working directory keeps that file between runs. Add
+a column, run the suite, and the table on disk is the old one: every write fails with a missing
+column, and the failure reads as a bug in the change rather than as a stale file. Two people hit
+it on the same day, one of them reviewing the repository from outside.
+
+So every test gets its own database in a temporary directory, the service's session dependency is
+overridden to use it, and the settings the service reads at start point there too.
+
+**Guard:** `tests/test_config.py` fails when the database URL a test session sees is the default
+file in the working directory.
 
 ## A push after auto-merge is armed is a push to nowhere
 
@@ -199,8 +212,8 @@ guard is known to fire. The history was searched the same way before the reposit
 ## The supply chain is checked on every change
 
 A dependency with a known vulnerability arrives through an ordinary pull request, and a
-vulnerability disclosed after the pin lands arrives through nothing at all. Two checks, both
-required to merge: a dependency review that refuses a new dependency with a known vulnerability
+vulnerability disclosed after the pin lands arrives through nothing at all. Two checks on
+dependencies, both required to merge: a dependency review that refuses a new dependency with a known vulnerability
 of moderate severity or above, and an audit of the fully pinned set, every extra included. A
 release carries build provenance and an SBOM attestation for the distribution files, the SBOM
 taken from the wheel installed on the consumer floor. PyPI receives those files, never a second
@@ -223,7 +236,8 @@ and `tests/test_process.py` fails if the publish job builds the distribution aga
 
 From willma2, which merged 490 requests this way: rebase merge, squash always, pipeline must pass,
 discussions resolved, source branch removed, protected trunk. Here they are a branch ruleset
-requiring pull requests, both interpreter checks strict, linear history, resolved threads, no
+requiring pull requests, five required checks strict (both interpreters, the dependency review,
+the audit and the secret scan), linear history, resolved threads, no
 force-push, no deletion and no bypass actors, plus a tag ruleset making releases immutable.
 
 Required approvals are zero, deliberately, while there is one maintainer: a person cannot approve

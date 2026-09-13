@@ -33,12 +33,13 @@ adopted and from where.
 
 | module | what it does | why nothing off the shelf does it |
 |---|---|---|
-| `agentic_base.domain.run_record` | one row per run: the transcript the model actually received, the provenance of its environment, and the provenance of its outcome label | experiment trackers record what a run produced; almost none record *who decided* whether it was right, or whether the instrument that decided was working |
-| `agentic_base.domain.validity` | adjudicates whether a contrast across arms is sound, by detecting exclusion channels whose rate differs by arm, and reports the per-arm accounting behind the verdict | trackers store, version and visualise runs. None of them tell you your comparison is invalid, and no reporting standard in agent evaluation asks for the accounting that would show it |
+| `agentic_base.domain.run_record` | one row per run: the transcript the model actually received, the provenance of its environment, and the provenance of its outcome label | experiment trackers record what a run produced. The ones that record who decided type it by modality, human, model or code, which cannot tell a convenience checker from an authoritative harness, and none refuses an outcome that names no scorer |
+| `agentic_base.domain.validity` | adjudicates whether a contrast across arms is sound, by detecting exclusion channels whose rate differs by arm, and reports the per-arm accounting behind the verdict | trackers store, version and visualise runs. None of them tell you your comparison is invalid, and we found no reporting standard in agent evaluation that asks for the accounting that would show it |
 
 Every record also says who the run acted for, what class of data it touched and on which
 isolation tier, whether personal data was redacted before the transcript was written and by
-what, and who approved which action. Those fields have defaults, so a writer that does not know
+what, who approved which action, whether the person was told they were dealing with an AI, and
+how generated output was marked. Those fields have defaults, so a writer that does not know
 yet still writes, and the corpus can tell a run recorded before the answer existed from one
 recorded after. `docs/architecture/cross-cutting.md` says which obligation each one serves.
 
@@ -47,13 +48,13 @@ PROV, an OpenLineage run event and a Process Run Crate, each through that standa
 with the scorer and its authority carried as a declared extension whose schema is in
 `docs/schemas/`. The same record exports into MLflow as a trace with a feedback assessment.
 
-The second is not a new mechanism, and the README used to overclaim it as one. Clinical trials
+The referee is not a new mechanism. Clinical trials
 have shipped exactly this artifact for two decades: the **CONSORT flow diagram**, a per-arm
 accounting of everyone who left the denominator and why, mandatory for publication since 2001,
 with an extension for AI interventions since 2020. The defect it exposes has a name in the
 missing-data literature, missingness that is **MNAR with respect to the treatment arm**. What is
-missing is not the idea. No experiment tracker implements the check, and no reporting standard in
-agent evaluation requires the accounting, so `validity` implements the check and
+missing is not the idea. No experiment tracker implements the check, and we found no reporting
+standard in agent evaluation that requires the accounting, so `validity` implements the check and
 `flow_by_arm` produces the accounting in the standard's vocabulary: assessed, excluded with
 reasons, analysed.
 
@@ -67,8 +68,8 @@ contract, the span vocabulary from the standard packages, and the recording seam
 passes through. Two more that exist because a regime asks for them and the record is where they
 land: redaction of a transcript before it is written, patterns always and names from a model with
 a fallback, failing closed rather than claiming more than ran; and a retention policy that
-refuses to keep less than the law requires, with an erasure the hash chain survives. `docs/architecture/boundaries.md` lists them; `docs/architecture/reuse-ledger.md`
-says for each whether it is adopted, bridged or built, and a test holds the code to that ledger.
+refuses to keep less than the law requires, with an erasure the hash chain survives.
+`docs/architecture/boundaries.md` lists them; `docs/architecture/reuse-ledger.md` says for each whether it is adopted, bridged or built, and a test holds the code to that ledger.
 
 ## Installing
 
@@ -100,8 +101,10 @@ resource, in every deployed environment.
 - [Logging, security, safety and compliance](docs/architecture/cross-cutting.md): where each lives, the obligations, and what the vision should say
 - [Observability](docs/OBSERVABILITY.md): what the service emits and where to point it
 - [What came from agentic-env](docs/architecture/from-agentic-env.md): what was extracted, what was left, what the first consumer found
-- [Compliance evidence](docs/architecture/compliance.md): what the record produces for the AI Act and NIS2, and what is missing
-- [Going live on SDP](docs/architecture/go-live-on-sdp.md): the deployment repository and the two open questions
+- [Compliance evidence](docs/architecture/compliance.md): what the record produces for the AI Act, NIS2, the Cyber Resilience Act and the Data Act, and what is missing
+- [Redaction](docs/architecture/redaction.md): what removes personal data from a transcript, and what each mode catches and costs
+- [Incident response](docs/architecture/incident-response.md): the two reporting clocks, who is told, and what this repository hands you
+- [Going live on SDP](docs/architecture/go-live-on-sdp.md): the deployment repository and what is left to settle
 
 ## The standard
 
@@ -122,8 +125,9 @@ overlay, kept current by merging `main`, with `scripts/overlay.py` to compose, c
 Semantic versioning, with the version taken from the git tag. While the major version is `0`, a
 minor bump may change the public interface. The import name changed once, from `app` to
 `agentic_base` in `0.2.0`, because a top-level `app` collides with the first package any
-consumer of a web template already has. Releases are tagged `vX.Y.Z` and each carries generated
-notes and a built distribution. See `CONTRIBUTING.md` for the release procedure.
+consumer of a web template already has. Releases are signed `vX.Y.Z` tags; each is published to
+PyPI by trusted publishing, with generated notes, build provenance and an SBOM attested on the
+distribution files. See `CONTRIBUTING.md` for the release procedure.
 
 ## Citation
 

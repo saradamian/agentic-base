@@ -6,8 +6,8 @@ not being ported.
 
 ## Cleanup that outruns the work
 
-A disk reaper configured to remove containers idle for 15 minutes ran against tasks with a 50
-minute budget. It killed roughly a third of them under their own agents for three days. Worse,
+A disk reaper that removed any container older than 50 minutes ran against tasks with a two-hour
+budget. It killed roughly a third of them under their own agents for almost three days. Worse,
 each one was then recorded as a model failure instead of an infrastructure failure, so it never
 appeared as missing data at all.
 

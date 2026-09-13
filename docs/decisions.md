@@ -34,7 +34,8 @@ Anything that reports a determination reports yes, no, or could-not-determine. T
 never folded into either of the others.
 
 `ValidityReport.could_have_flagged`, `ChainVerdict.could_have_failed`, `Epoch.UNKNOWN` and
-`ResultState.CORRUPT` are all the same decision. A probe whose failure returns zero manufactures a
+`ResultState.CORRUPT` are all the same decision, and so is the service answering 503 when no
+redaction detector could run instead of writing the transcript as if one had. A probe whose failure returns zero manufactures a
 plausible answer out of a measurement failure, and the caller cannot tell it from the real thing.
 
 ## D4: Report the denominator
@@ -44,7 +45,8 @@ zero reads as a zero and not as silence.
 
 A scan that returns nothing because its filter matched nothing is indistinguishable from a scan
 that returns nothing because there was nothing to find, unless it says how many things it looked
-at.
+at. `ValidityReport` counts the arms, channels and observations it read; a retention sweep says
+how many records it examined; `extra.redaction` counts the strings each detector handled.
 
 ## D5: Provenance is required at the point of recording
 
@@ -52,8 +54,8 @@ Optional provenance is never supplied. Not from laziness, but through the honest
 resistance when someone is trying to get one thing working.
 
 So `tenant` and `code_revision` have no default, and an outcome cannot be recorded without naming
-the scorer that produced it. In the project this came from, a corpus of 12,630 outcome rows ended
-up with 6,842 attributed to a convenience checker, 5,788 with no scorer at all, and none
+the scorer that produced it. In the project this came from, 33 trace stores held 10,920 recorded
+outcomes: 6,178 attributed to a convenience checker, 4,742 with no scorer at all, and none
 attributed to the authoritative one. A scorer cannot be assigned to a verdict afterwards.
 
 ## D6: A detector keys on the artifact, not on a description of it
@@ -108,11 +110,12 @@ discipline required adopting the storage, the discipline would not travel, and a
 contribution does not travel is a second copy of the thing it meant to replace.
 
 And the portable surface is a list in `tests/test_portable_surface.py` rather than a paragraph in
-a document. It checks that every portable module parses under the consumer's grammar, that
-importing one loads no service dependency, and that the declared floor still admits the consumer.
+a document. It checks that every portable module parses under the consumer's grammar, uses no
+runtime name newer than the floor, and loads no service dependency when imported, that the
+declared floor still admits the consumer, and that the linter targets that floor.
 The import check runs in a fresh interpreter on purpose: in-process it would pass whenever an
 earlier test had already imported SQLModel, which is an absence the check could not have
-contradicted. Each of the four was verified to fail when broken.
+contradicted. Each of the five was verified to fail when broken.
 
 ## D9: Spend requiredness where the information is unrecoverable
 
@@ -145,8 +148,8 @@ reconstructed from what will still exist. If it cannot, refuse the write without
 ## D10: No block lives in this repository
 
 This repository is the contracts layer. The capability blocks an agent calls, hpc, inference,
-knowledge, data, stacks, artifacts, forge, execution, web, channels, workspace, are each their own package
-with the owner of the system behind them. They import this; nothing here imports them.
+knowledge, data, stacks, artifacts, forge, execution, web, channels, workspace, are each their
+own package with the owner of the system behind them. They import this; nothing here imports them.
 
 The rule exists because the alternative was tried. Eight modules were rewritten into this
 repository from agentic-env in its first week, smaller and in some cases worse, and a scheduler
@@ -159,7 +162,8 @@ is this decision applied to the first block.
 
 When an obligation has no implementation yet, the record gains the field the implementation
 would write, with a default that keeps every existing writer working. `redaction` is `none`,
-`principal` is empty, `classification` is unclassified, `approvals` is an empty list.
+`principal` is empty, `classification` is unclassified, `approvals` is an empty list, and
+`disclosure` and `content_marking` are `none`.
 
 The alternative, adding the field when the solution arrives, loses the one thing a later reader
 needs: which runs predate the solution. A corpus where every old row is indistinguishable from a
