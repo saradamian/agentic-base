@@ -1,10 +1,26 @@
-# What this platform produces for AI Act and NIS2 evidence
+# What this platform produces as regulatory evidence
 
 Scope note. This is an engineering mapping, not legal advice, and the classification questions
 below need a lawyer and a compliance officer. What it does is say which obligations produce a
 technical requirement, and which of those requirements this platform already meets.
 
-## The two regimes, and where they actually bite
+## What is already in force, read on 2026-09-13
+
+Four regimes bite before the high-risk AI rules do, and two of them are newer than the rest of
+this page.
+
+| in force | what it asks of a platform like this |
+|---|---|
+| AI Act, prohibited practices, since 2 February 2025 | nothing here |
+| AI Act, general-purpose model provider duties, since 2 August 2025 | nothing here: SURF is not the provider of the models it serves |
+| AI Act, **article 50 transparency**, since 2 August 2026 | a person is told they are dealing with an AI, and generated content is marked. This is live, not future |
+| AI Act, Commission enforcement powers, since 2 August 2026 | the evidence has to exist when it is asked for |
+| **NIS2 as the Cyberbeveiligingswet, since 15 August 2026** | registration, a duty of care, and the reporting clock. The intended date for higher education is March 2027, and SURFcert is the intended incident response team for the sector, so the sector's clock and its counterpart are not the generic ones |
+| **Cyber Resilience Act, article 14, since 11 September 2026** | a manufacturer of a product with digital elements reports an actively exploited vulnerability: early warning in 24 hours, notification in 72, final report 14 days after a fix exists |
+| **Data Act, since 12 September 2025** | a customer of a data processing service can switch away and take data and digital assets with them, within 30 days of a two-month notice; from 12 January 2027 without a switching charge |
+| AI Act, high-risk, Annex III from 2 December 2027 and Annex I from 2 August 2028 | record-keeping, documentation, human oversight. Deferred by the Digital Omnibus, not cancelled |
+
+## The regimes, and where they actually bite
 
 ### AI Act
 
@@ -47,6 +63,45 @@ hours, a notification within 72, and a final report within a month. That clock i
 requirement, because it is only meetable if the evidence already exists when the incident is
 found.
 
+Two dates matter beside the general one. The law has applied since 15 August 2026, and the
+intended date for higher education is March 2027; SURFcert is the intended incident response team
+for this sector. So the counterpart an incident is reported to, and the date it starts, are the
+sector's, not the generic ones. Registration with the national centre is an organisational duty
+and belongs to SURF, not to this service.
+
+### Cyber Resilience Act
+
+The one nobody on this project had written down, and its first obligation started on
+11 September 2026: a manufacturer of a product with digital elements reports an actively
+exploited vulnerability in it, within 24 hours, 72 hours and then 14 days after a fix exists. The
+rest of the regulation applies from 11 December 2027, and the obligations of an *open-source
+software steward*, a lighter category for an entity that supports open-source software it does
+not sell, apply from the same date.
+
+Which category this repository falls into is a question for counsel, and the answer decides
+whether anything is owed at all: software supplied free and open source outside a commercial
+activity is largely out of scope, while a steward carries a security policy, coordinated
+disclosure and reporting duties. What is worth saying as engineering is that the technical
+evidence the regulation asks a manufacturer for, an SBOM, a vulnerability handling process, a
+disclosure channel, and updates, is mostly what this repository already produces: an SBOM and
+build provenance attested on every release, a private reporting channel and a stated response
+window in `SECURITY.md`, a dependency review and an advisory audit on every change, and a secret
+scan over files and history. The missing piece is not a mechanism but a decision and a named
+person.
+
+### Data Act
+
+Applicable since 12 September 2025. If the runs service is offered to tenants as a data
+processing service, its customers may leave and take their data and digital assets with them:
+a switching process started on at most two months' notice and completed within 30 days, and from
+12 January 2027 with no charge for it.
+
+That is a design requirement rather than a legal one for us to answer: a tenant's corpus has to
+be exportable in a form that is useful somewhere else. The provenance emitters are the honest
+start, because W3C PROV, OpenLineage and an RO-Crate are formats another platform can read, and
+the run records are exportable through the API. What does not exist is a bulk export of one
+tenant's whole corpus, or a documented path for taking it elsewhere.
+
 ## What the platform already produces
 
 | requirement | what serves it here |
@@ -84,6 +139,13 @@ core controls, so most of the second half of that table is inherited.
   It is not a signature and not an append-only store, and it must not be presented as either.
 - **No conformity documentation generator.** Annex IV asks for a document. The material for one is
   here; assembling it is not.
+- **Nothing marks generated content, and article 50 is live.** A person must be told they are
+  dealing with an AI, and synthetic content must be marked. Both happen where an agent speaks to a
+  person, which is the channels block, and neither the block nor a field on the record exists yet.
+  This is the only obligation on this page that is in force today and unmet in the design.
+- **No tenant export.** The Data Act's switching right needs one; see above.
+- **No decision on the Cyber Resilience Act.** Whether this is out of scope, or a steward's
+  obligation from December 2027, is unanswered, and the answer changes who reports what.
 
 ## The summary for a conversation
 
