@@ -43,6 +43,7 @@ PORTABLE_MODULES = (
     "agentic_base.llm.resilience",
     "agentic_base.observability.conventions",
     "agentic_base.recording",
+    "agentic_base.redaction.redact",
     "agentic_base.security.netsec",
     "agentic_base.tools.types",
 )

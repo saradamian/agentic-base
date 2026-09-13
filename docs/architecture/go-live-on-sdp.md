@@ -54,6 +54,13 @@ before there is a service on top. The larger form of the same question is delega
 an agent acting for a person needs a token minted for that person and that session, and
 `blocks.md` puts that design with SRAM before any SURF-run agent goes live.
 
+**Redaction and its hardware.** Set `REDACTION=presidio` with the `redaction` extra in the
+image, and choose a model for names and places before the tenant sees personal data:
+`redaction.md` has the measured trade. GLiNER on CPU is too slow for a long transcript on the
+write path, so it needs a GPU in the pod, or the spaCy models instead. The models go into the
+image, pinned; nothing is downloaded at start. Put the site's cluster and service names in
+`REDACTION_ALLOW_LIST` in the overlay, never in this repository.
+
 **What the tenant sets.** Every run carries the class of data it touched and the isolation tier
 it ran under. Today the writer states both. On the platform the tenant's use case should set
 them, so the service needs a place in the tenant configuration to read them from.

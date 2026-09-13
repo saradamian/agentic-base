@@ -48,10 +48,12 @@ deployment pipeline on the SURF Developer Platform builds the image and scans it
 
 ## Personal data
 
-The run record stores the transcript a model received. Nothing in this repository detects or
-removes personal data from it before it is written; a consumer that records prompts from people
-is responsible for that today. What the record does carry is the `redaction` field, `none` until
-an instrument runs and then the instrument's name and version, and the `classification` of the
-data the run touched. A transcript with `none` and a personal classification is a finding, and
-personal or health data on the community isolation tier is refused at the write. The observer
-seam is where the redaction step sits when it is built; the reuse ledger names Presidio for it.
+The run record stores the transcript a model received. The service can redact it before it is
+written, with Presidio, when `REDACTION=presidio` is set; it is off by default, and without a
+language model it finds contact details, bank and card numbers and the Dutch citizen service
+number but not names or places. `docs/architecture/redaction.md` has the modes, what each caught
+on a sample, and what each costs. Every record carries the `redaction` field, naming the
+instrument, its mode and its model, and the `classification` of the data the run touched. A
+transcript with `none` and a personal classification is a finding, and personal or health data
+on the community isolation tier is refused at the write. Redaction replaces what it finds; it
+does not remove personal data from a prompt before a model sees it, which is the agent's side.
