@@ -1,12 +1,15 @@
 """Endpoints for run records and comparison validity."""
 
 import enum
+import json
 import tempfile
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 from starlette import status
@@ -116,6 +119,57 @@ def create_run(
     session.commit()
     session.refresh(record)
     return record
+
+
+@router.get("/export")
+def export_tenant(
+    tenant: str = Query(..., description="The tenant whose corpus is exported."),
+    session: Session = Depends(get_session),
+) -> StreamingResponse:
+    """Everything recorded for one tenant, as newline-delimited JSON.
+
+    The Data Act has applied since 12 September 2025: a customer of a data processing service may
+    leave and take their data and digital assets with them. That is only true if there is a way
+    out that does not go through us, so this exists and is one request.
+
+    The first line is a manifest: the tenant, the time, how many records follow, and the schema
+    they are instances of. A file that says how many records it should contain can be checked
+    against itself; one that does not cannot be told apart from a truncated download. Each line
+    after it is one run in the same shape the write path accepts, so an export can be replayed
+    into another instance of this service, and `GET /runs/{id}/provenance` gives any single run in
+    W3C PROV, OpenLineage or an RO-Crate for a reader that is not this service.
+    """
+    ids = list(
+        session.exec(
+            select(RunRecord.run_id)
+            .where(RunRecord.tenant == tenant)
+            .order_by(RunRecord.created_at)
+        )
+    )
+    manifest = {
+        "tenant": tenant,
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "records": len(ids),
+        "format": "application/x-ndjson",
+        "schema": "agentic_base.domain.outcomes.RunRecordCreate",
+        "note": "one run per line after this one, in the shape POST /runs accepts",
+    }
+
+    def lines() -> Iterator[str]:
+        yield json.dumps(manifest) + "\n"
+        for run_id in ids:
+            record = session.get(RunRecord, run_id)
+            if record is not None:
+                yield to_payload(record).model_dump_json() + "\n"
+
+    return StreamingResponse(
+        lines(),
+        media_type="application/x-ndjson",
+        headers={
+            "Content-Disposition": f'attachment; filename="{tenant}-runs.ndjson"',
+            "X-Record-Count": str(len(ids)),
+        },
+    )
 
 
 @router.get("/{run_id}")

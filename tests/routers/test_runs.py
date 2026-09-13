@@ -1,5 +1,7 @@
 """End-to-end tests for the run endpoints."""
 
+import json
+
 from agentic_base.domain.run_record import LabelSource, RunStatus
 
 
@@ -285,3 +287,59 @@ def test_a_public_run_falls_back_to_patterns_and_says_so(app, test_client) -> No
 
     assert response.status_code == 201
     assert response.json()["redaction"] == "marker 1.0"
+
+
+def _export(test_client, tenant):
+    response = test_client.get("/runs/export", params={"tenant": tenant})
+    lines = [line for line in response.text.splitlines() if line.strip()]
+    return response, json.loads(lines[0]), [json.loads(line) for line in lines[1:]]
+
+
+def test_a_tenant_can_take_its_whole_corpus_in_one_request(test_client) -> None:
+    """The Data Act's switching right needs a way out that does not go through us."""
+    for item in ("task-1", "task-2"):
+        test_client.post("/runs", json=_payload(item=item, tenant="leaving"))
+    test_client.post("/runs", json=_payload(item="task-3", tenant="staying"))
+
+    response, manifest, records = _export(test_client, "leaving")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    assert manifest["tenant"] == "leaving" and manifest["records"] == 2
+    assert [r["item"] for r in records] == ["task-1", "task-2"]
+    assert all(r["tenant"] == "leaving" for r in records)
+
+
+def test_the_manifest_counts_what_follows_so_a_truncated_file_is_visible(
+    test_client,
+) -> None:
+    test_client.post("/runs", json=_payload(item="task-1", tenant="counted"))
+
+    _, manifest, records = _export(test_client, "counted")
+
+    assert manifest["records"] == len(records)
+
+
+def test_an_exported_run_can_be_written_back(test_client) -> None:
+    """The export is in the shape the write path accepts, which is what makes it portable."""
+    test_client.post(
+        "/runs",
+        json=_payload(
+            item="task-1",
+            tenant="portable",
+            messages=[{"role": "user", "content": "hi"}],
+        ),
+    )
+
+    _, _, records = _export(test_client, "portable")
+    replayed = test_client.post("/runs", json=records[0])
+
+    assert replayed.status_code == 201
+    assert replayed.json()["messages"] == [{"role": "user", "content": "hi"}]
+
+
+def test_a_tenant_with_nothing_recorded_exports_an_empty_corpus(test_client) -> None:
+    response, manifest, records = _export(test_client, "nobody")
+
+    assert response.status_code == 200
+    assert manifest["records"] == 0 and records == []
