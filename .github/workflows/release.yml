@@ -19,17 +19,21 @@ on:
   push:
     tags: ["v*.*.*"]
 
+# Nothing by default; each job asks for what it uses, so a step added to one job does not inherit
+# the release job's write access.
 permissions:
-  contents: write
-  # `attest-build-provenance` mints a short-lived signing certificate for this run and writes the
-  # attestation back to the repository. Both are required. With `contents: write` alone the build
-  # succeeds and the attest step fails at the end of it, having spent the whole job first.
-  id-token: write
-  attestations: write
+  contents: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      # `attest-build-provenance` mints a short-lived signing certificate for this run and writes
+      # the attestation back to the repository. Both are required. With `contents: write` alone
+      # the build succeeds and the attest step fails at the end of it, having spent the whole job.
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
