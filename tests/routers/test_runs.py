@@ -306,8 +306,8 @@ def test_a_tenant_can_take_its_whole_corpus_in_one_request(test_client) -> None:
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/x-ndjson")
     assert manifest["tenant"] == "leaving" and manifest["records"] == 2
-    assert [r["item"] for r in records] == ["task-1", "task-2"]
-    assert all(r["tenant"] == "leaving" for r in records)
+    assert [r["record"]["item"] for r in records] == ["task-1", "task-2"]
+    assert all(r["record"]["tenant"] == "leaving" for r in records)
 
 
 def test_the_manifest_counts_what_follows_so_a_truncated_file_is_visible(
@@ -332,10 +332,26 @@ def test_an_exported_run_can_be_written_back(test_client) -> None:
     )
 
     _, _, records = _export(test_client, "portable")
-    replayed = test_client.post("/runs", json=records[0])
+    replayed = test_client.post("/runs", json=records[0]["record"])
 
     assert replayed.status_code == 201
     assert replayed.json()["messages"] == [{"role": "user", "content": "hi"}]
+
+
+def test_an_exported_run_says_which_run_it_is_and_when_in_utc(test_client) -> None:
+    """Without the id and the time an export cannot answer what ran when, and a replay would
+    stamp every run with the moment it was replayed."""
+    created = test_client.post("/runs", json=_payload(tenant="dated")).json()
+
+    _, _, records = _export(test_client, "dated")
+
+    assert records[0]["run_id"] == created["run_id"]
+    assert records[0]["created_at"].endswith(("+00:00", "Z"))
+    assert (
+        test_client.get(f"/runs/{created['run_id']}")
+        .json()["created_at"]
+        .endswith(("+00:00", "Z"))
+    )
 
 
 def test_a_tenant_with_nothing_recorded_exports_an_empty_corpus(test_client) -> None:

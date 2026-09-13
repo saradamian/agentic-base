@@ -32,7 +32,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy.types import TypeDecorator
 from sqlmodel import Field, SQLModel
 
 from agentic_base.domain.outcomes import (
@@ -80,6 +81,24 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class UTCDateTime(TypeDecorator[datetime]):
+    """A timestamp that comes back with its zone.
+
+    Every time here is written in UTC. SQLite stores no zone and hands the value back naive, so a
+    record read back, or exported for someone else, would say when without saying in which zone.
+    """
+
+    impl = DateTime(timezone=True)
+    cache_ok = True
+
+    def process_result_value(
+        self, value: datetime | None, dialect: Any
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
+
 # `table=True` is SQLModel's own subclass kwarg. The pydantic plugin does not model it and
 # SQLModel ships no plugin of its own, so the checker sees an unknown argument to
 # `__init_subclass__`. Scoped to the line rather than silenced repository-wide.
@@ -89,7 +108,9 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     __tablename__ = "run_record"
 
     run_id: str = Field(default_factory=lambda: uuid.uuid4().hex, primary_key=True)
-    created_at: datetime = Field(default_factory=_now, index=True)
+    created_at: datetime = Field(
+        default_factory=_now, sa_column=Column(UTCDateTime, index=True, nullable=False)
+    )
 
     # --- tenancy and grouping -------------------------------------------------
     tenant: str = Field(index=True, description="Owning project or research group.")
@@ -151,7 +172,7 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     )
     resolved: bool | None = Field(default=None)
     label_source: LabelSource = Field(default=LabelSource.UNLABELLED, index=True)
-    labelled_at: datetime | None = Field(default=None)
+    labelled_at: datetime | None = Field(default=None, sa_column=Column(UTCDateTime))
 
     # --- honesty of the measurement itself ------------------------------------
     degraded: bool = Field(

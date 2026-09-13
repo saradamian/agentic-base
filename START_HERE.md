@@ -9,9 +9,10 @@ It is a system of record for agent runs, and a referee for claims made from that
 You post a run. The service stores what the model received, the environment it ran in, and a
 fingerprint of the configuration. You attach an outcome later, and the service refuses it unless
 you name who decided. It tells you whether a comparison between two configurations is sound. It
-hash-chains records so a later edit is detectable. Each record says who the run acted for, what
-class of data it touched and on which isolation tier, whether the transcript was redacted and by
-what, whether the person was told they were dealing with an AI, and who approved which action.
+appends every write to a hash-chained audit log and verifies it on request, so a later edit is
+detectable. Each record says who the run acted for, what class of data it touched and on which
+isolation tier, whether the transcript was redacted and by what, whether the person was told they
+were dealing with an AI, and who approved which action.
 
 Three things it does on the way. When redaction is configured it removes personal data and
 credentials from the transcript before writing it, and refuses the write rather than store a
@@ -83,8 +84,6 @@ what the regimes ask of an agent platform, and which field on the record each ga
 These are here because they were cheap to write while the context was fresh. They answer
 questions nobody has asked yet. Do not build on them.
 
-- The hash chain. It is the interim ledger: it detects an edit and is neither a signature nor an
-  append-only store. `compliance.md` says so in the same words.
 - The energy column. It is a real axis when you are billed for an allocation, and it will be zero
   here for a long time. A column that is always zero teaches people to ignore columns.
 - The Snellius and LUMI profiles. Worked examples of what a cluster profile has to carry, not a
