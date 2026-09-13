@@ -241,3 +241,47 @@ def test_without_a_redactor_the_transcript_is_written_as_sent(test_client) -> No
     stored = test_client.get(f"/runs/{created['run_id']}").json()
     assert stored["messages"] == [{"role": "user", "content": "hi Maria"}]
     assert stored["redaction"] == "none"
+
+
+class _Unavailable:
+    instrument = "patterns + llm m"
+
+    def redact(self, text):
+        from agentic_base.redaction import RedactionUnavailable
+
+        raise RedactionUnavailable("llm: the endpoint answered HTTP 503")
+
+    def patterns_only(self):
+        return _Marker()
+
+
+def _post_with(app, test_client, redactor, **body):
+    from agentic_base.redaction.configured import get_redactor
+
+    app.dependency_overrides[get_redactor] = lambda: redactor
+    try:
+        return test_client.post(
+            "/runs",
+            json=_payload(messages=[{"role": "user", "content": "hi Maria"}], **body),
+        )
+    finally:
+        app.dependency_overrides.pop(get_redactor)
+
+
+def test_a_run_is_refused_when_no_name_detector_can_run(app, test_client) -> None:
+    response = _post_with(
+        app, test_client, _Unavailable(), item="redact-3", classification="internal"
+    )
+
+    assert response.status_code == 503
+    assert response.headers["retry-after"] == "60"
+    assert "not recorded" in response.json()["detail"]
+
+
+def test_a_public_run_falls_back_to_patterns_and_says_so(app, test_client) -> None:
+    response = _post_with(
+        app, test_client, _Unavailable(), item="redact-4", classification="public"
+    )
+
+    assert response.status_code == 201
+    assert response.json()["redaction"] == "marker 1.0"

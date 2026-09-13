@@ -49,10 +49,12 @@ deployment pipeline on the SURF Developer Platform builds the image and scans it
 ## Personal data
 
 The run record stores the transcript a model received. The service can redact it before it is
-written, with Presidio, when `REDACTION=presidio` is set; it is off by default, and without a
-language model it finds contact details, bank and card numbers and the Dutch citizen service
-number but not names or places. `docs/architecture/redaction.md` has the modes, what each caught
-on a sample, and what each costs. Every record carries the `redaction` field, naming the
+written. It is off by default. `REDACTION=patterns` removes credentials, contact details, bank
+and card numbers, IP addresses and the Dutch citizen service number; `REDACTION=names` adds people
+and places, from a model on Willma with GLiNER as the fallback, and refuses the write when neither
+can run. Credentials and the other pattern findings are masked before any text is sent to the
+model. `docs/architecture/redaction.md` has the modes, what each caught on a sample, and what each
+costs. Every record carries the `redaction` field, naming the
 instrument, its mode and its model, and the `classification` of the data the run touched. A
 transcript with `none` and a personal classification is a finding, and personal or health data
 on the community isolation tier is refused at the write. Redaction replaces what it finds; it

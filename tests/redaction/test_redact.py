@@ -79,14 +79,42 @@ def test_the_record_names_the_instrument_and_reports_what_it_examined() -> None:
     assert out.redaction == "upper 1.0 (test)"
     assert out.extra == {
         "kept": 1,
-        "redaction": {"examined": 2, "found": {"SECRET": 2}},
+        "redaction": {
+            "examined": 2,
+            "found": {"SECRET": 2},
+            "instruments": {"upper 1.0 (test)": 2},
+        },
+    }
+
+
+def test_a_record_names_every_instrument_that_ran_when_a_fallback_took_over() -> None:
+    class _Switching(_Upper):
+        def redact(self, text: str) -> Redacted:
+            done = super().redact(text)
+            ran = "fallback 2.0" if "late" in text else "primary 1.0"
+            return Redacted(done.text, done.found, ran)
+
+    record = _record(
+        system_prompt="early", messages=[{"role": "user", "content": "late"}]
+    )
+
+    out = redact_run(record, _Switching())
+
+    assert out.redaction == "fallback 2.0 | primary 1.0"
+    assert out.extra["redaction"]["instruments"] == {
+        "fallback 2.0": 1,
+        "primary 1.0": 1,
     }
 
 
 def test_zero_findings_still_reports_how_much_was_examined() -> None:
     out = redact_run(_record(messages=[{"role": "user", "content": "clean"}]), _Upper())
 
-    assert out.extra["redaction"] == {"examined": 1, "found": {}}
+    assert out.extra["redaction"] == {
+        "examined": 1,
+        "found": {},
+        "instruments": {"upper 1.0 (test)": 1},
+    }
     assert out.redaction == "upper 1.0 (test)"
 
 

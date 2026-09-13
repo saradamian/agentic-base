@@ -2,6 +2,7 @@
 
 from functools import cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings
 
 
@@ -17,16 +18,25 @@ class Settings(BaseSettings):
     """PostgreSQL in every deployed environment; SQLite locally so the service runs with no infrastructure."""
 
     redaction: str = "none"
-    """``presidio`` to redact personal data from a transcript before it is written. Needs the
-    redaction extra. See ``agentic_base.redaction.presidio`` for the modes."""
+    """``none``; ``patterns`` for credentials, contact details, bank numbers and identifiers only;
+    ``names`` to add people and places, with the detectors below. See docs/architecture/redaction.md."""
+    redaction_llm_url: str = ""
+    """An OpenAI-compatible endpoint, for example a Willma base URL ending in ``/v1``."""
+    redaction_llm_api_key: SecretStr = SecretStr("")
+    redaction_llm_model: str = ""
+    redaction_llm_timeout_s: float = 300.0
+    """Per request. Match the endpoint's proxy read timeout: waiting longer only receives its 504."""
+    redaction_llm_chunk_words: int = 1500
+    redaction_llm_concurrency: int = 4
+    redaction_llm_cooldown_s: float = 60.0
+    """After a failure, how long writes go straight to the fallback without trying the model."""
     redaction_gliner_model: str = ""
-    """A GLiNER PII model on the Hugging Face hub, for names and places in mixed-language text."""
+    """The fallback. Needs gliner and torch installed in the image."""
     redaction_gliner_revision: str = ""
-    """The model revision to load. Unpinned is allowed and says so on every record."""
-    redaction_spacy_models: str = ""
-    """``language=model`` pairs, comma separated, for example ``en=en_core_web_lg``."""
+    redaction_gliner_device: str = "auto"
+    """``auto`` is the GPU when torch sees one, else the CPU; or ``cpu``, ``cuda``, ``cuda:N``."""
     redaction_entities: str = ""
-    """Comma-separated Presidio entity types. Empty means the adapter's default list."""
+    """Comma-separated entity types. Empty means every type the redactor knows."""
     redaction_allow_list: str = ""
     """Comma-separated terms never redacted: the site's cluster, partition and service names."""
 
