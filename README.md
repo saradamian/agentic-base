@@ -64,7 +64,10 @@ check with DNS pinning, the structural pre-filter over generated code, a complet
 asks a model for an answer instead of trusting a status code, a retry policy that recycles a
 dead transport, cluster facts without credentials, a value back from a batch job, the tool
 contract, the span vocabulary from the standard packages, and the recording seam a served call
-passes through. `docs/architecture/boundaries.md` lists them; `docs/architecture/reuse-ledger.md`
+passes through. Two more that exist because a regime asks for them and the record is where they
+land: redaction of a transcript before it is written, patterns always and names from a model with
+a fallback, failing closed rather than claiming more than ran; and a retention policy that
+refuses to keep less than the law requires, with an erasure the hash chain survives. `docs/architecture/boundaries.md` lists them; `docs/architecture/reuse-ledger.md`
 says for each whether it is adopted, bridged or built, and a test holds the code to that ledger.
 
 ## Installing

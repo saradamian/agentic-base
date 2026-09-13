@@ -58,6 +58,11 @@ commercial SDK, a graph library, or a loop they wrote. What they get here:
   call passes one observer
 - **the span vocabulary**: `agentic_base.observability.conventions`, read from the standard
   packages, never restated
+- **redaction before a transcript is stored**: `agentic_base.redaction`, patterns and checksums in
+  the standard library, names and places from a model with a fallback, and a refusal instead of a
+  record that claims more redaction than ran
+- **how long to keep it**: `agentic_base.domain.retention`, which refuses a policy under the AI
+  Act's floor and erases a transcript without disturbing what the chain covers
 
 ### The service: the system of record and the referee
 
@@ -67,6 +72,8 @@ commercial SDK, a graph library, or a loop they wrote. What they get here:
 - the validity check over a comparison
 - epoch declarations, so a code change that alters meaning can be declared and enforced
 - a run served in any of the three provenance standards, and an endpoint to add an approval
+- redaction on the write path when it is configured, and a refusal when it cannot be done
+- a tenant's whole corpus in one request, so leaving does not go through us
 - a read-only MCP surface on the official SDK so a chat client can ask
 
 ### What is not here and is not coming

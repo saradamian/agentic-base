@@ -17,10 +17,10 @@ for counsel and the compliance officer.
 | **compliance** evidence | the hash chain over audit fields, which detects an edit and is neither a signature nor an append-only store; provenance in W3C PROV, OpenLineage and RO-Crate; `compliance.md` maps obligations to what exists | keeps the evidence a regime asks for as a by-product of running, not a report assembled later | ISO 27001 certification of the HPC services; the baseline information security standard every SURF service meets; the audit function |
 | **engineering practice** | `ENGINEERING.md`: every rule names the test that fails when it stops holding; signed tags, attested wheels and SBOMs; dependency review and audit on every change | starts from the template and inherits the standard | the Developer Platform's pipeline components, GitOps, the developer portal |
 
-## The four gaps, set in the structure
+## The gaps, set in the structure
 
 Each of these was a gap in the first version of this page. None has a full solution today. All
-four are now fields on the record, with defaults that keep every existing writer working, so a
+of them are now fields on the record, with defaults that keep every existing writer working, so a
 corpus recorded from now on can say which runs predate the solution, and a solution has a place
 to write to when it arrives.
 
@@ -30,6 +30,7 @@ to write to when it arrives.
 | no record says what class of data a run touched; sensitive data is the AI Factory's central commitment | `classification` on every run, six levels from unclassified to health, and `isolation_tier`. One rule already enforced: personal or health data cannot have run on the community tier | the tenant's use case sets both; the execution block reads them to pick the tier | T4.4 data governance; D2.1, the sandbox architecture with its isolation and access policies |
 | no block demands a delegated credential | `principal` on every run: the person it acted for, empty for a service identity. Recorded so the corpus can separate the two populations | scoped, expiring credentials issued by the federation and demanded by every block | T2.10 user access; the identity federation the platform already runs |
 | no human oversight record; the AI Act's article 14 expects one for high-risk systems | `approvals` on every run, each with action, decision, who and when, and an endpoint to add one | the channels and forge blocks write one before a write, a submission or a send | T2.7 and T2.8 evaluation and compliance: the logging, evidence and audit infrastructure |
+| nothing records that a person was told they were dealing with an AI, or that generated output was marked, and article 50 has applied since 2 August 2026 | `disclosure` and `content_marking` on every run, `none` until a channel sets them | the channels block saying it on every outbound message and writing that it did; for text there is no open marking format, so the disclosure carries it | T2.7 and T2.8 evaluation and compliance |
 
 ## The obligations, and what each asks of an agent platform
 
@@ -58,7 +59,7 @@ from outside the EU, what the operator can see.
 | asks for | what it means for agents | lands in |
 |---|---|---|
 | purpose limitation and data minimisation | a run records what it needs to replay and audit, and nothing else; transcripts are the hard case | runs; redaction on write, off unless configured |
-| a record of processing, and the right to erasure | a run can be found by the person whose data it touched, and deleted, with the chain saying so | runs; deletion is detectable and not modelled |
+| a record of processing, and the right to erasure | a run can be found by the person whose data it touched, and its transcript erased, with the record saying when and why | runs, through `agentic_base.domain.retention`: the erasure empties the transcript and leaves what the chain covers, so the record stays evidence. Finding a run by the person is `principal`; running the erasure on request or on a schedule is the deployment's |
 | pseudonymisation where appropriate | personal data is replaced before it reaches a record | the service. It replaces each finding with its entity type, which is redaction, not pseudonymisation: the same person is not given the same token across a run. Before it reaches a model is the agent's side and is not built |
 | what the operator can see | the platform's own staff are a party the design has to name | identity; platform |
 
