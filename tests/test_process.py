@@ -79,3 +79,26 @@ def test_the_package_ships_its_pep_561_marker() -> None:
     data = tomllib.loads((ROOT / "pyproject.toml").read_text())
     assert "py.typed" in data["tool"]["setuptools"]["package-data"]["agentic_base"]
     assert "Typing :: Typed" in data["project"]["classifiers"]
+
+
+def test_pypi_receives_the_files_the_release_attested_not_a_rebuild() -> None:
+    """Every consumer installs from PyPI. A second build in the publish job gives PyPI a wheel
+    whose hash differs from the attested one, so nothing a consumer installs would verify."""
+    workflow = yaml.safe_load(
+        (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    )
+    release, publish = (
+        workflow["jobs"]["release"]["steps"],
+        workflow["jobs"]["publish"]["steps"],
+    )
+    publish_runs = " ".join(step.get("run", "") for step in publish)
+
+    assert any(
+        step.get("uses", "").startswith("actions/upload-artifact@") for step in release
+    )
+    assert any(
+        step.get("uses", "").startswith("actions/download-artifact@")
+        for step in publish
+    )
+    assert "uv build" not in publish_runs
+    assert "gh attestation verify" in publish_runs

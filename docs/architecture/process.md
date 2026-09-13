@@ -43,6 +43,8 @@ is broken.
 - Commit messages are checked at commit time. Between the two repositories above, conventional
   commit compliance was 95 percent with the hook and 4.5 percent without.
 - The package ships its PEP 561 marker, and the release job fails if an installed copy lacks it.
+- PyPI receives the files the release job attested. The publish job downloads them and verifies
+  each; it does not build.
 
 `tests/test_reuse_ledger.py` holds the source tree to the reuse ledger: every module has a
 verdict, every BUILD says when to revisit, and an ADOPT module must not carry the signature of
