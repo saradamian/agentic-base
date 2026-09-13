@@ -49,6 +49,7 @@ already supported, and already have an owner.
 | rollout / RL training | verl, SkyRL, Agent Lightning | ADOPT as trainers |
 | agent security taxonomy | OWASP Top Ten for Agentic Applications, and for agentic skills | ADOPT as the conformance target |
 | retry and backoff | tenacity | ADOPT |
+| credential scanning of files and history | gitleaks (MIT), as willma2 runs it | ADOPT, with one rule added for a key in the shape a SURF service issues: measured, gitleaks misses it, and GitHub's generic patterns need paid Secret Protection. The rule is the redaction layer's own pattern, and a test holds the two together. The binary is pinned by version and checksum rather than the action, which needs a licence key for an organisation-owned repository |
 | personal-data detection and redaction | a language model on Willma for people and places, GLiNER (Apache-2.0) as the fallback, patterns for the rest. Microsoft Presidio was adopted and then removed | ADOPT GLiNER; the rest is in the source audit below. Presidio is not adopted: with names from a model its remaining job is patterns, and for that it brings spaCy, 56 packages and 285 MB, and its anonymizer pins cryptography below a release with six advisories |
 
 ## Build, and only these

@@ -1,0 +1,16 @@
+# gitleaks finds credentials by provider shape. A key issued by a site's own service matches no
+# provider rule: measured here, gitleaks found a planted AWS key beside a planted key in the shape
+# Willma issues, twelve hex characters then a UUID, and reported only the first. That shape is one
+# of the credential patterns this package redacts from transcripts, so the rule below is the same
+# regular expression, and tests/test_secret_scan.py fails if the two stop matching.
+title = "surf-agentic-base"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "site-issued-service-key"
+description = "An API key in the shape a SURF service issues: hex prefix, then a UUID"
+regex = '''\b[0-9a-f]{12}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b'''
+keywords = ["-"]
+tags = ["key", "surf"]
