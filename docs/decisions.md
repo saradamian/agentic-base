@@ -154,3 +154,15 @@ client was the next candidate. A base that contains a block cannot be imported b
 block's owner has no repository to own, and the base grows until it is a second copy of the
 thing it was meant to replace. `boundaries.md` says this repository must not submit jobs; that
 is this decision applied to the first block.
+
+## D11: A gap without a solution still gets a field
+
+When an obligation has no implementation yet, the record gains the field the implementation
+would write, with a default that keeps every existing writer working. `redaction` is `none`,
+`principal` is empty, `classification` is unclassified, `approvals` is an empty list.
+
+The alternative, adding the field when the solution arrives, loses the one thing a later reader
+needs: which runs predate the solution. A corpus where every old row is indistinguishable from a
+row the solution processed cannot be audited, and a solution with nowhere to write gets built
+with its own store, one hop from the record it describes. D5 and D9 decide when a field is
+required; this decides that it exists.

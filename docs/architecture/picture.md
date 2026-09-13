@@ -52,29 +52,32 @@ one capability with a curated, read-only-by-default surface. Those capabilities 
 same contracts, which is what this repository is. Applications sit on top and bring their own agent.
 
 The only block with no existing system behind it is **runs**, which is why the record lives here
-and the rest do not. Two things on the picture are not blocks an agent calls: identity scopes
-every surface and accounting bills every run, and both are named because a design that leaves
-them implicit gets them wrong. The full list, with what exists behind each block and the order
-to build them, is in `blocks.md`.
+and the rest do not. The band between the blocks and the contracts is not a block an agent
+calls. It is the capabilities every block is subject to: identity and delegated credentials
+scope every surface, accounting bills every run, triggers start one, oversight can stop one,
+classification picks the tier it runs on, redaction runs before the write, and a ledger keeps
+the result. Each has a field on the record now and most have no implementation yet; they are
+named because a design that leaves them implicit gets them wrong. The full list, with what
+exists behind each block and the order to build them, is in `blocks.md`.
 
 ## What has moved, and what has to be true for the rest
 
 Nothing moves into this repository from the control plane. Its job is the control plane and it
-keeps it. What moves is the part of agentic-env that is not experiment-specific, so agentic-env
+keeps it. What moved is the part of agentic-env that is not experiment-specific, so agentic-env
 keeps its experiments and stops being everyone's library.
 
-| group | what | status on 2026-09-13 |
+| group | what | where it is |
 |---|---|---|
-| primitives | job result, url safety, completion probe, limits mechanism, code pre-filter | in this repository; job result imported by agentic-env in merge request !279 |
-| contracts | tool types, span vocabulary, recording seam, curated surfaces | in this repository; agentic-env reading the vocabulary from here in a follow-up |
-| record and emitters | run record, validity, epochs, PROV, OpenLineage, RO-Crate, MLflow | in this repository; agentic-env replacing its hand-built emitters in a follow-up |
-| protocol | the MCP surface on the official SDK | in this repository; agentic-env's transport moving to the same SDK in a follow-up |
+| primitives | job result, url safety, completion probe, limits mechanism, code pre-filter | here; agentic-env imports the job result |
+| contracts | tool types, span vocabulary, recording seam, curated surfaces | here; agentic-env reads the vocabulary from here and a test there refuses a copy |
+| record and emitters | run record, validity, epochs, PROV, OpenLineage, RO-Crate, MLflow | here; agentic-env extends these documents through the standards' libraries instead of building its own |
+| protocol | the MCP surface on the official SDK | here; agentic-env serves over the same SDK and deleted its two hand-rolled servers |
 
 Two conditions hold for every move.
 
 1. **The consumer records which version of this layer it ran against.** Otherwise two runs share
    a configuration fingerprint and a code revision and have run different software. agentic-env
-   does this now: the installed version is written beside every rung fingerprint and into the
+   does this: the installed version is written beside every rung fingerprint and into the
    environment snapshot, and its ledger reader refuses to pool across an undeclared version.
 2. **Relocation and behaviour change land separately.** Moving a module that behaves identically
    changes nothing observable. Changing what a probe asserts does. Bundled, neither can be

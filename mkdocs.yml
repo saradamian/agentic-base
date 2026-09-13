@@ -1,5 +1,5 @@
 site_name: surf-agentic-base
-site_description: "Platform layer for agentic workloads: run provenance, comparison validity, and HPC execution."
+site_description: "The record and referee for agent runs, the security primitives an agent needs on a shared platform, and the engineering standard that keeps both honest."
 
 repo_url: !ENV [DOCS_REPO_URL, "https://github.com/saradamian/agentic-base"]
 edit_uri: -/edit/main/docs/

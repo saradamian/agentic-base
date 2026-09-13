@@ -45,7 +45,16 @@ scope a `filterwarnings` entry to that one message, name the upstream cause, and
 be removed.
 
 Continuous integration runs the same five steps on 3.10 and 3.14. If your machine has only one,
-the runner is the other.
+the runner is the other. Two more checks are required to merge and do not run locally: a
+dependency review of what the change adds, and an audit of the fully pinned set.
+
+## What a public page may not carry
+
+The repository is public. No hostname outside the short public list, no email address, no home
+path, no private address, no reference to an internal document or wiki. `tests/test_public_hygiene.py`
+checks by shape and says which line; a new public host is added to its list, and that addition
+is a review decision. Numbers from the AI Factory's plan, task and deliverable names included,
+are fine; its documents are not, and neither is anything quoted from them.
 
 ## Tests
 

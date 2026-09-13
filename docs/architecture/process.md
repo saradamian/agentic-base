@@ -12,8 +12,9 @@ of it is free before there is history to migrate.
 
 These are repository rulesets, not files, so they are listed here and read back when in doubt.
 
-- `main` takes pull requests only. Required checks: `check (3.10)` and `check (3.14)`, strict.
-  Linear history. Review threads resolved. No force-push, no deletion, no bypass actors.
+- `main` takes pull requests only. Required checks, strict: the gate on `3.10` and `3.14`, the
+  dependency review, and the audit of the fully pinned set. Linear history. Review threads
+  resolved. No force-push, no deletion, no bypass actors.
 - Squash is the only merge method. Rebase merge was removed because it replays commits unsigned;
   see `ENGINEERING.md`.
 - Tags matching `v*` cannot be moved or deleted.
@@ -46,6 +47,12 @@ is broken.
 `tests/test_reuse_ledger.py` holds the source tree to the reuse ledger: every module has a
 verdict, every BUILD says when to revisit, and an ADOPT module must not carry the signature of
 doing the adopted thing by hand.
+
+`tests/test_public_hygiene.py` keeps site facts out of a public repository by shape rather than
+by word: a link to a host outside the short public list, an email address, a path under a home
+directory, an address outside the documentation ranges, or an attribution to a source a reader
+cannot open. The site's own identifiers are checked on the deployment side against a list that
+lives in the overlay, because a list of what a site hides describes the site.
 
 ## Two things a deployment gets that the predecessor could not
 

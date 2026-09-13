@@ -21,7 +21,7 @@ primitives that are expensive to get wrong. The name describes the purpose.
 
 ## What this layer provides to a block
 
-Three things every block shares:
+Three mechanisms every block shares:
 
 - the tool contract, so a capability has one name whichever backend serves it;
 - the recording seam, so a served call is journalled, traced and scanned without the layer
@@ -29,6 +29,11 @@ Three things every block shares:
 - the curated-surface mechanism, so a block publishes a reviewed subset rather than everything a
   system can do. Publishing everything costs the caller a schema per turn and hands out
   capabilities written for a trusted in-process caller.
+
+And the vocabulary they share: the span names from the standard packages, the security
+primitives, and the run record every call lands in, with the fields the cross-cutting
+capabilities write, the principal a call acted for, the classification and isolation tier it ran
+under, the approvals it obtained, the redaction applied before the transcript was stored.
 
 A block that needs a runtime handle belongs with the runtime. The contract it speaks belongs here.
 

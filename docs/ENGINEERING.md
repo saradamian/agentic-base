@@ -161,8 +161,8 @@ developer machine usually has one of them.
 
 Auto-merge fires the moment the required checks pass. A commit pushed to the branch after that,
 an amend, a fix-up, a wording change, reaches the branch and never reaches `main`: the squash
-already happened and the pull request is closed. It happened twice in one day on this repository,
-and both times a consumer's tests, not ours, found the missing commit. Push everything, then arm;
+already happened and the pull request is closed. It has happened three times on this repository,
+and each time a consumer's tests, not ours, found the missing commit. Push everything, then arm;
 or after a late push, read the pull request's state back before believing anything landed.
 
 There is no guard for this, because the thing that would fail is a check that did not run.
@@ -182,6 +182,32 @@ commit is signed by the forge, not by the author. It attests that the forge perf
 not who wrote the content.
 
 **Guard:** the branch ruleset permits squash only, with no bypass actors.
+
+## A public page carries no site fact
+
+The repository is public. A hostname, an internal address, a home path, a colleague's address or
+a reference to a document a reader cannot open is a disclosure the moment it is pushed, and a
+word list of things to avoid only catches what its author already thought of. So the check works
+by shape: any link to a host outside a short public list, any email other than the forge's
+noreply identity, any absolute home path, any address outside the documentation ranges, any
+attribution to an internal source. The site's own identifiers are checked on the deployment side
+against a list kept in the overlay, because a list of what a site hides describes the site.
+
+**Guard:** `tests/test_public_hygiene.py`, with a planted-example test for every detector so the
+guard is known to fire. The history was searched the same way before the repository went public.
+
+## The supply chain is checked on every change
+
+A dependency with a known vulnerability arrives through an ordinary pull request, and a
+vulnerability disclosed after the pin lands arrives through nothing at all. Two checks, both
+required to merge: a dependency review that refuses a new dependency with a known vulnerability
+of moderate severity or above, and an audit of the fully pinned set, every extra included. A
+release carries build provenance and an SBOM attestation for the distribution files, the SBOM
+taken from the wheel installed on the consumer floor. Actions are pinned by commit hash.
+
+**Guard:** the two jobs in `.github/workflows/supply-chain.yml` are required status checks, so
+they cannot be skipped by a green gate; the release workflow refuses to publish without the
+attestations.
 
 ## Settings that are free on the first day
 

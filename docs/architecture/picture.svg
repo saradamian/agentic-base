@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="640" viewBox="0 0 1000 640" font-family="Helvetica, Arial, sans-serif">
-  <rect width="1000" height="640" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="730" viewBox="0 0 1000 730" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1000" height="730" fill="#ffffff"/>
 
-  <text x="32" y="40" font-size="19" font-weight="600" fill="#1a1a1a">Where agentic-base sits</text>
-  <text x="32" y="62" font-size="13" fill="#666">Bottom layer. Contracts and the record. No agent, no orchestration, no serving.</text>
+  <text x="32" y="40" font-size="19" font-weight="600" fill="#1a1a1a">Where surf-agentic-base sits</text>
+  <text x="32" y="62" font-size="13" fill="#666">The contracts layer under twelve capability blocks. No agent, no orchestration, no serving.</text>
 
   <!-- APPLICATIONS -->
   <rect x="32" y="88" width="620" height="92" rx="6" fill="#f6f6f6" stroke="#d0d0d0"/>
@@ -11,71 +11,113 @@
   <text x="140" y="142" font-size="13" text-anchor="middle" fill="#1a1a1a">agentic-env</text>
   <text x="140" y="158" font-size="11" text-anchor="middle" fill="#777">experiments, papers</text>
   <rect x="244" y="122" width="180" height="44" rx="4" fill="#ffffff" stroke="#bbb"/>
-  <text x="334" y="142" font-size="13" text-anchor="middle" fill="#1a1a1a">pipeline triage</text>
-  <text x="334" y="158" font-size="11" text-anchor="middle" fill="#777">a new SURF project</text>
+  <text x="334" y="142" font-size="13" text-anchor="middle" fill="#1a1a1a">agents SURF runs</text>
+  <text x="334" y="158" font-size="11" text-anchor="middle" fill="#777">GitLab companion, briefer</text>
   <rect x="438" y="122" width="180" height="44" rx="4" fill="#ffffff" stroke="#bbb"/>
-  <text x="528" y="147" font-size="13" text-anchor="middle" fill="#1a1a1a">other SURF teams</text>
+  <text x="528" y="142" font-size="13" text-anchor="middle" fill="#1a1a1a">bring your own agent</text>
+  <text x="528" y="158" font-size="11" text-anchor="middle" fill="#777">members, companies, over MCP</text>
 
   <!-- CONTROL PLANE -->
-  <rect x="32" y="200" width="620" height="80" rx="6" fill="#f6f6f6" stroke="#d0d0d0"/>
+  <rect x="32" y="200" width="620" height="64" rx="6" fill="#f6f6f6" stroke="#d0d0d0"/>
   <text x="46" y="222" font-size="12" font-weight="600" fill="#555">CONTROL PLANE &#183; who may run what, and where</text>
-  <rect x="50" y="234" width="568" height="34" rx="4" fill="#ffffff" stroke="#bbb"/>
-  <text x="334" y="256" font-size="13" text-anchor="middle" fill="#1a1a1a">AI4Science &#183; jobs, tenancy, datasets, orchestration</text>
+  <rect x="50" y="232" width="568" height="24" rx="4" fill="#ffffff" stroke="#bbb"/>
+  <text x="334" y="249" font-size="12" text-anchor="middle" fill="#1a1a1a">AI4Science today; the AI Factory's MLOps and meta-scheduler</text>
+
+  <!-- BLOCKS -->
+  <rect x="32" y="284" width="620" height="150" rx="6" fill="#fdf6e3" stroke="#e8c86a"/>
+  <text x="46" y="306" font-size="12" font-weight="600" fill="#8a6d1f">BLOCKS &#183; one per system, curated surface, own package, own owner</text>
+  <rect x="50" y="320" width="78" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="89" y="338" font-size="12" text-anchor="middle" fill="#1a1a1a">runs</text>
+  <text x="89" y="352" font-size="9" text-anchor="middle" fill="#b07d1a">here</text>
+  <rect x="134" y="320" width="78" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="173" y="344" font-size="12" text-anchor="middle" fill="#1a1a1a">hpc</text>
+  <rect x="218" y="320" width="78" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="257" y="344" font-size="12" text-anchor="middle" fill="#1a1a1a">inference</text>
+  <rect x="302" y="320" width="78" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="341" y="344" font-size="12" text-anchor="middle" fill="#1a1a1a">knowledge</text>
+  <rect x="386" y="320" width="78" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="425" y="344" font-size="12" text-anchor="middle" fill="#1a1a1a">data</text>
+  <rect x="470" y="320" width="78" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="509" y="344" font-size="12" text-anchor="middle" fill="#1a1a1a">stacks</text>
+  <rect x="554" y="320" width="78" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="593" y="344" font-size="12" text-anchor="middle" fill="#1a1a1a">artifacts</text>
+  <rect x="50" y="372" width="96" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="98" y="396" font-size="12" text-anchor="middle" fill="#1a1a1a">forge</text>
+  <rect x="154" y="372" width="96" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="202" y="396" font-size="12" text-anchor="middle" fill="#1a1a1a">execution</text>
+  <rect x="258" y="372" width="96" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="306" y="396" font-size="12" text-anchor="middle" fill="#1a1a1a">web</text>
+  <rect x="362" y="372" width="96" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="410" y="396" font-size="12" text-anchor="middle" fill="#1a1a1a">channels</text>
+  <rect x="466" y="372" width="96" height="40" rx="4" fill="#ffffff" stroke="#e8c86a"/>
+  <text x="514" y="396" font-size="12" text-anchor="middle" fill="#1a1a1a">workspace</text>
+  <text x="632" y="392" font-size="10" text-anchor="end" fill="#8a6d1f">what an agent</text>
+  <text x="632" y="404" font-size="10" text-anchor="end" fill="#8a6d1f">acts through</text>
 
   <!-- CAPABILITIES -->
-  <rect x="32" y="300" width="620" height="96" rx="6" fill="#fdf6e3" stroke="#e8c86a"/>
-  <text x="46" y="322" font-size="12" font-weight="600" fill="#8a6d1f">CAPABILITIES &#183; one per system, curated surface, published to agents</text>
-  <rect x="50" y="336" width="108" height="44" rx="4" fill="#ffffff" stroke="#e8c86a"/>
-  <text x="104" y="356" font-size="13" text-anchor="middle" fill="#1a1a1a">runs</text>
-  <text x="104" y="371" font-size="10" text-anchor="middle" fill="#b07d1a">only new one</text>
-  <rect x="170" y="336" width="108" height="44" rx="4" fill="#ffffff" stroke="#e8c86a"/>
-  <text x="224" y="362" font-size="13" text-anchor="middle" fill="#1a1a1a">hpc</text>
-  <rect x="290" y="336" width="108" height="44" rx="4" fill="#ffffff" stroke="#e8c86a"/>
-  <text x="344" y="362" font-size="13" text-anchor="middle" fill="#1a1a1a">data</text>
-  <rect x="410" y="336" width="108" height="44" rx="4" fill="#ffffff" stroke="#e8c86a"/>
-  <text x="464" y="362" font-size="13" text-anchor="middle" fill="#1a1a1a">software</text>
-  <rect x="530" y="336" width="88" height="44" rx="4" fill="#ffffff" stroke="#e8c86a"/>
-  <text x="574" y="362" font-size="13" text-anchor="middle" fill="#1a1a1a">knowledge</text>
+  <rect x="32" y="454" width="620" height="60" rx="6" fill="#f3eefb" stroke="#b9a3e0"/>
+  <text x="46" y="474" font-size="12" font-weight="600" fill="#5a3f8f">CAPABILITIES &#183; every block is subject to these; each is a field on the run record</text>
+  <text x="46" y="491" font-size="11" fill="#3d2d63">scoped by identity and delegated credentials &#183; billed by accounting &#183; started by triggers &#183; gated by oversight</text>
+  <text x="46" y="506" font-size="11" fill="#3d2d63">tiered by classification &#183; redacted before the write &#183; recorded in a ledger (the hash chain, until there is one)</text>
 
-  <!-- BASE -->
-  <rect x="32" y="416" width="620" height="108" rx="6" fill="#e8f0fe" stroke="#4285f4" stroke-width="2"/>
-  <text x="46" y="438" font-size="12" font-weight="600" fill="#1a53b0">agentic-base &#183; THIS REPOSITORY</text>
-  <rect x="50" y="452" width="130" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
-  <text x="115" y="471" font-size="12" text-anchor="middle" fill="#1a1a1a">tool contract</text>
-  <rect x="192" y="452" width="140" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
-  <text x="262" y="471" font-size="12" text-anchor="middle" fill="#1a1a1a">span vocabulary</text>
-  <rect x="344" y="452" width="140" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
-  <text x="414" y="471" font-size="12" text-anchor="middle" fill="#1a1a1a">recording seam</text>
-  <rect x="496" y="452" width="122" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
-  <text x="557" y="471" font-size="12" text-anchor="middle" fill="#1a1a1a">primitives</text>
-  <rect x="50" y="488" width="568" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
-  <text x="334" y="507" font-size="12" text-anchor="middle" fill="#1a1a1a">run record &#183; label provenance &#183; comparison validity &#183; epoch boundaries</text>
+  <!-- CONTRACTS: this repository -->
+  <rect x="32" y="534" width="620" height="112" rx="6" fill="#e8f0fe" stroke="#4285f4" stroke-width="2"/>
+  <text x="46" y="556" font-size="12" font-weight="600" fill="#1a53b0">CONTRACTS &#183; surf-agentic-base &#183; THIS REPOSITORY</text>
+  <rect x="50" y="570" width="110" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
+  <text x="105" y="589" font-size="11" text-anchor="middle" fill="#1a1a1a">tool contract</text>
+  <rect x="164" y="570" width="110" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
+  <text x="219" y="589" font-size="11" text-anchor="middle" fill="#1a1a1a">recording seam</text>
+  <rect x="278" y="570" width="110" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
+  <text x="333" y="589" font-size="11" text-anchor="middle" fill="#1a1a1a">curated surfaces</text>
+  <rect x="392" y="570" width="110" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
+  <text x="447" y="589" font-size="11" text-anchor="middle" fill="#1a1a1a">security primitives</text>
+  <rect x="506" y="570" width="110" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
+  <text x="561" y="589" font-size="11" text-anchor="middle" fill="#1a1a1a">span vocabulary</text>
+  <rect x="50" y="606" width="566" height="28" rx="4" fill="#ffffff" stroke="#8ab0f0"/>
+  <text x="333" y="625" font-size="11" text-anchor="middle" fill="#1a1a1a">run record &#183; label provenance &#183; validity &#183; epochs &#183; emitted as PROV, OpenLineage, RO-Crate, MLflow</text>
 
   <!-- EXISTING SYSTEMS -->
-  <rect x="684" y="88" width="284" height="308" rx="6" fill="#f0f7f0" stroke="#9dc49d"/>
+  <rect x="684" y="88" width="284" height="426" rx="6" fill="#f0f7f0" stroke="#9dc49d"/>
   <text x="698" y="110" font-size="12" font-weight="600" fill="#3d6b3d">ALREADY EXIST &#183; not ours to rebuild</text>
-  <rect x="702" y="124" width="248" height="42" rx="4" fill="#ffffff" stroke="#9dc49d"/>
-  <text x="826" y="143" font-size="13" text-anchor="middle" fill="#1a1a1a">Willma</text>
-  <text x="826" y="158" font-size="11" text-anchor="middle" fill="#777">serves the models</text>
-  <rect x="702" y="180" width="248" height="42" rx="4" fill="#ffffff" stroke="#9dc49d"/>
-  <text x="826" y="199" font-size="13" text-anchor="middle" fill="#1a1a1a">Slurm clusters</text>
-  <text x="826" y="214" font-size="11" text-anchor="middle" fill="#777">Snellius, LUMI, AI Factory</text>
-  <rect x="702" y="236" width="248" height="36" rx="4" fill="#ffffff" stroke="#9dc49d"/>
-  <text x="826" y="259" font-size="13" text-anchor="middle" fill="#1a1a1a">Confluence</text>
-  <rect x="702" y="286" width="248" height="36" rx="4" fill="#ffffff" stroke="#9dc49d"/>
-  <text x="826" y="309" font-size="13" text-anchor="middle" fill="#1a1a1a">EasyBuild</text>
-  <text x="826" y="356" font-size="11" text-anchor="middle" fill="#3d6b3d">each is published as one capability</text>
-  <text x="826" y="372" font-size="11" text-anchor="middle" fill="#3d6b3d">with a reviewed, read-only-by-default surface</text>
+  <rect x="702" y="124" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
+  <text x="826" y="139" font-size="12" text-anchor="middle" fill="#1a1a1a">Willma</text>
+  <text x="826" y="152" font-size="10" text-anchor="middle" fill="#777">serves the models &#8594; inference</text>
+  <rect x="702" y="164" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
+  <text x="826" y="179" font-size="12" text-anchor="middle" fill="#1a1a1a">Slurm clusters</text>
+  <text x="826" y="192" font-size="10" text-anchor="middle" fill="#777">Snellius, LUMI, the AI Factory &#8594; hpc</text>
+  <rect x="702" y="204" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
+  <text x="826" y="219" font-size="12" text-anchor="middle" fill="#1a1a1a">Confluence, edusources</text>
+  <text x="826" y="232" font-size="10" text-anchor="middle" fill="#777">&#8594; knowledge</text>
+  <rect x="702" y="244" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
+  <text x="826" y="259" font-size="12" text-anchor="middle" fill="#1a1a1a">EasyBuild, EESSI</text>
+  <text x="826" y="272" font-size="10" text-anchor="middle" fill="#777">&#8594; stacks</text>
+  <rect x="702" y="284" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
+  <text x="826" y="299" font-size="12" text-anchor="middle" fill="#1a1a1a">object stores, dCache, iRODS, Yoda</text>
+  <text x="826" y="312" font-size="10" text-anchor="middle" fill="#777">Research Drive &#8594; data</text>
+  <rect x="702" y="324" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
+  <text x="826" y="339" font-size="12" text-anchor="middle" fill="#1a1a1a">GitLab, Harbor, MLflow registries</text>
+  <text x="826" y="352" font-size="10" text-anchor="middle" fill="#777">&#8594; artifacts</text>
+  <rect x="702" y="364" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
+  <text x="826" y="379" font-size="12" text-anchor="middle" fill="#1a1a1a">GitLab, GitHub</text>
+  <text x="826" y="392" font-size="10" text-anchor="middle" fill="#777">&#8594; forge</text>
+  <rect x="702" y="404" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
+  <text x="826" y="419" font-size="12" text-anchor="middle" fill="#1a1a1a">Matrix, Microsoft 365</text>
+  <text x="826" y="432" font-size="10" text-anchor="middle" fill="#777">&#8594; channels</text>
+  <rect x="702" y="444" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
+  <text x="826" y="459" font-size="12" text-anchor="middle" fill="#1a1a1a">JupyterHub, code-server</text>
+  <text x="826" y="472" font-size="10" text-anchor="middle" fill="#777">&#8594; workspace</text>
+  <text x="826" y="498" font-size="10" text-anchor="middle" fill="#3d6b3d">each published as one block with a reviewed,</text>
+  <text x="826" y="510" font-size="10" text-anchor="middle" fill="#3d6b3d">read-only-by-default surface; execution and web have no system yet</text>
 
-  <!-- arrows down the stack -->
+  <!-- arrows -->
   <defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#999"/></marker></defs>
   <line x1="342" y1="180" x2="342" y2="198" stroke="#999" stroke-width="1.5" marker-end="url(#a)"/>
-  <line x1="342" y1="280" x2="342" y2="298" stroke="#999" stroke-width="1.5" marker-end="url(#a)"/>
-  <line x1="342" y1="396" x2="342" y2="414" stroke="#999" stroke-width="1.5" marker-end="url(#a)"/>
-  <line x1="652" y1="348" x2="700" y2="300" stroke="#999" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="342" y1="264" x2="342" y2="282" stroke="#999" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="342" y1="434" x2="342" y2="452" stroke="#999" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="342" y1="514" x2="342" y2="532" stroke="#999" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="684" y1="359" x2="656" y2="359" stroke="#999" stroke-width="1.5" marker-end="url(#a)"/>
 
-  <text x="32" y="560" font-size="12" fill="#555">Nothing moves here from AI4Science. What moves is the part of agentic-env that is not experiment-specific,</text>
-  <text x="32" y="578" font-size="12" fill="#555">so it can keep its experiments and stop also being everyone's library. About 3,300 lines.</text>
-  <text x="32" y="604" font-size="12" fill="#b03030">Nothing moves until: the project exists on the server, the consumer records which version of this layer it ran</text>
-  <text x="32" y="620" font-size="12" fill="#b03030">against, and relocation lands in a separate commit from behaviour change.</text>
+  <text x="32" y="676" font-size="12" fill="#555">Nothing moves here from the control plane. What moved is the part of agentic-env that is not experiment-specific:</text>
+  <text x="32" y="694" font-size="12" fill="#555">job result, span vocabulary, provenance emitters, MCP transport. Each import deleted a copy there.</text>
+  <text x="32" y="716" font-size="12" fill="#b03030">Every move: the consumer records the version of this layer it ran against, and relocation lands apart from behaviour change.</text>
 </svg>
