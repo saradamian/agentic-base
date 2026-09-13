@@ -15,27 +15,27 @@ becomes a superstition.
 
 ## SURF internal, first choice
 
-Found by searching the internal GitLab. These are first-choice because they are already run,
+Found by searching SURF's own repositories. These are first-choice because they are already run,
 already supported, and already have an owner.
 
 | concern | component | verdict |
 |---|---|---|
-| source, CI/CD, package registry | GitLab (`the internal GitLab`) | ADOPT |
-| pipeline definitions for a Python service | `sdp/components/pipelines/python-application` | ADOPT for the deployment. The public repository cannot run it, so `.github/workflows/ci.yml` carries the same five commands as a six-step workflow, and the deployment overlay carries the SDP one. Two pipelines for one gate is a P1 tension, named here so it is not mistaken for a choice; the commands are one list in `CONTRIBUTING.md` |
-| container and Helm registry | Harbor (`the internal registry`), via `sdp/components/docker`, `sdp/components/helm` | ADOPT |
-| dependency vulnerabilities and SBOM | Dependency Track, via `sdp/components/dependency-track` | ADOPT |
-| dependency updates | Renovate, via `sdp/apps/renovate-runner` | ADOPT |
-| service catalogue, docs portal, tenant self-service | Backstage (`sdp/apps/backstage`) + TechDocs | ADOPT |
-| Kubernetes, namespaces, quotas, policy | SDP clusters, Gatekeeper, `sdp/infrastructure/tenant-template` | ADOPT |
+| source, CI/CD, package registry | GitLab, SURF's own instance | ADOPT |
+| pipeline definitions for a Python service | the Developer Platform's pipeline component for Python applications | ADOPT for the deployment. The public repository cannot run it, so `.github/workflows/ci.yml` carries the same five commands as a six-step workflow, and the deployment overlay carries the SDP one. Two pipelines for one gate is a P1 tension, named here so it is not mistaken for a choice; the commands are one list in `CONTRIBUTING.md` |
+| container and Helm registry | Harbor, through the platform's container and Helm components | ADOPT |
+| dependency vulnerabilities and SBOM | Dependency Track, through the platform's component | ADOPT |
+| dependency updates | Renovate, the platform's runner | ADOPT |
+| service catalogue, docs portal, tenant self-service | Backstage with TechDocs, the platform's | ADOPT |
+| Kubernetes, namespaces, quotas, policy | the platform's clusters, Gatekeeper, its tenant template | ADOPT |
 | metrics, logs, dashboards | Prometheus, Grafana, Loki (platform-provided) | ADOPT |
 | API gateway | Kong | ADOPT |
 | relational storage | PostgreSQL as a tenant resource | ADOPT |
 | object storage | MinIO as a tenant resource; SRAM S3 where tenancy follows SRAM | ADOPT |
 | secrets | SDP secret management, per its guide | ADOPT. It is the fix for secrets-in-job-scripts |
 | identity and collaboration groups | SURFconext, SRAM | ADOPT |
-| shared model inference | Willma (`research/hpml/willma`, the AI Hub back office) | ADOPT where it serves the model needed |
-| Slurm access from services | slurmrestd, the scheduler's own REST API with a published OpenAPI specification, plus a thin site wrapper. Surveyed 2026-09-13: three hand-written REST clients exist at SURF (willma2, the AI4Science prototype, the `hpml-llms/python_slurm_wrapper` stub) and one SSH backend (agentic-env); `snellius/pyslurm` and `SOIL/slurm-bridge`, named here earlier, could not be found on the GitLab | ADOPT the REST API and generate the client from its specification; the wrapper is one package in the **hpc block**, not this repository (`blocks.md`) |
-| software environments on HPC | EasyBuild (`easybuild-surf`), EESSI | ADOPT |
+| shared model inference | Willma, the AI Hub back office | ADOPT where it serves the model needed |
+| Slurm access from services | slurmrestd, the scheduler's own REST API with a published OpenAPI specification, plus a thin site wrapper. Surveyed 2026-09-13: three hand-written REST clients exist at SURF (willma2, the AI4Science prototype, an internal stub) and one SSH backend (agentic-env); the two internal projects this row named earlier could not be found | ADOPT the REST API and generate the client from its specification; the wrapper is one package in the **hpc block**, not this repository (`blocks.md`) |
+| software environments on HPC | EasyBuild, SURF's easyconfigs, EESSI | ADOPT |
 
 ## External, where SURF has no internal equivalent
 
@@ -147,7 +147,7 @@ which proposals land. Two attributes would carry most of our argument into a sta
 implement: one naming the scaffold identity that produced a trace, one naming the authority of an
 outcome label rather than only its modality. Neither is a new standard.
 
-**One thing to carry to the procurement that we did not have.** Evaluation is being discussed as a
+**One thing to carry to the AI Factory's requirements that we did not have.** Evaluation is being discussed as a
 compute bottleneck in its own right. The acceptance suite has no agentic workload, which was
 already remark A1, and no evaluation workload either, which nobody had noticed.
 
