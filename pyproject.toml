@@ -43,6 +43,12 @@ provenance = [
   "openlineage-python>=1.53,<2",
   "rocrate>=0.15,<1",
 ]
+# Redacting personal data from a transcript before it is written. The models it can use, GLiNER
+# and spaCy's, are the deployer's to install; see agentic_base/redaction/presidio.py.
+redaction = [
+  # The analyzer only. The anonymizer pins cryptography below 49; see redaction/presidio.py.
+  "presidio-analyzer>=2.2.364,<3",
+]
 # The service half: the API, its storage and its telemetry wiring. Deployed here, never imported
 # by a consumer. Kept pinned because this half is a running service; the library half is a
 # dependency of other people's software and pins there would be their problem, not ours.

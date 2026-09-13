@@ -74,6 +74,7 @@ pip install surf-agentic-base                # the library half: four dependenci
 pip install 'surf-agentic-base[provenance]'  # plus the three provenance-standard libraries
 pip install 'surf-agentic-base[service]'     # the service: FastAPI, storage, tracing, MCP
 pip install 'surf-agentic-base[mlflow]'      # plus the MLflow export
+pip install 'surf-agentic-base[redaction]'   # plus Presidio, to redact a transcript before it is written
 ```
 
 The import name is `agentic_base`. The distribution is named `surf-agentic-base` because

@@ -22,6 +22,8 @@ from agentic_base.domain.run_record import (
 )
 from agentic_base.domain.validity import ChannelSpread, check_comparison
 from agentic_base.provenance import to_openlineage, to_process_run_crate, to_prov
+from agentic_base.redaction.configured import get_redactor
+from agentic_base.redaction.redact import Redactor, redact_run
 
 router = APIRouter(prefix="/runs", tags=["runs"])
 
@@ -79,13 +81,18 @@ class _Observation:
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def create_run(
-    payload: RunRecordCreate, session: Session = Depends(get_session)
+    payload: RunRecordCreate,
+    session: Session = Depends(get_session),
+    redactor: Redactor | None = Depends(get_redactor),
 ) -> RunRecord:
     """Record one agent run, transcript and provenance included.
 
     Tenant and code revision are required. An outcome may only be supplied together with the
-    scorer that produced it.
+    scorer that produced it. When redaction is configured, the transcript is redacted before it
+    is written, unless the writer already redacted it and said with what.
     """
+    if redactor is not None:
+        payload = redact_run(payload, redactor)
     record = to_record(payload)
     session.add(record)
     session.commit()

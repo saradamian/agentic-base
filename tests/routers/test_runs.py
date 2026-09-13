@@ -195,3 +195,49 @@ def test_a_health_run_on_the_community_tier_is_refused_at_the_api(test_client) -
     )
 
     assert response.status_code == 422
+
+
+class _Marker:
+    instrument = "marker 1.0"
+
+    def redact(self, text):
+        from agentic_base.redaction import Redacted
+
+        return Redacted(
+            text=text.replace("Maria", "<PERSON>"),
+            found={"PERSON": text.count("Maria")},
+        )
+
+
+def test_a_configured_redactor_runs_before_the_transcript_is_written(
+    app, test_client
+) -> None:
+    from agentic_base.redaction.configured import get_redactor
+
+    app.dependency_overrides[get_redactor] = _Marker
+    try:
+        created = test_client.post(
+            "/runs",
+            json=_payload(
+                item="redact-1", messages=[{"role": "user", "content": "hi Maria"}]
+            ),
+        ).json()
+    finally:
+        app.dependency_overrides.pop(get_redactor)
+
+    stored = test_client.get(f"/runs/{created['run_id']}").json()
+    assert stored["messages"] == [{"role": "user", "content": "hi <PERSON>"}]
+    assert stored["redaction"] == "marker 1.0"
+
+
+def test_without_a_redactor_the_transcript_is_written_as_sent(test_client) -> None:
+    created = test_client.post(
+        "/runs",
+        json=_payload(
+            item="redact-2", messages=[{"role": "user", "content": "hi Maria"}]
+        ),
+    ).json()
+
+    stored = test_client.get(f"/runs/{created['run_id']}").json()
+    assert stored["messages"] == [{"role": "user", "content": "hi Maria"}]
+    assert stored["redaction"] == "none"

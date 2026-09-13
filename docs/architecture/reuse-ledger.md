@@ -49,7 +49,7 @@ already supported, and already have an owner.
 | rollout / RL training | verl, SkyRL, Agent Lightning | ADOPT as trainers |
 | agent security taxonomy | OWASP Top Ten for Agentic Applications, and for agentic skills | ADOPT as the conformance target |
 | retry and backoff | tenacity | ADOPT |
-| personal-data detection and redaction | Microsoft Presidio (MIT) | ADOPT, when redaction is built: it sits at the recording seam and writes its name into `RunRecordCreate.redaction`. Not wired yet, and the field says `none` until it is |
+| personal-data detection and redaction | Microsoft Presidio (MIT), with GLiNER (Apache-2.0) or spaCy for names and places | ADOPT. `agentic_base.redaction.presidio`, in the `redaction` extra; the service applies it on write when `REDACTION=presidio`, and the instrument, its mode and its model revision go into `RunRecordCreate.redaction` |
 
 ## Build, and only these
 
@@ -104,6 +104,9 @@ something maintained already do this? `tests/test_reuse_ledger.py` fails when a 
 | `llm/health.py` | a probe that asks for a completion rather than trusting a status code | BUILD. Revisit when vLLM or Willma expose a readiness signal that means "answers", not "listens" |
 | `provenance/emit.py` | W3C PROV through `prov`, OpenLineage through `openlineage-python`, a Process Run Crate through `rocrate`; the outcome's scorer and authority ride as declared extensions with a schema file each | ADOPT the three libraries and the profile. The facet is a BRIDGE, and `docs/schemas/OutcomeRunFacet.json` is its contract |
 | `provenance/mlflow_export.py` | a run as an MLflow trace plus a feedback assessment, through MLflow's own client; the authority rides in assessment metadata because the schema has no field for it | ADOPT MLflow for the trace UI and as an export target; the metadata keys are the BRIDGE. Revisit when MLflow's assessment source carries authority natively |
+| `redaction/redact.py` | the seam: which transcript fields are text, that the record names the instrument and reports how many strings it examined, and that a writer's own redaction is not overwritten | BUILD, deliberately small. No redaction library knows a run record's shape. Revisit when the record's transcript is stored in a standard message format a redactor already walks |
+| `redaction/presidio.py` | Presidio's analyzer and anonymizer, its no-op NLP engine for patterns only, its GLiNER and spaCy recognizers for names and places, its allow-list. Ours: the default entity list, the refusal of a missing model, and one recognizer for the Dutch citizen service number through Presidio's extension point | ADOPT Presidio's analyzer. Two BRIDGEs: the BSN recognizer, revisit when Presidio ships a Dutch recognizer; and span replacement in place of Presidio's anonymizer, which pins `cryptography<49` and would hold the service on a release with six advisories, revisit when that pin lifts. The analyzer caps numpy below 2.5, which has no advisories and is accepted |
+| `redaction/configured.py` | the service's redactor built from `pydantic-settings`, once | ADOPT `pydantic-settings` |
 | `tools/types.py` | the in-process tool contract | BRIDGE. `mcp.types.Tool` is the wire schema; this is the in-process one it is derived from, and the names must match across backends (D1) |
 
 ## The rule this file encodes
