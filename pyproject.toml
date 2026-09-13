@@ -86,7 +86,7 @@ dev = [
   "pytest-asyncio==1.4.0",
   "pytest-cov==7.1.0",
   "pytest-env==1.7.1",
-  "ruff==0.16.6",
+  "ruff==0.16.7",
   "mkdocs-techdocs-core==1.7.1",
   # The suite runs on the consumer floor too, so the 3.10 leg needs a TOML reader.
   'tomli>=2.4; python_version < "3.11"',
