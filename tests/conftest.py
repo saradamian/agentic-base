@@ -45,6 +45,7 @@ def app(_service_database):
 @pytest.fixture()
 def engine(tmp_path):
     """A fresh SQLite file per test, created from the current models and disposed afterwards."""
+    import agentic_base.domain.audit  # noqa: F401  - registers the audit log
     import agentic_base.domain.run_record  # noqa: F401  - registers the table
 
     engine = create_engine(

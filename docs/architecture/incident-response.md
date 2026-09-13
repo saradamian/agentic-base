@@ -43,7 +43,7 @@ running service can be one, the other, or both.
 | a report asks for | where it is |
 |---|---|
 | what ran, when, under what configuration | the run record: model, endpoint, precision, code revision, configuration fingerprint, component versions |
-| whether the records have been altered since | the hash chain, `agentic_base.domain.integrity.verify_chain`, which names the first record that diverges |
+| whether the records have been altered since | `GET /runs/integrity?tenant=...`, which recomputes the audit log the service appends to on every create, label and approval, names the first entry that diverges, and lists runs that differ from their last entry or have none |
 | who the runs acted for and what class of data they touched | `principal`, `classification`, `isolation_tier` on every record |
 | whether a person approved the action | `approvals` on the record |
 | what was in the affected transcripts | the transcripts, redacted as `redaction` on each record describes |
@@ -71,8 +71,9 @@ either answer would need is already produced by the release.
 **Nobody holds an account on the reporting platform.** A first report is the wrong moment to
 find out what registering takes.
 
-**The service rows are unwalked.** There is no deployed service yet, so the run records, the
-chain check and the export have been exercised only by the test suite.
+**The deployed service is unwalked.** The service rows below were walked against a local
+instance on SQLite. The first drill after go-live walks them against the real one, with its
+PostgreSQL, its redaction model and its tenant.
 
 ## The drill
 
@@ -95,3 +96,20 @@ was, and the next release is the first whose PyPI wheel verifies. The table abov
 version of the GitHub CLI the verify command needs, because the responder's machine had one from
 2022 without it. And it says what the SBOM covers, the library installed on the consumer floor,
 so that for the service extras the lock at the tag is the answer.
+
+The service rows were walked the next day, against a local instance holding three runs for one
+tenant, a label and an approval.
+
+| question | answer | how long |
+|---|---|---|
+| what ran, when, under what configuration | the record, by id | under 10 ms |
+| whether the records have been altered | `GET /runs/integrity`: intact over three runs and five entries, and after one field was changed directly in the database, not intact, naming that run | under 10 ms |
+| who the runs acted for, what data, who approved | the export: principals, classifications and the approval | under 10 ms |
+| what was in the transcripts | the export, with an email address replaced by its entity type and `redaction` naming the instrument | under 10 ms |
+
+The first attempt could not answer the second row at all. The hash chain existed as a library and
+nothing wrote it: no hash was stored and nothing verified one, while the pages said the service
+chained its records. The service now appends an entry to an audit log with every create, label
+and approval, and the endpoint above verifies it. The walk also found that the export carried no
+run id and no time, so it could not say which run happened when, and that timestamps came back
+without their zone. Both are fixed.

@@ -96,9 +96,10 @@ a switching process started on at most two months' notice and completed within 3
 
 That is a design requirement rather than a legal one for us to answer, and it is met for the
 data: `GET /runs/export?tenant=...` streams a tenant's whole corpus as newline-delimited JSON,
-one run per line in the shape the write path accepts, after a manifest line that says how many
-records follow. The manifest is what makes a truncated download visible, and the shape is what
-makes the file replayable into another instance rather than merely readable. A single run also
+one run per line with its id, when it was recorded and labelled, and the run in the shape the
+write path accepts, after a manifest line that says how many records follow. The manifest is
+what makes a truncated download visible, and the shape is what makes the file replayable into
+another instance rather than merely readable. A single run also
 comes in W3C PROV, OpenLineage or an RO-Crate for a reader that is not this service.
 
 What is still missing is the rest of a switching process: an agreed format for the tenant's
@@ -110,7 +111,7 @@ this service alone.
 | requirement | what serves it here |
 |---|---|
 | automatic event recording over a system's lifetime | the run record, written while the run happens, not reconstructed after |
-| evidence that a record has not been altered | the hash chain in `agentic_base.domain.integrity`, verifiable on demand. It detects an edit; it is not a signature and not an append-only store |
+| evidence that a record has not been altered | an audit log the service appends to with every change, chained per tenant, and `GET /runs/integrity?tenant=...` to verify it. It detects an edit by anyone who does not rewrite the whole log; it is not a signature and not an append-only store |
 | who a run acted for, what class of data it touched, who approved what | `principal`, `classification`, `isolation_tier`, `approvals` on every record |
 | provenance of a performance claim | `label_source`, which refuses citability to a self-reported or convenience-scored outcome |
 | evidence that a verdict came from a working instrument | `degraded` and `instrument` |

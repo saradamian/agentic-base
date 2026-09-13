@@ -31,6 +31,7 @@ def init_db() -> None:
     Schema evolution in a deployed environment is Alembic's job. This exists so that local
     runs and tests do not need a migration step.
     """
+    import agentic_base.domain.audit  # noqa: F401  - registers the audit log
     import agentic_base.domain.run_record  # noqa: F401  - registers the table
 
     SQLModel.metadata.create_all(get_engine())

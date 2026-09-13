@@ -24,10 +24,12 @@ which is what makes it evidence rather than decoration.
 
 from __future__ import annotations
 
+import enum
 import hashlib
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 GENESIS = "0" * 64
@@ -50,13 +52,21 @@ AUDIT_FIELDS = (
     "label_source",
     "degraded",
     "instrument",
+    "principal",
+    "classification",
+    "isolation_tier",
+    "redaction",
+    "disclosure",
+    "content_marking",
+    "approvals",
 )
 """Fields covered by the hash.
 
 Deliberately excludes the transcript. A transcript can be very large and is stored alongside
 rather than inline, so hashing it here would make verification cost the whole corpus. What is
 covered is the part an audit turns on: what ran, under what configuration, what was decided, and
-who decided it.
+who decided it, including who the run acted for, what class of data it touched, and who
+approved what.
 """
 
 
@@ -67,11 +77,36 @@ def _canonical(values: dict[str, Any]) -> bytes:
     ).encode("utf-8")
 
 
+def _plain(value: Any) -> Any:
+    if isinstance(value, datetime):
+        aware = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return aware.astimezone(timezone.utc).isoformat()
+    if isinstance(value, enum.Enum):
+        return value.value
+    return value
+
+
+def snapshot(record: Any) -> dict[str, Any]:
+    """A record's audit fields as plain JSON values.
+
+    A database hands back a timestamp without its zone and an enum as its value, so the same
+    record read back must produce the same snapshot it produced when written.
+    """
+    values = {field: _plain(getattr(record, field, None)) for field in AUDIT_FIELDS}
+    plain: dict[str, Any] = json.loads(_canonical(values))
+    return plain
+
+
+def hash_snapshot(values: Mapping[str, Any], previous_hash: str = GENESIS) -> str:
+    """Hash of a snapshot, chained to the previous hash for its tenant."""
+    return hashlib.sha256(
+        _canonical({**values, "previous_hash": previous_hash})
+    ).hexdigest()
+
+
 def content_hash(record: Any, previous_hash: str = GENESIS) -> str:
     """Hash of a record's audit fields, chained to the previous record for its tenant."""
-    values = {field: getattr(record, field, None) for field in AUDIT_FIELDS}
-    values["previous_hash"] = previous_hash
-    return hashlib.sha256(_canonical(values)).hexdigest()
+    return hash_snapshot(snapshot(record), previous_hash)
 
 
 @dataclass(frozen=True)

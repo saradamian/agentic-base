@@ -11,10 +11,12 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from starlette import status
 
 from agentic_base.db import get_session
+from agentic_base.domain import audit
 from agentic_base.domain.outcomes import DataClass
 from agentic_base.domain.run_record import (
     Approval,
@@ -30,6 +32,27 @@ from agentic_base.redaction.configured import get_redactor
 from agentic_base.redaction.redact import RedactionUnavailable, Redactor, redact_run
 
 router = APIRouter(prefix="/runs", tags=["runs"])
+
+
+def _commit_with_entry(session: Session, record: RunRecord, event: str) -> RunRecord:
+    """Write a change and its audit entry together, or neither.
+
+    Two writers that read the same last entry cannot both chain to it. The one that loses is told
+    to retry rather than being written outside the log.
+    """
+    session.add(record)
+    audit.append(session, record, event)
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="another write to this tenant landed first; retry",
+            headers={"Retry-After": "1"},
+        ) from None
+    session.refresh(record)
+    return record
 
 
 class ChannelSpreadResponse(BaseModel):
@@ -114,11 +137,14 @@ def create_run(
     """
     if redactor is not None:
         payload = _redacted(payload, redactor)
-    record = to_record(payload)
-    session.add(record)
-    session.commit()
-    session.refresh(record)
-    return record
+    return _commit_with_entry(session, to_record(payload), "created")
+
+
+class _ExportLine(BaseModel):
+    run_id: str
+    created_at: datetime
+    labelled_at: datetime | None
+    record: RunRecordCreate
 
 
 @router.get("/export")
@@ -135,7 +161,8 @@ def export_tenant(
     The first line is a manifest: the tenant, the time, how many records follow, and the schema
     they are instances of. A file that says how many records it should contain can be checked
     against itself; one that does not cannot be told apart from a truncated download. Each line
-    after it is one run in the same shape the write path accepts, so an export can be replayed
+    after it is one run: its id, when it was recorded and labelled, and under `record` the run in
+    the shape the write path accepts, so an export says which run and when, and can be replayed
     into another instance of this service, and `GET /runs/{id}/provenance` gives any single run in
     W3C PROV, OpenLineage or an RO-Crate for a reader that is not this service.
     """
@@ -152,7 +179,8 @@ def export_tenant(
         "records": len(ids),
         "format": "application/x-ndjson",
         "schema": "agentic_base.domain.outcomes.RunRecordCreate",
-        "note": "one run per line after this one, in the shape POST /runs accepts",
+        "note": "one run per line after this one: run_id, created_at and labelled_at, "
+        "and under record the run in the shape POST /runs accepts",
     }
 
     def lines() -> Iterator[str]:
@@ -160,7 +188,15 @@ def export_tenant(
         for run_id in ids:
             record = session.get(RunRecord, run_id)
             if record is not None:
-                yield to_payload(record).model_dump_json() + "\n"
+                yield (
+                    _ExportLine(
+                        run_id=record.run_id,
+                        created_at=record.created_at,
+                        labelled_at=record.labelled_at,
+                        record=to_payload(record),
+                    ).model_dump_json()
+                    + "\n"
+                )
 
     return StreamingResponse(
         lines(),
@@ -169,6 +205,44 @@ def export_tenant(
             "Content-Disposition": f'attachment; filename="{tenant}-runs.ndjson"',
             "X-Record-Count": str(len(ids)),
         },
+    )
+
+
+class IntegrityResponse(BaseModel):
+    """Whether a tenant's records are as the service wrote them."""
+
+    tenant: str
+    intact: bool
+    could_have_failed: bool
+    entries_checked: int
+    runs_checked: int
+    first_broken_entry: int | None
+    altered_runs: list[str]
+    unchained_runs: list[str]
+    summary: str
+
+
+@router.get("/integrity")
+def integrity(
+    tenant: str = Query(..., description="The tenant whose records to verify."),
+    session: Session = Depends(get_session),
+) -> IntegrityResponse:
+    """Recompute the tenant's audit log and compare every run to its latest entry.
+
+    Read `could_have_failed` before believing `intact`: a tenant with no runs verifies trivially.
+    This detects an edit by anyone who does not rewrite the whole log; it is not a signature.
+    """
+    verdict = audit.verify(session, tenant)
+    return IntegrityResponse(
+        tenant=tenant,
+        intact=verdict.intact,
+        could_have_failed=verdict.could_have_failed,
+        entries_checked=verdict.chain.records_checked,
+        runs_checked=verdict.runs_checked,
+        first_broken_entry=verdict.chain.first_broken_index,
+        altered_runs=verdict.altered,
+        unchained_runs=verdict.unchained,
+        summary=verdict.summary(),
     )
 
 
@@ -250,10 +324,7 @@ def record_approval(
             status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
         )
     record.approvals = [*record.approvals, approval.model_dump()]
-    session.add(record)
-    session.commit()
-    session.refresh(record)
-    return record
+    return _commit_with_entry(session, record, "approved")
 
 
 @router.post("/{run_id}/label")
@@ -276,10 +347,7 @@ def label_run(
     record.instrument = update.instrument
     record.degraded = update.degraded
     record.labelled_at = datetime.now(timezone.utc)
-    session.add(record)
-    session.commit()
-    session.refresh(record)
-    return record
+    return _commit_with_entry(session, record, "labelled")
 
 
 @router.get("/validity/report")
