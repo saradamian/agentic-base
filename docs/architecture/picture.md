@@ -27,13 +27,14 @@ The mermaid block at the bottom needs a mermaid-capable viewer.
   └───┬───┴────┬─────┴────┬─────┴────┬─────────┬────────┬───────────┬───┘
       │  scoped by IDENTITY and DELEGATED CREDENTIALS · billed by ACCOUNTING │
       │  started by TRIGGERS · gated by OVERSIGHT · tiered by CLASSIFICATION │
-      │  redacted before the write · recorded in a LEDGER                     │
+      │  redacted before the write · told it is an AI · recorded in a LEDGER │
       │                    │          │          │        │          │
   CONTRACTS   │  THIS REPOSITORY   │          │          │        │
   ┌───────────▼────────────▼──────────▼──────────▼────────▼──────────▼────┐
   │ tool contract │ recording seam │ curated surfaces │ security │ spans │
   ├────────────────────────────────────────────────────────────────────────┤
-  │ run record · label provenance · validity · epochs · emitted standards │
+  │ run record · label provenance · validity · epochs                    │
+  │ redaction · retention · PROV, OpenLineage, RO-Crate, MLflow          │
   └────────────────────────────────────────────────────────────────────────┘
 
   ALREADY EXIST, not ours to rebuild
@@ -55,8 +56,8 @@ The only block with no existing system behind it is **runs**, which is why the r
 and the rest do not. The band between the blocks and the contracts is not a block an agent
 calls. It is the capabilities every block is subject to: identity and delegated credentials
 scope every surface, accounting bills every run, triggers start one, oversight can stop one,
-classification picks the tier it runs on, redaction runs before the write, and a ledger keeps
-the result. Each has a field on the record now and most have no implementation yet; they are
+classification picks the tier it runs on, redaction runs before the write, transparency tells the
+person they are dealing with an AI, and a ledger keeps the result. Each has a field on the record now and most have no implementation yet; they are
 named because a design that leaves them implicit gets them wrong. The full list, with what
 exists behind each block and the order to build them, is in `blocks.md`.
 
@@ -121,7 +122,7 @@ flowchart TB
         C1[tool contract]
         C2[recording seam and curated surfaces]
         C3[security primitives and span vocabulary]
-        C4[run record, validity, epochs, emitted standards]
+        C4[run record, validity, epochs, redaction, retention, emitted standards]
     end
     subgraph sys[Systems that already exist]
         W[Willma]

@@ -8,6 +8,7 @@ nav:
   - Home: index.md
   - Readme: include-readme.md
   - Decisions: decisions.md
+  - The engineering standard: ENGINEERING.md
   - Observability: OBSERVABILITY.md
   - Architecture:
     - The picture: architecture/picture.md
@@ -25,6 +26,8 @@ nav:
     - Operational traps: architecture/operational-traps.md
     - What Kubernetes changes: architecture/kubernetes.md
     - Repository process: architecture/process.md
+    - The deployment overlay: architecture/deployment-overlay.md
+    - Proposals to the standards: architecture/proposals.md
 plugins:
   - techdocs-core
 theme:
