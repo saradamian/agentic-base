@@ -77,7 +77,7 @@
   <text x="333" y="625" font-size="11" text-anchor="middle" fill="#1a1a1a">run record &#183; label provenance &#183; validity &#183; epochs &#183; emitted as PROV, OpenLineage, RO-Crate, MLflow</text>
 
   <!-- EXISTING SYSTEMS -->
-  <rect x="684" y="88" width="284" height="426" rx="6" fill="#f0f7f0" stroke="#9dc49d"/>
+  <rect x="684" y="88" width="284" height="440" rx="6" fill="#f0f7f0" stroke="#9dc49d"/>
   <text x="698" y="110" font-size="12" font-weight="600" fill="#3d6b3d">ALREADY EXIST &#183; not ours to rebuild</text>
   <rect x="702" y="124" width="248" height="34" rx="4" fill="#ffffff" stroke="#9dc49d"/>
   <text x="826" y="139" font-size="12" text-anchor="middle" fill="#1a1a1a">Willma</text>
@@ -107,7 +107,8 @@
   <text x="826" y="459" font-size="12" text-anchor="middle" fill="#1a1a1a">JupyterHub, code-server</text>
   <text x="826" y="472" font-size="10" text-anchor="middle" fill="#777">&#8594; workspace</text>
   <text x="826" y="498" font-size="10" text-anchor="middle" fill="#3d6b3d">each published as one block with a reviewed,</text>
-  <text x="826" y="510" font-size="10" text-anchor="middle" fill="#3d6b3d">read-only-by-default surface; execution and web have no system yet</text>
+  <text x="826" y="510" font-size="10" text-anchor="middle" fill="#3d6b3d">read-only-by-default surface.</text>
+  <text x="826" y="522" font-size="10" text-anchor="middle" fill="#3d6b3d">execution and web have no system behind them yet.</text>
 
   <!-- arrows -->
   <defs><marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#999"/></marker></defs>
