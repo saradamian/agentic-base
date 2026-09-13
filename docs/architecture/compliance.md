@@ -129,8 +129,14 @@ core controls, so most of the second half of that table is inherited.
 
 ## What is missing, and should be said out loud
 
-- **Retention is not enforced.** Six months is a policy that nothing currently applies. A record
-  can be deleted and the chain will detect it, which is not the same as preventing it.
+- **Retention has a mechanism and no scheduler.** `agentic_base.domain.retention` decides which
+  transcripts are older than a tenant's policy, refuses a policy below the AI Act's six-month
+  floor rather than quietly clamping it, and erases a transcript by emptying it and saying so on
+  the record. Because the hash chain covers what an audit turns on and not the transcript, an
+  erasure leaves the chain intact, which is what makes the GDPR's erasure right and the AI Act's
+  log-keeping duty compatible rather than opposed. What is missing is the part that belongs to a
+  deployment: something that runs the sweep on a schedule, and a tenant setting to read the policy
+  from.
 - **No incident workflow.** The 24, 72 and 30 day clock needs a path from detection to a report,
   and there is none here. What exists is the evidence such a report would draw on.
 - **Human oversight is recorded, not required.** Article 14 expects oversight measures for

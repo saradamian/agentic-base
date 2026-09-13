@@ -35,6 +35,7 @@ PORTABLE_MODULES = (
     "agentic_base.domain.epochs",
     "agentic_base.domain.integrity",
     "agentic_base.domain.outcomes",
+    "agentic_base.domain.retention",
     "agentic_base.domain.validity",
     "agentic_base.hpc.clusters",
     "agentic_base.hpc.job_result",
