@@ -121,6 +121,8 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     classification: DataClass = Field(default=DataClass.UNCLASSIFIED, index=True)
     isolation_tier: IsolationTier = Field(default=IsolationTier.UNSPECIFIED)
     redaction: str = Field(default="none")
+    disclosure: str = Field(default="none")
+    content_marking: str = Field(default="none")
     approvals: list[dict[str, Any]] = Field(
         default_factory=list, sa_column=Column(JSON)
     )

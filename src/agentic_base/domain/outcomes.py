@@ -302,6 +302,24 @@ class RunRecordCreate(BaseModel):
     instrument's name and version. A transcript with ``none`` and a personal classification is
     a finding, not a default."""
 
+    disclosure: str = "none"
+    """How the person was told they were dealing with an AI, or ``none``.
+
+    The AI Act's article 50 has applied since 2 August 2026: a person interacting with an AI
+    system is told so, unless it is obvious. The telling happens where an agent meets a person,
+    which is a channel this layer does not own, so what is recorded here is the claim that it
+    happened and by what means, for example ``channel-notice`` or ``system-message``. ``none`` on
+    a run that acted for a person is a finding, not a default."""
+
+    content_marking: str = "none"
+    """How generated output was marked as machine-readable AI output, or ``none``.
+
+    Article 50(2) asks providers of generative systems to mark synthetic output in a
+    machine-readable form. The Commission's draft code of practice names Content Credentials
+    (C2PA) as the example; the article itself is technology-neutral. Record the standard and the
+    identifier it produced, for example ``c2pa:<manifest id>``. Text has no widely adopted open
+    marking format, which is a reason to record what was done rather than to assume it."""
+
     approvals: list[Approval] = Field(default_factory=list)
     status: RunStatus = RunStatus.COMPLETED
     failure_kind: str = ""

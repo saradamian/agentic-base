@@ -139,10 +139,20 @@ core controls, so most of the second half of that table is inherited.
   It is not a signature and not an append-only store, and it must not be presented as either.
 - **No conformity documentation generator.** Annex IV asks for a document. The material for one is
   here; assembling it is not.
-- **Nothing marks generated content, and article 50 is live.** A person must be told they are
-  dealing with an AI, and synthetic content must be marked. Both happen where an agent speaks to a
-  person, which is the channels block, and neither the block nor a field on the record exists yet.
-  This is the only obligation on this page that is in force today and unmet in the design.
+- **Article 50 is recorded, not discharged.** A person must be told they are dealing with an AI,
+  and synthetic content must be marked machine-readably. Both happen where an agent speaks to a
+  person, which is the channels block, and that block does not exist. What exists since this was
+  written is the record: `disclosure` names how the person was told, `content_marking` names the
+  standard and identifier the output carries, and both default to `none`, so a corpus can separate
+  runs that predate the answer from runs that lack it.
+
+  For images, audio and video the Commission's draft code of practice names Content Credentials
+  (C2PA) as its example, and there is an Apache-licensed implementation to adopt when the channels
+  block needs one. For text there is no equivalent open format: the published schemes are either
+  metadata beside the text, which does not survive copying, or proprietary token watermarking. So
+  for a text channel the honest reading of article 50(2) is a disclosure the person sees, recorded
+  in `disclosure`, and `content_marking` left at `none` with that fact visible rather than a
+  standard invented here.
 - **No tenant export.** The Data Act's switching right needs one; see above.
 - **No decision on the Cyber Resilience Act.** Whether this is out of scope, or a steward's
   obligation from December 2027, is unanswered, and the answer changes who reports what.
