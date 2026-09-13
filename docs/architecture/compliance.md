@@ -137,8 +137,10 @@ core controls, so most of the second half of that table is inherited.
   log-keeping duty compatible rather than opposed. What is missing is the part that belongs to a
   deployment: something that runs the sweep on a schedule, and a tenant setting to read the policy
   from.
-- **No incident workflow.** The 24, 72 and 30 day clock needs a path from detection to a report,
-  and there is none here. What exists is the evidence such a report would draw on.
+- **The incident path is written down but has never been walked.** `incident-response.md` now
+  says which clock is which, who is told, and where each thing a report asks for lives. What is
+  missing is a named person for the software's vulnerability duty, an answer to the Cyber
+  Resilience Act scope question, and one drill to find out whether the table is true.
 - **Human oversight is recorded, not required.** Article 14 expects oversight measures for
   high-risk systems. The record carries approvals, overrides and interventions with who decided
   and when, and an endpoint to add one; nothing yet forces a block to obtain one before it acts.
