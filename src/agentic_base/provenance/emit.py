@@ -67,6 +67,8 @@ def _environment(run: RunRecordCreate) -> dict[str, Any]:
         "classification": run.classification.value,
         "isolation_tier": run.isolation_tier.value,
         "redaction": run.redaction,
+        "disclosure": run.disclosure,
+        "content_marking": run.content_marking,
         "approvals": [a.model_dump() for a in run.approvals],
     }
 
@@ -170,6 +172,8 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
         classification: str = "unclassified"
         isolationTier: str = "unspecified"
         redaction: str = "none"
+        disclosure: str = "none"
+        contentMarking: str = "none"
         approvals: int = 0
 
         @staticmethod
@@ -197,6 +201,8 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
             classification=run.classification.value,
             isolationTier=run.isolation_tier.value,
             redaction=run.redaction,
+            disclosure=run.disclosure,
+            contentMarking=run.content_marking,
             approvals=len(run.approvals),
         ),
     }

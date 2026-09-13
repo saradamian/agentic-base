@@ -201,3 +201,22 @@ def test_a_run_records_who_it_acted_for_and_who_approved_what() -> None:
     assert run.principal == "alice@example.org"
     assert run.approvals[0].decision == "approved"
     assert run.redaction == "none"
+
+
+def test_a_run_records_whether_the_person_was_told_and_the_output_marked() -> None:
+    """Article 50 applies since 2 August 2026. The telling happens in a channel this layer does
+    not own, so the record carries the claim and the means, defaulting to none."""
+    plain = RunRecordCreate(tenant="t", code_revision="abc")
+
+    assert plain.disclosure == "none"
+    assert plain.content_marking == "none"
+
+    told = RunRecordCreate(
+        tenant="t",
+        code_revision="abc",
+        disclosure="channel-notice",
+        content_marking="c2pa:urn:uuid:1234",
+    )
+
+    assert told.disclosure == "channel-notice"
+    assert told.content_marking == "c2pa:urn:uuid:1234"

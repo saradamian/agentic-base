@@ -46,7 +46,7 @@ the high-risk evidence cheap to produce without assuming every run needs it.
 | automatic recording of events over the system's lifetime, kept at least six months | every run, every tool call, every outcome, with who decided it, written at the time | runs; the recording seam; retention enforced by the platform |
 | technical documentation and declared performance | the configuration fingerprint, the model, the instrument and its authority on every record; the validity check before a number is reported | runs |
 | human oversight | a person can approve, override or stop, and the record shows that they did | `approvals` on every run, with an endpoint to add one; a block obtaining one before it acts is not built |
-| transparency: a person knows they are dealing with an AI, and generated content is marked, **in force since 2 August 2026** | the channels block says so on every outbound message, and the record says it did | channels; not built, and the only live obligation the design does not meet |
+| transparency: a person knows they are dealing with an AI, and generated content is marked, **in force since 2 August 2026** | `disclosure` and `content_marking` on every run say whether it was done and by what means; the doing belongs to the channel that speaks to the person | channels; the fields exist, the channel does not |
 | regulatory sandboxes with evidence | a tenant whose runs are recorded with the classification and the isolation tier they ran under | runs plus execution |
 
 ### GDPR, and the Dutch implementation
