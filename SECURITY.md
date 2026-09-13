@@ -39,6 +39,9 @@ is escapable by a determined attacker is welcome and will be handled, but it is 
 - Every release carries build provenance and an SBOM attestation for the distribution files, the
   SBOM taken from the wheel installed on the consumer floor.
 - Workflow actions are pinned by commit hash with the version in a trailing comment.
+- `tests/test_public_hygiene.py` on every change: no page or file may carry a link to a host
+  outside the public list, an email address, a home path, a private address or a reference to an
+  internal source. It works by shape, not by a list of the things it is meant to hide.
 
 What does not run here: a container image scan, because no image is built on GitHub. The
 deployment pipeline on the SURF Developer Platform builds the image and scans it there.
@@ -47,5 +50,8 @@ deployment pipeline on the SURF Developer Platform builds the image and scans it
 
 The run record stores the transcript a model received. Nothing in this repository detects or
 removes personal data from it before it is written; a consumer that records prompts from people
-is responsible for that today. The observer seam is where a redaction step would sit, and it is
-an open design item, not a feature.
+is responsible for that today. What the record does carry is the `redaction` field, `none` until
+an instrument runs and then the instrument's name and version, and the `classification` of the
+data the run touched. A transcript with `none` and a personal classification is a finding, and
+personal or health data on the community isolation tier is refused at the write. The observer
+seam is where the redaction step sits when it is built; the reuse ledger names Presidio for it.

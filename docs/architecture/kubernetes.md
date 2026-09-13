@@ -73,4 +73,5 @@ to put behind it.
 
 On a cluster there is: a sandboxed runtime class, a read-only root filesystem, a seccomp profile,
 no service account token, and a default-deny egress policy. This is the one place where a
-limitation becomes an obligation.
+limitation becomes an obligation. It is the execution block's contract in `blocks.md`, and the
+tier it runs under is what `isolation_tier` on the run record names.

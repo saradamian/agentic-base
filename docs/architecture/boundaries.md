@@ -52,14 +52,22 @@ commercial SDK, a graph library, or a loop they wrote. What they get here:
 - **a value back from a batch job**: `agentic_base.hpc.job_result`
 - **the record in the standards**: `agentic_base.provenance`, W3C PROV, OpenLineage and a Process
   Run Crate from one record, each through that standard's own library, with the scorer and its
-  authority carried as a declared extension
+  authority carried as a declared extension; and the same record into MLflow
+- **the tool contract and the recording seam**: `agentic_base.tools.types` and
+  `agentic_base.recording`, so a block's tools have one name per capability and every served
+  call passes one observer
+- **the span vocabulary**: `agentic_base.observability.conventions`, read from the standard
+  packages, never restated
 
 ### The service: the system of record and the referee
 
-- run records with environment and label provenance
+- run records with environment and label provenance, and the fields the cross-cutting
+  capabilities write: who the run acted for, the class of data and the isolation tier, the
+  redaction applied, the approvals obtained
 - the validity check over a comparison
 - epoch declarations, so a code change that alters meaning can be declared and enforced
-- a read-only MCP surface so a chat client can ask
+- a run served in any of the three provenance standards, and an endpoint to add an approval
+- a read-only MCP surface on the official SDK so a chat client can ask
 
 ### What is not here and is not coming
 
@@ -69,15 +77,16 @@ honest conclusion is.
 
 No model serving. That is Willma.
 
-No job submission. That is AI4Science, and the seam between the two is the first piece of work
-worth doing together.
+No job submission. That is the hpc block's, with AI4Science and the cluster operators behind
+it, and the seam between the two is that block's first piece of work.
 
 ## The blocks are outside, by construction
 
-The capability blocks an agent calls, hpc, inference, knowledge, data, software, artifacts, are
-each their own package with the owner of the system behind them (`blocks.md`). They import this
-repository's contracts; nothing here imports a block. A scheduler client in particular does not
-belong here, because this repository must not submit jobs.
+The capability blocks an agent calls, twelve of them, from hpc and inference to forge, execution
+and channels, are each their own package with the owner of the system behind them (`blocks.md`).
+They import this repository's contracts; nothing here imports a block. A scheduler client in
+particular does not belong here, because this repository must not submit jobs. The one block
+with no system behind it is runs, which is why the record lives here and the rest do not.
 
 ## Split this repository when, and not before
 

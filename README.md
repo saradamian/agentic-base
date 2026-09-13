@@ -29,17 +29,23 @@ tracker, a workflow engine, or an inference server. Every one of those exists an
 anything we would write. See [the reuse ledger](docs/architecture/reuse-ledger.md) for what is
 adopted and from where.
 
-## The two modules that are the reason it exists
+## The record and the referee
 
 | module | what it does | why nothing off the shelf does it |
 |---|---|---|
 | `agentic_base.domain.run_record` | one row per run: the transcript the model actually received, the provenance of its environment, and the provenance of its outcome label | experiment trackers record what a run produced; almost none record *who decided* whether it was right, or whether the instrument that decided was working |
 | `agentic_base.domain.validity` | adjudicates whether a contrast across arms is sound, by detecting exclusion channels whose rate differs by arm, and reports the per-arm accounting behind the verdict | trackers store, version and visualise runs. None of them tell you your comparison is invalid, and no reporting standard in agent evaluation asks for the accounting that would show it |
 
+Every record also says who the run acted for, what class of data it touched and on which
+isolation tier, whether personal data was redacted before the transcript was written and by
+what, and who approved which action. Those fields have defaults, so a writer that does not know
+yet still writes, and the corpus can tell a run recorded before the answer existed from one
+recorded after. `docs/architecture/cross-cutting.md` says which obligation each one serves.
+
 Neither is exported in a private format. `agentic_base.provenance` turns one record into W3C
 PROV, an OpenLineage run event and a Process Run Crate, each through that standard's own library,
 with the scorer and its authority carried as a declared extension whose schema is in
-`docs/schemas/`.
+`docs/schemas/`. The same record exports into MLflow as a trace with a feedback assessment.
 
 The second is not a new mechanism, and the README used to overclaim it as one. Clinical trials
 have shipped exactly this artifact for two decades: the **CONSORT flow diagram**, a per-arm
@@ -51,12 +57,23 @@ agent evaluation requires the accounting, so `validity` implements the check and
 `flow_by_arm` produces the accounting in the standard's vocabulary: assessed, excluded with
 reasons, analysed.
 
+## The rest of the library
+
+Small things an agent on a shared platform gets wrong when it writes its own: the outbound URL
+check with DNS pinning, the structural pre-filter over generated code, a completion probe that
+asks a model for an answer instead of trusting a status code, a retry policy that recycles a
+dead transport, cluster facts without credentials, a value back from a batch job, the tool
+contract, the span vocabulary from the standard packages, and the recording seam a served call
+passes through. `docs/architecture/boundaries.md` lists them; `docs/architecture/reuse-ledger.md`
+says for each whether it is adopted, bridged or built, and a test holds the code to that ledger.
+
 ## Installing
 
 ```bash
 pip install surf-agentic-base                # the library half: four dependencies, Python 3.10+
 pip install 'surf-agentic-base[provenance]'  # plus the three provenance-standard libraries
 pip install 'surf-agentic-base[service]'     # the service: FastAPI, storage, tracing, MCP
+pip install 'surf-agentic-base[mlflow]'      # plus the MLflow export
 ```
 
 The import name is `agentic_base`. The distribution is named `surf-agentic-base` because
@@ -75,10 +92,12 @@ resource, in every deployed environment.
 ## Documentation
 
 - [Blocks and layers](docs/architecture/blocks.md): the design, what exists behind each block, the order to build
+- [Decisions](docs/decisions.md): eleven choices that are cheap now and expensive to reverse
 - [Reuse ledger](docs/architecture/reuse-ledger.md): adopt, bridge, or build, with the reason
 - [Logging, security, safety and compliance](docs/architecture/cross-cutting.md): where each lives, the obligations, and what the vision should say
 - [Observability](docs/OBSERVABILITY.md): what the service emits and where to point it
 - [What came from agentic-env](docs/architecture/from-agentic-env.md): what was extracted, what was left, what the first consumer found
+- [Compliance evidence](docs/architecture/compliance.md): what the record produces for the AI Act and NIS2, and what is missing
 - [Going live on SDP](docs/architecture/go-live-on-sdp.md): the deployment repository and the two open questions
 
 ## The standard

@@ -1,6 +1,6 @@
 # Start here
 
-Three pages, then the code. There is no larger specification behind this.
+A few pages, then the code. There is no larger specification behind this.
 
 ## What the service does
 
@@ -9,9 +9,11 @@ It is a system of record for agent runs, and a referee for claims made from that
 You post a run. The service stores what the model received, the environment it ran in, and a
 fingerprint of the configuration. You attach an outcome later, and the service refuses it unless
 you name who decided. It tells you whether a comparison between two configurations is sound. It
-hash-chains records so a later edit is detectable. It serves a run in W3C PROV, OpenLineage or a
-Process Run Crate, exports it to MLflow, and exposes the corpus read-only over MCP so someone in a
-chat client can ask.
+hash-chains records so a later edit is detectable. Each record says who the run acted for, what
+class of data it touched and on which isolation tier, whether the transcript was redacted before
+it was written, and who approved which action. It serves a run in W3C PROV, OpenLineage or a
+Process Run Crate, exports it to MLflow, and exposes the corpus read-only over MCP so someone in
+a chat client can ask.
 
 That is all of it. It does not run agents, serve models, schedule jobs or train.
 
@@ -19,26 +21,25 @@ That is all of it. It does not run agents, serve models, schedule jobs or train.
 
 Anything that imports `agentic_base` gets the rules without the storage: the outcome vocabulary
 and the citability rules over a structural protocol, the validity check, the epoch declarations,
-the job-result protocol for batch jobs, the outbound URL check, the code pre-filter, the span
-vocabulary, and the provenance emitters. It installs on Python 3.10 with four dependencies. The
-service is an optional extra.
+the job-result protocol for batch jobs, the outbound URL check, the code pre-filter, the tool
+contract, the recording seam, the span vocabulary, and the provenance emitters. It installs on
+Python 3.10 with four dependencies. The service is an optional extra.
 
 ## Who it is for
 
-Three consumers exist, and requirements come from them.
-
-agentic-env runs the experiments. It imported its first module from here on 2026-09-12 and is
-replacing its own copies of the span vocabulary, the provenance emitters and the MCP transport
-with imports.
+agentic-env runs the experiments. It imports the job-result protocol, the span vocabulary, the
+provenance emitters and the MCP transport from here, records the installed version of this
+layer beside every run, and refuses to pool runs across an undeclared version. Each import
+deleted a copy there.
 
 Willma serves models. Anything here about inference points at Willma.
 
-AI4Science submits and orchestrates jobs on Slurm. It already runs agent jobs through a template
-script on a shared filesystem. Replacing that seam with an interface is the first piece of work
-that helps both sides.
+AI4Science submits and orchestrates jobs on Slurm. It runs agent jobs through a template script
+on a shared filesystem. Replacing that seam with an interface is the hpc block's first job.
 
-The AI Factory is buying a machine whose functional architecture has three verbs and no plane for
-observing or evaluating anything, and its own scope treats both as partial.
+The AI Factory is buying a machine whose functional architecture has three verbs, train,
+fine-tune and infer, with no box for an agent run and no plane for observing or evaluating one.
+`docs/architecture/blocks.md` maps its tasks onto the blocks.
 
 ## Why it is shaped this way
 
@@ -49,28 +50,32 @@ write path from the first day. Provenance cannot be added to runs that did not r
 
 ## Where this sits
 
-`docs/architecture/blocks.md` is the design: this repository is the contracts layer under a set of
-capability blocks, one per SURF system, each in its own package with the system's owner. No block
-lives here. `docs/architecture/cross-cutting.md` says where logging, security, safety and
-compliance live, and what the regimes ask of an agent platform.
+`docs/architecture/blocks.md` is the design: this repository is the contracts layer under twelve
+capability blocks, one per SURF system, each in its own package with the system's owner, and
+seven capabilities that cut across every block: identity, delegated credentials, accounting,
+triggers, oversight, classification, a ledger, and redaction. No block lives here.
+`docs/architecture/cross-cutting.md` says where logging, security, safety and compliance live,
+what the regimes ask of an agent platform, and which field on the record each gap became.
 
 ## Read these, in this order
 
-1. `docs/decisions.md`. Ten decisions, each cheap now and expensive later. D5 says why two
-   arguments have no default. D10 says why no block is in this repository.
+1. `docs/decisions.md`. Eleven decisions, each cheap now and expensive later. D5 says why two
+   arguments have no default. D10 says why no block is in this repository. D11 says why a gap
+   with no solution still gets a field.
 2. `docs/architecture/reuse-ledger.md`. What is adopted and from where. Most of what a platform
    needs already exists inside SURF, and a test holds the code to the ledger.
 3. `docs/architecture/operational-traps.md`. Failures that are invisible in code review. Several
    apply to code that is not in this repository.
-4. `tests/lessons/`. One test file, forty lines, no framework. It shows how a retrieval bug makes
-   a measurement return a clean zero that reads like a finding.
+4. `tests/lessons/`. One test file, no framework. It shows how a retrieval bug makes a
+   measurement return a clean zero that reads like a finding.
 
 ## What is dormant
 
 These are here because they were cheap to write while the context was fresh. They answer
 questions nobody has asked yet. Do not build on them.
 
-- The hash chain, and the AI Act and NIS2 evidence mapping. Real obligations, no users yet.
+- The hash chain. It is the interim ledger: it detects an edit and is neither a signature nor an
+  append-only store. `compliance.md` says so in the same words.
 - The energy column. It is a real axis when you are billed for an allocation, and it will be zero
   here for a long time. A column that is always zero teaches people to ignore columns.
 - The Snellius and LUMI profiles. Worked examples of what a cluster profile has to carry, not a

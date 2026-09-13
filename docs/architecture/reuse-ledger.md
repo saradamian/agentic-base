@@ -72,10 +72,10 @@ artifacts we adopt, because a reader from that field should recognise what they 
 | per-arm accounting behind a contrast | **CONSORT** (2001; 2010 revision), the flow diagram: assessed, excluded with reasons, analysed, per arm. **CONSORT-AI** (2020) is the extension for AI interventions | ADOPT the vocabulary and the artifact. `agentic_base.domain.validity.flow_by_arm` produces it; `ValidityReport.flow` carries it. The only PyPI package named `consort` is a music-notation tool, so there is nothing to install |
 | intention-to-treat vs per-protocol | CONSORT's two analysis populations | ADOPT as the names for the full split and the paired set. `paired_items` is per-protocol and is the wrong denominator for a score for exactly the reason CONSORT gives |
 
-## Source audit, 2026-09-12
+## Source audit
 
 Every module under `src/agentic_base/` checked against the question this file exists to ask: does
-something maintained already do this? Rows that were missing are added; one defect is recorded.
+something maintained already do this? `tests/test_reuse_ledger.py` fails when a module has no row.
 
 | module | finding | verdict |
 |---|---|---|
@@ -83,7 +83,7 @@ something maintained already do this? Rows that were missing are added; one defe
 | `observability/tracing.py` | the SDK's FastAPI instrumentation and an exporter chosen by the standard `OTEL_*` variables | ADOPT. Nothing here is a private knob; the one decision of ours is that no endpoint means record-and-drop rather than a default address nobody listens on |
 | `utils/logging.py` | structlog plus `asgi-correlation-id`, from the golden-path template | ADOPT |
 | `llm/resilience.py` | retry predicates and a transport pool; the loop belongs to tenacity | ADOPT, correctly split |
-| `mcp/server.py` | **hand-rolls JSON-RPC 2.0 and the MCP handshake** while the official `mcp` SDK (2.2.0, `>=3.10`) fits the floor and has an in-memory test transport. Cost of adopting: 19 dependencies, in the `service` extra. By this file's own rule that is a defect | ADOPT. Tracked as [#11](https://github.com/saradamian/agentic-base/issues/11); the tool surface and pure dispatch stay |
+| `mcp/server.py` | the official `mcp` SDK, 2.x, in the `service` extra: framing, handshake, transports and tracing are the SDK's. Ours are the four tools, the pure dispatch, and the observer seam run as the SDK's own middleware | ADOPT. It hand-rolled the protocol for a week while this row said ADOPT, which is what the ledger test now catches |
 | `code_policy/policy.py` | an AST pre-filter, deliberately not an isolation boundary. **RestrictedPython** (8.5, 2026-08, `>=3.10`) covers the runtime half, guarded builtins and attribute access, and has been attacked for twenty years | BRIDGE. Keep the zero-dependency pre-filter in the library half; any executor added to this repository adopts RestrictedPython for the runtime guard rather than extending this file |
 | `security/netsec.py` | SSRF validation and DNS pinning. The one wrapper that did this, `advocate`, last released 2020-07 and targets `requests` | BUILD. Revisit when httpx ships an SSRF-safe transport or a maintained library appears |
 | `hpc/job_result.py` | a delimited single-line base64 result channel over Slurm stdout | BUILD. Nothing models a value coming back from a batch job. Revisit when Slurm exposes a result channel |
@@ -94,10 +94,10 @@ something maintained already do this? Rows that were missing are added; one defe
 | `limits.py` | a settings object read through a cached accessor | ADOPT `pydantic-settings`. The accessor is the fix for import-time constants and is ours |
 | `main.py` | FastAPI, the Prometheus instrumentator, correlation ids, structlog | ADOPT, all from the golden-path template |
 | `routers/health.py` | liveness and readiness | ADOPT, template |
-| `routers/runs.py` | the write path that refuses an outcome without a scorer, the validity endpoint, and a run served in any of the three provenance standards | BUILD. Measured 2026-09-12: MLflow accepts an unsourced outcome from any client and stamps it `CODE/default`, so the refusal has to live at a boundary of ours. Revisit when a tracker refuses an unsourced outcome at its own API |
+| `routers/runs.py` | the write path that refuses an outcome without a scorer, the validity endpoint, a run served in any of the three provenance standards, and the endpoint that records an approval | BUILD. Measured 2026-09-12: MLflow accepts an unsourced outcome from any client and stamps it `CODE/default`, so the refusal has to live at a boundary of ours. Revisit when a tracker refuses an unsourced outcome at its own API |
 | `recording.py` | the observer seam a served call passes through | BRIDGE. `mcp` 2.x ships `ServerMiddleware`, the same seam for that transport; `mcp.server.ObservingMiddleware` adapts ours through it, so a host implements one observer and every served call reaches it |
 | `domain/run_record.py` | the table behind the BUILD row above | BUILD, see the build table. Revisit when that row says to |
-| `domain/outcomes.py` | the label vocabulary and the rules over a structural protocol | BRIDGE onto MLflow's assessment source, see the 2026-09-11 check below |
+| `domain/outcomes.py` | the label vocabulary, the rules over a structural protocol, and the fields the cross-cutting capabilities write: principal, classification, isolation tier, redaction, approvals | BRIDGE onto MLflow's assessment source for the label; see the store question below. The other fields are ours: no tracker has a place for who approved what or what class of data a run touched |
 | `domain/epochs.py` | declaring that a revision changed a field's meaning, and refusing to pool across it | BUILD. No tracker records a dependency version as a pooling key. Revisit when one does |
 | `domain/integrity.py` | a hash chain over audit fields, `hashlib` only | BUILD, deliberately modest. Revisit when the store moves to a database with native tamper evidence, at which point delete this |
 | `hpc/clusters.py` | cluster facts as YAML data with a no-secrets guard | ADOPT PyYAML and pydantic; the profile schema is ours and small |
@@ -112,10 +112,10 @@ A private copy of a shared concern does not fail loudly. It drifts, and the drif
 measurement artifact somewhere far from the copy. When a row here says ADOPT and our code does it
 anyway, that is a defect, not a preference.
 
-## Checked against the world, 2026-09-11
+## Checked against the world
 
-Five verdicts above were re-examined against what is actually published. Four moved, and one of
-them moved against us, which is the reason this section exists rather than a quiet edit.
+Verdicts above are re-examined against what is published, and a verdict that moves is recorded
+here with its reason rather than edited quietly. Two of the moves went against us.
 
 **A label's source is not our idea.** MLflow's assessment model already attaches a source to every
 judgement, typed as human, LLM judge, or code. The claim that nobody records label provenance was
@@ -147,10 +147,36 @@ which proposals land. Two attributes would carry most of our argument into a sta
 implement: one naming the scaffold identity that produced a trace, one naming the authority of an
 outcome label rather than only its modality. Neither is a new standard.
 
-**One thing to carry to the AI Factory's requirements that we did not have.** Evaluation is being discussed as a
-compute bottleneck in its own right. The acceptance suite has no agentic workload, which was
-already remark A1, and no evaluation workload either, which nobody had noticed.
+**One thing to carry to the AI Factory's requirements.** Evaluation is being discussed as a
+compute bottleneck in its own right. The acceptance suite has no agentic workload and no
+evaluation workload either; `cross-cutting.md` says so as its sixth sentence.
 
+**MCP moved under us.** The SDK went to 2.x for the 2026-07-28 protocol, with OpenTelemetry
+tracing on by default and an in-memory client for tests. The hand-rolled server here still
+announced `2025-06-18`. It is replaced by the SDK in the service extra; the four tools and the
+pure dispatch are what remain ours. Two consequences: the SDK traces through the API's global
+provider, so `configure_tracing` sets it, and a test proves an SDK span reaches the exporter; and
+the recording seam runs as the SDK's own `ServerMiddleware`, so the `recording.py` row's BRIDGE
+is real rather than intended.
+
+**The AI Act dates moved; the requirement did not.** The Digital Omnibus defers the Annex III
+high-risk obligations to 2 December 2027 and Annex I to 2 August 2028. GPAI provider duties and
+the Commission's enforcement powers stay on 2 August 2026. `integrity.py` and `compliance.md` say
+so.
+
+**The Dutch Cybersecurity Act is live.** In force 15 August 2026, no transition period.
+
+**RestrictedPython had a complete sandbox escape** (positional-only parameters, fixed in 8.3). It
+does not change the BRIDGE verdict, and it is the reason the pre-filter's docstring says what it
+says: nothing at this layer is an isolation boundary.
+
+**The GenAI conventions are Development, in their own repository, on their own cadence.** Not one
+attribute is marked stable. Both vocabulary packages are pinned in the service extra, so the
+literal fallbacks are not what runs in the suite, and a test holds every fallback literal to the
+installed value. The two attributes this repository keeps carrying as extensions, scaffold
+identity and label authority, are written up in `proposals.md`, ready to file. The venue is the
+Linux Foundation's Agentic AI Foundation, where MCP and the conventions now live, not a private
+schema.
 
 ## The store question, measured 2026-09-12
 
@@ -171,36 +197,3 @@ is enforced at exactly one place, and MLflow's API is not that place. MLflow rem
 what it is good at, the trace UI and the export target, through `mlflow_source_type`. Revisit
 when MLflow makes the assessment source mandatory at the API and records who wrote it, since
 both of the failing checks would then pass.
-
-## Checked against the world, 2026-09-12
-
-**MCP moved under us.** The SDK went to 2.x for the 2026-07-28 protocol, with OpenTelemetry
-tracing on by default and an in-memory client for tests. Our hand-rolled server still announced
-`2025-06-18`. It is replaced by the SDK in the service extra; the four tools and the pure dispatch
-are what remain ours. Two consequences were only half-taken at first and are now taken: the SDK
-traces through the API's global provider, so `configure_tracing` sets it, and a test proves an
-SDK span reaches the exporter; and the recording seam runs as the SDK's own `ServerMiddleware`
-(`ObservingMiddleware`), so the `recording.py` row's BRIDGE is real rather than intended.
-
-**The AI Act dates moved; the requirement did not.** Regulation (EU) 2026/1744, the Digital
-Omnibus, in force 27 July 2026, defers the Annex III high-risk obligations to 2 December 2027 and
-Annex I to 2 August 2028. GPAI provider duties and the Commission's enforcement powers stay on
-2 August 2026. `integrity.py` and `compliance.md` say so now.
-
-**The Dutch Cybersecurity Act is live.** In force 15 August 2026, no transition period. Unchanged.
-
-**RestrictedPython had a complete sandbox escape** (CVE-2026-55830, positional-only parameters,
-fixed in 8.3). It does not change the BRIDGE verdict, and it is the reason the pre-filter's
-docstring says what it says: nothing at this layer is an isolation boundary.
-
-**The GenAI conventions are where they were.** Every `gen_ai.*` attribute is still Development,
-in the dedicated repository. The 2026-09-11 note stands, with two changes on our side: both
-vocabulary packages are now pinned in the service extra, so the literal fallbacks are no longer
-what runs in the suite, and a test holds every fallback literal to the installed value. The two
-attributes named on 2026-09-11 are written up as proposals in `docs/architecture/proposals.md`,
-ready to file.
-
-**Agent observability is being standardised under the Linux Foundation's Agentic AI Foundation**,
-with MCP, goose and AGENTS.md as founding projects and structured observability on the 2026
-roadmap. That is the venue for the two attributes named above, scaffold identity and label
-authority, not a private schema.

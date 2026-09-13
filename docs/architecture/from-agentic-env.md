@@ -31,14 +31,17 @@ are the only thing that stops a rebuild reproducing a year of mistakes.
 | limits resolved when read, not at import | `agentic_base.limits` |
 | the tool contract | `agentic_base.tools.types` |
 | the curated MCP surface and the recording seam | `agentic_base.mcp.server`, `agentic_base.recording` |
+| the provenance emitters, on the standards' own libraries | `agentic_base.provenance`, with the scorer and its authority as a declared extension |
 
 ## What has moved back, as imports
 
-As of 2026-09-13, agentic-env's merge request !279 imports the job-result protocol from here and
-records the installed base-layer version beside every rung fingerprint. Three follow-ups are open
-on top of it: the span vocabulary read from here, the provenance emitters replaced by
-`agentic_base.provenance`, and the MCP transport on the official SDK. Each one deletes an
-agentic-env copy.
+agentic-env imports four things from here and has deleted its copy of each: the job-result
+protocol, with its own marker lines passed as parameters; the span vocabulary, which a test there
+holds to being read rather than restated; the provenance documents, which it extends through the
+standards' own libraries with the agents, prompt, inputs and content-addressed artifacts only it
+knows; and the MCP transport, which is the official SDK on both sides. It records the installed
+version of this layer beside every run and refuses to pool runs across a version no epoch
+declares, so a release here that changes behaviour cannot be mistaken for the same software.
 
 ## Left out
 
@@ -98,7 +101,7 @@ it destroys the finding the store exists to get.
 ## What the first import found did not fit
 
 Recorded here because the first consumer was expected to falsify more of the design than another
-month of guards would, and it should be visible whether it did. It did, five times in two days.
+month of guards would, and it should be visible whether it did. It did, six times.
 
 **The markers.** `agentic-env` adopted this protocol before this package existed and its jobs
 print `###AGENTIC_JOB_RESULT_START###`. A reader that knew only our marker would have reported

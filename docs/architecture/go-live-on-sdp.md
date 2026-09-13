@@ -50,7 +50,13 @@ owners, not a decision to make here.
 **Secrets never reach a job script.** A user's model credential or object-store key must not be
 interpolated into a submitted script or exported into a job environment on a shared filesystem.
 The platform has a secret-management guide; the execution plane has to honour it. Settle it
-before there is a service on top.
+before there is a service on top. The larger form of the same question is delegated credentials:
+an agent acting for a person needs a token minted for that person and that session, and
+`blocks.md` puts that design with SRAM before any SURF-run agent goes live.
+
+**What the tenant sets.** Every run carries the class of data it touched and the isolation tier
+it ran under. Today the writer states both. On the platform the tenant's use case should set
+them, so the service needs a place in the tenant configuration to read them from.
 
 ## What the platform enforces regardless
 
