@@ -42,10 +42,10 @@ that one of them is escapable by a determined attacker is welcome and will be ha
 - All three `supply-chain` jobs are required checks, beside the gate on both interpreters.
 - CodeQL on every push and pull request; secret scanning with push protection.
 - OpenSSF Scorecard on every push to `main` and weekly, published to code scanning.
-- Every release carries build provenance for the distribution files. Releases after v0.3.4 also
-  carry an SBOM attestation, the SBOM taken from the wheel installed on the consumer floor, and
-  PyPI receives the same files, each verified against its provenance before upload; for v0.3.4
-  and earlier only the files on the GitHub release verify. Check one with
+- Every release carries build provenance for the distribution files. From 0.4.0 it also carries
+  an SBOM attestation, the SBOM taken from the wheel installed on the consumer floor, and PyPI
+  receives the same files, each verified against its provenance before upload; for 0.3.4 and
+  earlier only the files on the GitHub release verify. Check one with
   `gh attestation verify <file> --repo saradamian/agentic-base`.
 - Workflow actions are pinned by commit hash with the version in a trailing comment.
 - `tests/test_public_hygiene.py` on every change: no page or file may carry a link to a host

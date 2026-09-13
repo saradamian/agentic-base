@@ -92,7 +92,10 @@ install is affected and not only the service.
 
 What changed because of it. The publish job now uploads the files the release job attested and
 verifies each before it does, and a test fails if it builds again; v0.3.4 on PyPI stays as it
-was, and the next release is the first whose PyPI wheel verifies. The table above now says which
+was. 0.4.0 is the first release through that path, and it was checked from the outside: the
+wheel and sdist PyPI serves are byte-identical to the GitHub release assets, the PyPI wheel
+verifies against its provenance, and its SBOM attestation verifies and names `h11` 0.16.0, so
+the first question in the table above is now answered by the release itself. The table above now says which
 version of the GitHub CLI the verify command needs, because the responder's machine had one from
 2022 without it. And it says what the SBOM covers, the library installed on the consumer floor,
 so that for the service extras the lock at the tag is the answer.
