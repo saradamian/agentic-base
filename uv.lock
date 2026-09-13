@@ -5710,7 +5710,6 @@ service = [
 [package.dev-dependencies]
 dev = [
     { name = "coverage" },
-    { name = "httpx2" },
     { name = "mkdocs-techdocs-core" },
     { name = "mlflow", marker = "python_full_version < '3.14'" },
     { name = "mypy" },
@@ -5756,7 +5755,6 @@ provides-extras = ["mlflow", "provenance", "service"]
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", specifier = "==7.16.0" },
-    { name = "httpx2" },
     { name = "mkdocs-techdocs-core", specifier = "==1.7.1" },
     { name = "mlflow", marker = "python_full_version < '3.14'", specifier = ">=3.16,<4" },
     { name = "mypy", specifier = "==2.3.1" },

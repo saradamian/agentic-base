@@ -78,7 +78,6 @@ Changelog = "https://github.com/saradamian/agentic-base/releases"
 
 [dependency-groups]
 dev = [
-  "httpx2",
   "coverage==7.16.0",
   "mypy==2.3.1",
   "mypy-extensions==1.1.0",
