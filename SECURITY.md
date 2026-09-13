@@ -16,7 +16,9 @@ Use GitHub's private vulnerability reporting for this repository:
 and nobody else. Do not open a public issue for a security problem.
 
 You will get an acknowledgement within five working days, and a decision on whether it is
-accepted within fifteen. Accepted reports get a fix, a release, and a credit in the advisory
+accepted within fifteen. If the report is of a vulnerability being actively exploited, say so in
+the first line: that starts a 24-hour clock under the Cyber Resilience Act, and
+`docs/architecture/incident-response.md` is what we follow. Accepted reports get a fix, a release, and a credit in the advisory
 unless you ask otherwise.
 
 ## Scope

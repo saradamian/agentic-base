@@ -20,6 +20,7 @@ nav:
     - From agentic-env: architecture/from-agentic-env.md
     - Going live on SDP: architecture/go-live-on-sdp.md
     - Compliance evidence: architecture/compliance.md
+    - Incident response: architecture/incident-response.md
     - Redaction: architecture/redaction.md
     - Operational traps: architecture/operational-traps.md
     - What Kubernetes changes: architecture/kubernetes.md

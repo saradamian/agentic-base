@@ -15,6 +15,7 @@ The [readme](include-readme.md) covers the service in a page. After that:
 - [Repository process](architecture/process.md): the rulesets, and what the tests assert about the pipeline
 - [Observability](OBSERVABILITY.md): what the service emits and where to point it
 - [Compliance evidence](architecture/compliance.md): what the record produces for the AI Act and NIS2
+- [Incident response](architecture/incident-response.md): the two clocks, who is told, and what this repository can hand you
 - [Redaction](architecture/redaction.md): what removes personal data from a transcript, and what each mode catches and costs
 - [From agentic-env](architecture/from-agentic-env.md): what was extracted, what was left, what the first consumer found
 - [Going live on SDP](architecture/go-live-on-sdp.md): the deployment repository and the open questions
