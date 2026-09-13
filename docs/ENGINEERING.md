@@ -203,7 +203,9 @@ vulnerability disclosed after the pin lands arrives through nothing at all. Two 
 required to merge: a dependency review that refuses a new dependency with a known vulnerability
 of moderate severity or above, and an audit of the fully pinned set, every extra included. A
 release carries build provenance and an SBOM attestation for the distribution files, the SBOM
-taken from the wheel installed on the consumer floor. Actions are pinned by commit hash.
+taken from the wheel installed on the consumer floor. PyPI receives those files, never a second
+build: a rebuild has a different hash, and what consumers install would carry no attestation at
+all. Actions are pinned by commit hash.
 
 Credentials are the other half, and a scanner only finds what its rules describe. Measured here:
 gitleaks reported a planted AWS key and missed a planted key in the shape a SURF service issues,
@@ -214,7 +216,8 @@ test rather than copied.
 
 **Guard:** the three jobs in `.github/workflows/supply-chain.yml` are required status checks, so
 none can be skipped by a green gate; `tests/test_secret_scan.py` fails when the added rule stops
-matching the module's pattern; the release workflow refuses to publish without the attestations.
+matching the module's pattern; the release workflow refuses to publish without the attestations,
+and `tests/test_process.py` fails if the publish job builds the distribution again.
 
 ## Settings that are free on the first day
 

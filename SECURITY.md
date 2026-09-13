@@ -42,7 +42,9 @@ is escapable by a determined attacker is welcome and will be handled, but it is 
   service issues, which no provider rule matches.
 - OpenSSF Scorecard on every push to `main` and weekly, published to code scanning.
 - Every release carries build provenance and an SBOM attestation for the distribution files, the
-  SBOM taken from the wheel installed on the consumer floor.
+  SBOM taken from the wheel installed on the consumer floor. PyPI receives the same files, each
+  verified against its provenance before upload. Check one with
+  `gh attestation verify <file> --repo saradamian/agentic-base`.
 - Workflow actions are pinned by commit hash with the version in a trailing comment.
 - `tests/test_public_hygiene.py` on every change: no page or file may carry a link to a host
   outside the public list, an email address, a home path, a private address or a reference to an

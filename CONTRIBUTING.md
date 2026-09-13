@@ -91,8 +91,10 @@ Semantic versioning. The version is the git tag; nothing is edited to cut a rele
 - Patch releases fix without changing an interface.
 - Tag `vX.Y.Z` on `main`. The release workflow verifies the tag's signature against
   `.github/allowed_signers`, builds the distribution, refuses if the built version differs from
-  the tag, checks the wheel imports on Python 3.10, attests it, publishes a GitHub release with
-  generated notes, and publishes to PyPI by trusted publishing. No token is stored anywhere.
+  the tag, checks the wheel imports on Python 3.10, attests the distribution files and an SBOM,
+  and publishes a GitHub release with generated notes. A second job takes those same files,
+  verifies each against its attestation, and publishes them to PyPI by trusted publishing. No
+  token is stored anywhere.
 - One version per merge a consumer is waiting on. A local tag is never re-pointed after it has
   been announced; three releases in one day crossed with a push that way.
 - `CITATION.cff` carries the version and the release date; update both in the same change that
