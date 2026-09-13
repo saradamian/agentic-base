@@ -26,7 +26,8 @@ The mermaid block at the bottom needs a mermaid-capable viewer.
   │ forge │execution │ web      │ channels │ workspace   what an agent DOES │
   └───┬───┴────┬─────┴────┬─────┴────┬─────────┬────────┬───────────┬───┘
       │  scoped by IDENTITY and DELEGATED CREDENTIALS · billed by ACCOUNTING │
-      │  started by TRIGGERS · gated by HUMAN APPROVAL                       │
+      │  started by TRIGGERS · gated by OVERSIGHT · tiered by CLASSIFICATION │
+      │  redacted before the write · recorded in a LEDGER                     │
       │                    │          │          │        │          │
   CONTRACTS   │  THIS REPOSITORY   │          │          │        │
   ┌───────────▼────────────▼──────────▼──────────▼────────▼──────────▼────┐
@@ -108,7 +109,10 @@ flowchart TB
     subgraph scope[Every block is scoped and billed]
         ID[identity and delegated credentials: SURFconext, SRAM]
         AC[accounting: GPU-seconds, storage, joules]
-        TR[triggers and human approval]
+        TR[triggers and oversight]
+        CL[classification: the level selects the tier]
+        LG[ledger: append-only, signed; the chain until then]
+        RD[redaction before the write]
     end
     subgraph base[Contracts - this repository]
         C1[tool contract]

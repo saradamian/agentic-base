@@ -66,23 +66,21 @@ any of the others. Without them no SURF-run agent can exist.
 | **channels** | how people reach an agent and it reaches them: Matrix, Microsoft 365 mail and calendar, meeting audio through Willma's transcription, later Teams | `matrix_bot` (100 call sites), `briefer` (Microsoft Graph, 61; Whisper through Willma, 21), Fred as the AI Hub's chat front | an agent that cannot be spoken to is a batch job. Internal services want the same front door |
 | **workspace** | the place a person and an agent work on the same files: JupyterHub, code-server, a project's files and environment | agentic-env's branch workspace and sandbox-root handling; co-creation spaces are in the AI Factory's scope with no system behind them yet | an agent working on someone's code needs the workspace the person sees. Missing |
 
-Three more things cut across every block and are not blocks either. They are listed with
-identity and accounting because leaving them implicit is how a platform ends up with a service
-account that can do everything.
+## Capabilities that cut across every block
 
-- **Delegated credentials.** An agent acting for a person acts with that person's rights, on
-  GitLab, on Slurm, on the data stores, and no more. Today every product carries its own token
-  in an environment variable, which is one identity for everyone who talks to it. The block
-  surfaces need a token minted for the user and the session, scoped and expiring, which is
-  SRAM's job to issue and every block's job to demand.
-- **Triggers.** A service agent starts on an event: a merge request opened, a message in a room,
-  a mail arriving, a schedule. agentic-env's runtime has schedule, file and user triggers and
-  its GitLab product polls; the platform has webhooks. The trigger belongs to the control
-  plane; the block only needs to name the events it emits.
-- **Human approval.** A write to a repository, a job submission, a message sent on someone's
-  behalf: each needs a place where a person can say yes, and a record that they did.
-  agentic-env's supervisor gates this in-process; a SURF service needs it as a surface people
-  see, and the run record is where the decision is kept.
+Six more things are capabilities in their own right and not blocks. They are listed with
+identity and accounting because leaving them implicit is how a platform ends up with a service
+account that can do everything, and a record nobody can classify, audit or overrule.
+
+| capability | what it is | what exists today | what it needs |
+|---|---|---|---|
+| **oversight** | a person approves, overrides or stops an agent's action, and the record shows who did, when, and what. The AI Act's article 14 for high-risk systems | `approvals` on every run and an endpoint to add one; agentic-env's in-process supervisor | a surface people see, per block; the forge and channels blocks obtaining an approval before a write, a submission or a send |
+| **classification** | a use case carries a confidentiality, integrity and availability level; the level selects the isolation tier, the logging depth, the retention and whether transcripts are stored. Set per tenant, never by the agent | `classification` and `isolation_tier` on every run; personal or health data on the community tier is refused | the tenant's use case setting both; the execution and data blocks reading them |
+| **ledger** | an append-only, signed audit store for what agents did. The evidence NIS2's clock and the AI Act's record-keeping ask for | the hash chain over audit fields, which detects an edit and is neither a signature nor append-only | the platform's ledger, or a signed append-only store the runs block writes to; until then the chain is the interim and must not be presented as more |
+
+| **delegated credentials** | an agent acting for a person acts with that person's rights, on GitLab, on Slurm, on the data stores, and no more | every product carries its own token in an environment variable: one identity for everyone who talks to it. `principal` on every run records who it acted for | a token minted for the person and the session, scoped and expiring; SRAM issues it, every block demands it |
+| **triggers** | a service agent starts on an event: a merge request opened, a message in a room, a mail, a schedule | agentic-env's schedule, file and user triggers; its GitLab product polls; the platform has webhooks | the control plane's; a block names the events it emits |
+| **redaction** | personal data removed from a transcript before it is written, with the instrument named | `redaction` on every run, `none` until something runs | Presidio or equivalent at the recording seam |
 
 ## Could SURF run a code companion, or a GitLab companion, as a service?
 
