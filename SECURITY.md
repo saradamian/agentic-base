@@ -34,7 +34,10 @@ is escapable by a determined attacker is welcome and will be handled, but it is 
 - `supply-chain` workflow: a dependency review on every pull request, refusing a new dependency
   with a known vulnerability of moderate severity or above, and a `pip-audit` of the fully pinned
   set, every extra included, on every push and pull request. Both are required checks.
-- CodeQL on every push and pull request; secret scanning with push protection.
+- CodeQL on every push and pull request; secret scanning with push protection. GitHub's generic,
+  non-provider patterns are not available on this repository, so the `secrets` job scans every
+  file and every commit with gitleaks, plus one rule of our own for a key in the shape a SURF
+  service issues, which no provider rule matches.
 - OpenSSF Scorecard on every push to `main` and weekly, published to code scanning.
 - Every release carries build provenance and an SBOM attestation for the distribution files, the
   SBOM taken from the wheel installed on the consumer floor.

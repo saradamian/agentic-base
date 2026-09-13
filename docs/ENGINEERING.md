@@ -205,9 +205,16 @@ of moderate severity or above, and an audit of the fully pinned set, every extra
 release carries build provenance and an SBOM attestation for the distribution files, the SBOM
 taken from the wheel installed on the consumer floor. Actions are pinned by commit hash.
 
-**Guard:** the two jobs in `.github/workflows/supply-chain.yml` are required status checks, so
-they cannot be skipped by a green gate; the release workflow refuses to publish without the
-attestations.
+Credentials are the other half, and a scanner only finds what its rules describe. Measured here:
+gitleaks reported a planted AWS key and missed a planted key in the shape a SURF service issues,
+because that shape matches no provider rule. GitHub's own generic patterns need paid Secret
+Protection and its API refuses to enable them on this repository. So gitleaks runs with one rule
+added, and that rule is the credential pattern the redaction layer already uses, held to it by a
+test rather than copied.
+
+**Guard:** the three jobs in `.github/workflows/supply-chain.yml` are required status checks, so
+none can be skipped by a green gate; `tests/test_secret_scan.py` fails when the added rule stops
+matching the module's pattern; the release workflow refuses to publish without the attestations.
 
 ## Settings that are free on the first day
 

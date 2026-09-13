@@ -6,8 +6,13 @@
 #   audit              the fully pinned dependency set, every extra included, checked against the
 #                      advisory databases on every push and pull request. pip-audit reads the lock
 #                      export and installs nothing.
+#   secrets            every file and every commit, scanned for credentials by gitleaks. GitHub's
+#                      own secret scanning covers provider-shaped tokens only: its generic
+#                      patterns need paid Secret Protection, and the API refuses to enable them
+#                      here. A key issued by a site's own service matches no provider rule, which
+#                      is the class this closes. Adopted from willma2, which runs the same tool.
 #
-# Both are required checks, so neither can be permitted to fail into silence.
+# All three are required checks, so none can be permitted to fail into silence.
 name: supply-chain
 
 on:
@@ -28,6 +33,34 @@ jobs:
         with:
           fail-on-severity: moderate
           comment-summary-in-pr: on-failure
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history: a credential that was committed and then removed is still a
+          # credential to rotate, and it is exactly what a scan of the working tree misses.
+          fetch-depth: 0
+      # The binary, pinned by version and checksum, rather than the action: the action needs a
+      # licence key for repositories owned by an organisation, and this one is meant to move to
+      # a SURF group. Bump both lines together.
+      - name: install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          set -euo pipefail
+          url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL "$url" -o gitleaks.tar.gz
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar xzf gitleaks.tar.gz gitleaks
+      # --redact so a finding names its file and rule and never reproduces the secret in a log
+      # anyone can read.
+      - name: scan the working tree
+        run: ./gitleaks dir . --config .gitleaks.toml --no-banner --redact --exit-code 1
+      - name: scan every commit
+        run: ./gitleaks git . --config .gitleaks.toml --no-banner --redact --exit-code 1
 
   audit:
     runs-on: ubuntu-latest
