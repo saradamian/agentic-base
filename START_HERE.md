@@ -38,8 +38,7 @@ script on a shared filesystem. Replacing that seam with an interface is the firs
 that helps both sides.
 
 The AI Factory is buying a machine whose functional architecture has three verbs and no plane for
-observing or evaluating anything. Its own service catalogue marks the relevant rows as partial or
-absent.
+observing or evaluating anything, and its own scope treats both as partial.
 
 ## Why it is shaped this way
 

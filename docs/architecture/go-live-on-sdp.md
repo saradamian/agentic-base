@@ -8,7 +8,7 @@ platform's own onboarding documentation.
 
 This repository plus SURF's private overlay, composed with `scripts/overlay.py` and kept current
 by merging `main`. The overlay carries everything that says where the software runs: the pipeline
-definition that includes `sdp/components/pipelines/python-application`, the Flux and Kustomize
+definition that includes the platform's pipeline component for Python applications, the Flux and Kustomize
 manifests per environment, the Backstage catalogue entry, the owners file, the platform's
 Renovate configuration, and this runbook's site-specific half. See `deployment-overlay.md` for
 the contract and the commands.

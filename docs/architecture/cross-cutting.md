@@ -24,15 +24,12 @@ four are now fields on the record, with defaults that keep every existing writer
 corpus recorded from now on can say which runs predate the solution, and a solution has a place
 to write to when it arrives.
 
-| gap | in the structure now | what fills it later | AI Factory task it belongs to |
+| gap | in the structure now | what fills it later | AI Factory area it belongs to |
 |---|---|---|---|
 | nothing redacts personal data before a transcript is written | `redaction` on every run: `none`, or the instrument's name and version. A transcript with `none` and a personal classification is a finding | Presidio at the recording seam, in the ledger as ADOPT-when-built | the LLM sandbox with safety filters and logging; data governance |
 | no record says what class of data a run touched | `classification` on every run, six levels from unclassified to health, and `isolation_tier`. One rule already enforced: personal or health data cannot have run on the community tier | the tenant's use case sets both; the execution block reads them to pick the tier | data governance; the sandbox architecture with its isolation and access policies |
 | no block demands a delegated credential | `principal` on every run: the person it acted for, empty for a service identity. Recorded so the corpus can separate the two populations | scoped, expiring credentials issued by the federation and demanded by every block | user access; the identity federation the platform already runs |
 | approvals are not modelled | `approvals` on every run, each with action, decision, who and when, and an endpoint to add one | the channels and forge blocks write one before a write, a submission or a send | evaluation and compliance: the logging, evidence and audit infrastructure |
-
-The AI Factory's task names above are the plan's own headings, paraphrased; the numbering is in
-the private deployment overlay's copy of this map, because the plan is not public.
 
 ## The obligations, and what each asks of an agent platform
 
@@ -97,12 +94,11 @@ whole set.
 
 ### NEN 7510, the healthcare extension
 
-Health use cases asked for it. The advice from the Dutch CISO community in August 2026, and
-SURF's own security office, was that ISO 27001 suffices unless SURF itself processes, stores or
+Health use cases ask for it. The position SURF works from: ISO 27001 suffices unless SURF itself processes, stores or
 enriches patient data on a hospital's behalf; if it does, NEN 7510 applies and adds
 healthcare-specific controls, of which the ones that bite here are logging of every access to
 patient data at record level, and separation of duties for whoever operates the platform. Two
-further asks came with that advice: an assurance statement (ISAE 3000 type 2) for the parties
+further asks come with that: an assurance statement (ISAE 3000 type 2) for the parties
 involved, and a confidentiality, integrity and availability level defined per use case, with
 measures matched to it. A medical-device question hangs over any use case where the output
 guides care.
@@ -119,7 +115,7 @@ optionality: the measures above are required, not recommended, for that tenant c
 
 ## What the vision should say, and does not yet
 
-The AI Factory's plan already lists an LLM sandbox with safety filters and logging, a logging,
+The AI Factory's scope already includes an LLM sandbox with safety filters and logging, an
 evidence and audit infrastructure, a model registry, data provenance, secure enclaves,
 co-creation environments and a portability toolkit. What it does not say, and what the blocks
 design should:
@@ -130,8 +126,8 @@ design should:
    where it is enforced. Say it as the design's first rule.
 2. **Classification decides the tier.** A use case carries a confidentiality, integrity and
    availability level; the level selects the isolation tier, the logging depth, the retention
-   and whether transcripts are stored at all. The agent does not choose. The healthcare advice
-   asks for exactly this and nothing in the current picture holds it.
+   and whether transcripts are stored at all. The agent does not choose. The healthcare use cases
+   ask for exactly this and nothing in the current picture holds it.
 3. **An agent acts as a person, never as a service.** Delegated, scoped, expiring credentials
    from the federation are the difference between an agent platform and a shared service
    account with a chat interface. This is the one item that blocks every SURF-run agent, and
@@ -143,8 +139,8 @@ design should:
    attestations are produced by running the work. Nobody assembles them for an audit. That is
    what "trustworthy AI as default" has to mean in engineering terms, and it is what this
    repository is for.
-6. **Evaluation is a workload.** The acceptance suite for the machine has no agentic workload
-   and no evaluation workload. Both will run on it, and both have a cost model unlike training
+6. **Evaluation is a workload.** The machine's acceptance criteria name neither an agentic
+   workload nor an evaluation workload. Both will run on it, and both have a cost model unlike training
    or inference.
 
 The items in the "not built yet" cells above are the work these six sentences imply, in the

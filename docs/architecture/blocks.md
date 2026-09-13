@@ -6,12 +6,8 @@ SURF intends to offer a set of common building blocks, tools and skills, that an
 internally and externally. This page says what a block is, which blocks the existing systems
 imply, how a block composes with others and is adapted by a downstream, and where this
 repository stops. Logging, security, safety and compliance cut across every block and have their
-own page, `cross-cutting.md`.
-
-Checked on 2026-09-13 against the internal wiki (the AI Factory architecture and MLOps design,
-the design memo, the user interviews, the Developer Platform overview, the AI-at-SURF product
-list), against the AI Factory's plan and service list, and against the code in agentic-env,
-willma2 and the AI4Science prototype.
+own page, `cross-cutting.md`. The list was checked against what SURF runs and against the code
+in agentic-env, willma2 and the AI4Science prototype.
 
 ## Three layers
 
@@ -28,26 +24,26 @@ submit jobs, and a block that does belongs with the people who run the scheduler
 
 ## The blocks the existing systems imply
 
-The first list had six, and the second nine. Checking it against what SURF runs, what the AI Factory names as its
+The first list had six, and the second nine. Checking it against what SURF runs and what the AI Factory names as its
 common denominators, identity and access, a data plane with object and POSIX tiers, accounting
 and quota, a shared GPU pool, a common home for artifacts, uniform observability, and tenant
 isolation, adds three and sharpens two.
 
 | block | wraps | what exists today | status |
 |---|---|---|---|
-| **hpc** | Slurm on Snellius, LUMI and the AI Factory; a served model on it | agentic-env's slurm_companion, 51 tools, two curated profiles, an SSH backend; three separate slurmrestd clients in willma2, the AI4Science prototype and a stub in `python_slurm_wrapper` | the most duplicated capability at SURF and the one to consolidate, in its own package, once slurmrestd's availability is settled with the operators |
+| **hpc** | Slurm on Snellius, LUMI and the AI Factory; a served model on it | agentic-env's slurm_companion, 51 tools, two curated profiles, an SSH backend; three separate slurmrestd clients in willma2, the AI4Science prototype and an internal stub | the most duplicated capability at SURF and the one to consolidate, in its own package, once slurmrestd's availability is settled with the operators |
 | **inference** | Willma, the AI Hub back office | an OpenAI-compatible endpoint and nothing published as a block; the model catalogue, serve requests and the Whisper transcription that Research Cloud items already call | a block, because every other block's agent needs a model and the catalogue is the thing to expose |
 | **knowledge** | Confluence today; the SURF knowledge base and the education search portals tomorrow | agentic-env's confluence product, 20 tools, already served over MCP with a curated surface; a separate team is building an MCP server for edusources.nl | the cheapest first extraction, and the proof that two teams' MCP servers can share one catalogue |
 | **stacks** | EasyBuild and EESSI: the software environments a job runs in | agentic-env's easybuild product, 10 tools: search, grounding of upstream facts, lint, save. Its recipe validation runs a build in a container, which is the execution block's job, not this one's | ready to extract. Named stacks rather than software so nobody reads it as software development |
 | **data** | the object stores (Swift, LUMI-O, MinIO on the platform), the POSIX tiers, dCache, iRODS and Yoda, Research Drive, the AI Factory's dataset-as-a-service | the AI4Science prototype's dataset vocabulary; agentic-env's staging scripts for LUMI-O; nothing agent-facing | a block, and the largest gap: an agent that cannot find, stage or cite data does not do research |
-| **artifacts** | the container registry, a model registry, dataset versions and checkpoints | GitLab and Harbor registries on the platform; MLflow named as the registry in the AI Factory design; content-addressed artifacts in agentic-env's lineage | missing. The GPT-NL interview asked for exactly this: a shared versioned store and a common registry |
+| **artifacts** | the container registry, a model registry, dataset versions and checkpoints | GitLab and Harbor registries on the platform; MLflow named as the registry in the AI Factory design; content-addressed artifacts in agentic-env's lineage | missing. The large training projects at SURF ask for exactly this: a shared versioned store and a common registry |
 | **identity** | SURFconext and SRAM: who you are, which project you belong to, what you may touch | every block needs it and none carries it; the platform's tenancy model | not a block an agent calls; the thing every block's surface is scoped by. Named so it is not forgotten |
 | **accounting** | GPU-seconds, storage, and energy per tenant and per run | Slurm and EAR accounting on Snellius; the AI Factory asks for accounting "the same way however the work was launched"; the run record carries joules beside tokens | a small read-only block, and the one that answers the question a funder asks first |
 | **runs** | the record and the referee | this repository's service and its four-tool server | exists |
 
-**Workflows are an artifact, not a run.** The platform's deliverables include packaging a
-workflow, code, data pointers and an environment specification, as one thing that can be
-exported, cloned and handed to a cloud with its lineage intact. A run record is the record of one
+**Workflows are an artifact, not a run.** The AI Factory's scope includes packaging a workflow,
+code, data pointers and an environment specification, as one thing that can be exported, cloned
+and handed to a cloud with its lineage intact. A run record is the record of one
 execution of such a package; the Process Run Crate is that record in a standard. The package
 itself lives with the artifacts block, next to containers, datasets and model versions, and the
 runs block references it. Nothing today produces one.
@@ -60,7 +56,7 @@ gets them wrong, which the AI Factory memo says in its own words.
 
 The nine above are what an agent reads and submits to. Checked against agentic-env's twelve
 products, counting the external systems each one actually calls, and against the AI Factory's
-service list, five capabilities used by most products appear in no block: the forge, sandboxed
+scope, five capabilities used by most products appear in no block: the forge, sandboxed
 execution, web egress, the channels people talk to an agent through, and the workspace a person
 and an agent share. Without them no SURF-run agent can exist, whatever the other blocks offer.
 
@@ -70,7 +66,7 @@ and an agent share. Without them no SURF-run agent can exist, whatever the other
 | **execution** | running agent-generated code with a declared isolation tier: a container with a read-only root and no bind mounts, or a microVM, on the platform | `code_companion`'s process sandbox, `swebench`'s Docker and Apptainer containers, `easybuild`'s validation sandbox, `pentest`'s subprocess tools; 63, 197 and 96 call sites. agentic-env's four-layer sandbox says in its own threat model that it is not a security boundary | nobody has said how agent-generated code runs safely on shared HPC with user namespaces disabled, and it is the first thing that breaks when a user runs an agent on the factory. Every product reinvents it. This is the block whose profile maps onto the platform's isolation tiers most directly. The base's structural filter is the pre-filter in front of it, never the boundary |
 | **web** | outbound fetch and search with the SSRF check, an egress allow-list and a budget | `web_fetch` and `web_search` builtins, used by briefer, buca, deck_builder and the research agents | on a shared platform egress is a security decision, not a library call. One block, one policy, one place to log what an agent reached for |
 | **channels** | how people reach an agent and it reaches them: Matrix, Microsoft 365 mail and calendar, meeting audio through Willma's transcription, later Teams | `matrix_bot` (100 call sites), `briefer` (Microsoft Graph, 61; Whisper through Willma, 21), Fred as the AI Hub's chat front | an agent that cannot be spoken to is a batch job. Internal services want the same front door |
-| **workspace** | the place a person and an agent work on the same files: JupyterHub, code-server, a project's files and environment | agentic-env's branch workspace and sandbox-root handling; the platform's co-creation spaces are a stated deliverable with no system behind them yet | an agent working on someone's code needs the workspace the person sees. Missing |
+| **workspace** | the place a person and an agent work on the same files: JupyterHub, code-server, a project's files and environment | agentic-env's branch workspace and sandbox-root handling; co-creation spaces are in the AI Factory's scope with no system behind them yet | an agent working on someone's code needs the workspace the person sees. Missing |
 
 Three more things cut across every block and are not blocks either. They are listed with
 identity and accounting because leaving them implicit is how a platform ends up with a service
@@ -143,11 +139,11 @@ with source confidence, TTL and tier promotion, agent mode, and the manifest tha
 After extraction the agentic-env product is a manifest that imports the block, declares its
 stages and ships its skill.
 
-**Before publishing:** the identifier sweep, since the deploy files and the wiki examples carry
-site strings and a colleague's name has to be caught by hand; a fresh tree with none of
-agentic-env's history; documentation written for a stranger's Confluence. Measured on the
-current product, 1,687 lines, the only site-specific string in code is one image path in a
-compose file, and its fourteen configuration variables carry no SURF value.
+**Before publishing:** the identifier sweep, since deploy files and examples carry site strings
+and a colleague's name has to be caught by hand; a fresh tree with none of agentic-env's
+history; documentation written for a stranger's Confluence. Measured on the current product,
+1,687 lines, the only site-specific string in code is one image path in a compose file, and its
+fourteen configuration variables carry no site value.
 
 ## How people get an agent
 
@@ -167,12 +163,12 @@ internal generative AI platform. Internal use is not a separate design; it is th
 the second way, which is why the GitLab companion is the right first service: SURF is its first
 customer.
 
-## Where the blocks land in the AI Factory's plan
+## Where the blocks land in the AI Factory's scope
 
-The plan's task headings, paraphrased, against the blocks. Every block maps to a task; two
-tasks have no block because they are the platform's own work, not an agent capability.
+The AI Factory's areas of work against the blocks. Every block maps to an area; two areas have
+no block because they are the platform's own work, not an agent capability.
 
-| task, as the plan names it | blocks |
+| area of work | blocks |
 |---|---|
 | model experimentation: an LLM sandbox with safety filters and logging | execution, inference, runs |
 | evaluation and compliance: logging, evidence and audit infrastructure | runs; the cross-cutting page |
@@ -185,8 +181,8 @@ tasks have no block because they are the platform's own work, not an agent capab
 | federated learning infrastructure | execution, data; no agent capability of its own |
 | secure enclaves for sensitive data | execution's isolated tier; the platform's, not a block |
 
-Missing from the plan and present here: forge, channels, web, and delegated credentials. Those
-are the four things a SURF-run agent needs that a model-serving plan does not think of.
+Not in that scope and present here: forge, channels, web, and delegated credentials. Those are
+the four things a SURF-run agent needs that a model-serving scope does not think of.
 
 ## What makes a block composable
 
@@ -221,11 +217,10 @@ are the four things a SURF-run agent needs that a model-serving plan does not th
 
 ## Where this design stands
 
-The internal wiki has no page on an agent-facing layer: nothing on MCP, on skills, or on agents
-as a workload, apart from one product line about an MCP server for the education portals. The
-AI Factory's architecture names three verbs, train, fine-tune and infer, and has no box for an
-agent run. This page is the first written version of the layer. It moves to the wiki once the
-block owners have read it.
+SURF has no other written description of an agent-facing layer: nothing on MCP, on skills, or on
+agents as a workload, apart from one MCP server being built for the education portals. The AI
+Factory's architecture names three verbs, train, fine-tune and infer, and has no box for an agent
+run. This page is the first written version of the layer.
 
 ## Order of work
 
