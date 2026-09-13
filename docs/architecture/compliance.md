@@ -96,11 +96,16 @@ processing service, its customers may leave and take their data and digital asse
 a switching process started on at most two months' notice and completed within 30 days, and from
 12 January 2027 with no charge for it.
 
-That is a design requirement rather than a legal one for us to answer: a tenant's corpus has to
-be exportable in a form that is useful somewhere else. The provenance emitters are the honest
-start, because W3C PROV, OpenLineage and an RO-Crate are formats another platform can read, and
-the run records are exportable through the API. What does not exist is a bulk export of one
-tenant's whole corpus, or a documented path for taking it elsewhere.
+That is a design requirement rather than a legal one for us to answer, and it is met for the
+data: `GET /runs/export?tenant=...` streams a tenant's whole corpus as newline-delimited JSON,
+one run per line in the shape the write path accepts, after a manifest line that says how many
+records follow. The manifest is what makes a truncated download visible, and the shape is what
+makes the file replayable into another instance rather than merely readable. A single run also
+comes in W3C PROV, OpenLineage or an RO-Crate for a reader that is not this service.
+
+What is still missing is the rest of a switching process: an agreed format for the tenant's
+configuration, and the platform-side steps for closing an account, neither of which belongs to
+this service alone.
 
 ## What the platform already produces
 
@@ -153,7 +158,6 @@ core controls, so most of the second half of that table is inherited.
   for a text channel the honest reading of article 50(2) is a disclosure the person sees, recorded
   in `disclosure`, and `content_marking` left at `none` with that fact visible rather than a
   standard invented here.
-- **No tenant export.** The Data Act's switching right needs one; see above.
 - **No decision on the Cyber Resilience Act.** Whether this is out of scope, or a steward's
   obligation from December 2027, is unanswered, and the answer changes who reports what.
 
