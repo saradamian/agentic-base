@@ -49,31 +49,40 @@ def _runs_for(session: Session, tenant: str) -> list[RunRecord]:
     return list(session.exec(select(RunRecord).where(RunRecord.tenant == tenant)).all())
 
 
-def _capped_transcript(record: RunRecord, budget: int) -> dict[str, Any]:
-    """The run with as much of its transcript as *budget* characters allow, and a note saying
-    how much was left out. A chat client pays for every character, and a silent cut would make a
-    long run read as a short one."""
+def _transcript_page(
+    record: RunRecord, from_message: int, max_chars: int, deployment_cap: int
+) -> dict[str, Any]:
+    """One page of a run's transcript, and where the next one starts.
+
+    The budget is the smaller of the caller's ``max_chars`` and the deployment's cap, where ``0``
+    means none. Messages are returned whole, never cut: a message larger than the budget is
+    returned on its own and flagged, so paging always moves forward. The system prompt comes
+    whole on the first page and does not count against the budget, so a page never repeats it.
+    """
     data: dict[str, Any] = json.loads(record.model_dump_json())
     messages = data.pop("messages") or []
-    system_prompt = data.get("system_prompt") or ""
-    prompt_cut = len(system_prompt) > budget
-    if prompt_cut:
-        data["system_prompt"] = system_prompt[:budget]
-    used = min(len(system_prompt), budget)
+    if from_message:
+        data.pop("system_prompt", None)
+    caps = [c for c in (max_chars, deployment_cap) if c > 0]
+    budget = min(caps) if caps else 0
     kept: list[Any] = []
-    for message in messages:
-        size = len(json.dumps(message))
-        if used + size > budget:
+    used = 0
+    index = from_message
+    while index < len(messages):
+        size = len(json.dumps(messages[index]))
+        if budget and kept and used + size > budget:
             break
-        kept.append(message)
+        kept.append(messages[index])
         used += size
+        index += 1
     data["messages"] = kept
     data["transcript"] = {
-        "limit_chars": budget,
+        "limit_chars": budget or None,
         "messages_total": len(messages),
+        "from_message": from_message,
         "messages_returned": len(kept),
-        "system_prompt_truncated": prompt_cut,
-        "truncated": prompt_cut or len(kept) < len(messages),
+        "next_message": index if index < len(messages) else None,
+        "one_message_exceeds_limit": bool(budget and used > budget),
     }
     return data
 
@@ -123,7 +132,13 @@ def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[st
         record = session.get(RunRecord, arguments["run_id"])
         if record is None:
             return {"error": f"run not found: {arguments['run_id']}"}
-        return _capped_transcript(record, limits.mcp_max_transcript_chars)
+        from_message = int(arguments.get("from_message") or 0)
+        max_chars = int(arguments.get("max_chars") or 0)
+        if from_message < 0 or max_chars < 0:
+            return {"error": "from_message and max_chars must not be negative"}
+        return _transcript_page(
+            record, from_message, max_chars, limits.mcp_max_transcript_chars
+        )
 
     if name == "validity_report":
         return report_as_dict(check_comparison(_runs_for(session, arguments["tenant"])))
@@ -266,9 +281,18 @@ def build_server(
         return _call("list_runs", tenant=tenant, arm=arm or None, limit=limit or None)
 
     @server.tool(name="get_run")
-    def get_run(run_id: str) -> dict[str, Any]:
-        """One run in full: the transcript the model received and the environment it ran in."""
-        return _call("get_run", run_id=run_id)
+    def get_run(
+        run_id: str, from_message: int = 0, max_chars: int = 0
+    ) -> dict[str, Any]:
+        """One run: the environment it ran in and its transcript, a page at a time.
+
+        A long transcript comes in pages. transcript.next_message is where the next page starts;
+        call again with from_message set to it until it is null. max_chars asks for smaller pages
+        than the server's limit; 0 means the server's limit.
+        """
+        return _call(
+            "get_run", run_id=run_id, from_message=from_message, max_chars=max_chars
+        )
 
     @server.tool(name="validity_report")
     def validity_report(tenant: str) -> dict[str, Any]:

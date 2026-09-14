@@ -50,8 +50,9 @@ class Limits(BaseSettings):
     """Rows one MCP call may return. A chat client pays for each of them in context."""
 
     mcp_max_transcript_chars: int = 60_000
-    """How much of one run's transcript an MCP call returns. Past it, messages are left out and
-    the result says how many, so a long run is legible as long rather than as short."""
+    """The most transcript, in characters of messages, one MCP call returns; ``0`` for no cap. A
+    caller may ask for less, and pages through a longer transcript with ``from_message``, so the
+    cap bounds one reply without hiding any part of a run."""
 
 
 @cache

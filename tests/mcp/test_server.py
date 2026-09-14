@@ -371,34 +371,140 @@ def test_the_validity_thresholds_come_from_the_limits(session, monkeypatch) -> N
     assert relaxed["flagged"] == []
 
 
-def test_a_long_transcript_is_cut_and_says_how_much_was_left_out(
-    engine, monkeypatch
-) -> None:
-    from agentic_base.limits import get_limits
-
+def _long_run(engine, count: int = 50, size: int = 100) -> str:
     with Session(engine) as s:
         record = RunRecord(
             tenant="hpml",
             item="long",
             arm="baseline",
-            messages=[{"role": "user", "content": "x" * 100} for _ in range(50)],
+            system_prompt="be careful",
+            messages=[
+                {"role": "user", "content": f"{n}:" + "x" * size} for n in range(count)
+            ],
         )
         s.add(record)
         s.commit()
-        run_id = record.run_id
-    monkeypatch.setenv("AP_MCP_MAX_TRANSCRIPT_CHARS", "1000")
-    get_limits.cache_clear()
-    try:
-        with Session(engine) as s:
-            cut = call_tool("get_run", {"run_id": run_id}, s)
-    finally:
-        monkeypatch.undo()
-        get_limits.cache_clear()
-    with Session(engine) as s:
-        whole = call_tool("get_run", {"run_id": run_id}, s)
+        return record.run_id
 
-    assert cut["transcript"]["truncated"] is True
-    assert cut["transcript"]["messages_total"] == 50
-    assert 0 < cut["transcript"]["messages_returned"] == len(cut["messages"]) < 50
-    assert whole["transcript"]["truncated"] is False
-    assert len(whole["messages"]) == 50
+
+def _page(engine, run_id: str, **arguments) -> dict:
+    with Session(engine) as s:
+        return call_tool("get_run", {"run_id": run_id, **arguments}, s)
+
+
+@pytest.fixture()
+def transcript_cap(monkeypatch):
+    from agentic_base.limits import get_limits
+
+    def set_cap(value: int) -> None:
+        monkeypatch.setenv("AP_MCP_MAX_TRANSCRIPT_CHARS", str(value))
+        get_limits.cache_clear()
+
+    yield set_cap
+    monkeypatch.delenv("AP_MCP_MAX_TRANSCRIPT_CHARS", raising=False)
+    get_limits.cache_clear()
+
+
+def test_paging_by_next_message_returns_every_message_exactly_once(
+    engine, transcript_cap
+) -> None:
+    run_id = _long_run(engine)
+    transcript_cap(1000)
+
+    collected, cursor, pages = [], 0, 0
+    while cursor is not None:
+        page = _page(engine, run_id, from_message=cursor)
+        collected += page["messages"]
+        cursor = page["transcript"]["next_message"]
+        pages += 1
+
+    with Session(engine) as s:
+        original = s.get(RunRecord, run_id).messages
+    assert collected == original
+    assert pages > 1
+
+
+def test_the_system_prompt_comes_whole_on_the_first_page_only(
+    engine, transcript_cap
+) -> None:
+    run_id = _long_run(engine)
+    transcript_cap(1000)
+
+    first = _page(engine, run_id)
+    later = _page(engine, run_id, from_message=first["transcript"]["next_message"])
+
+    assert first["system_prompt"] == "be careful"
+    assert "system_prompt" not in later
+
+
+def test_a_deployment_can_turn_the_cap_off(engine, transcript_cap) -> None:
+    run_id = _long_run(engine)
+    transcript_cap(0)
+
+    page = _page(engine, run_id)
+
+    assert len(page["messages"]) == 50
+    assert page["transcript"]["next_message"] is None
+    assert page["transcript"]["limit_chars"] is None
+
+
+def test_a_caller_can_ask_for_smaller_pages_than_the_server_allows(
+    engine, transcript_cap
+) -> None:
+    run_id = _long_run(engine)
+    transcript_cap(0)
+
+    page = _page(engine, run_id, max_chars=500)
+
+    assert page["transcript"]["limit_chars"] == 500
+    assert 0 < page["transcript"]["messages_returned"] < 50
+
+
+def test_a_caller_cannot_raise_the_page_past_the_deployment_cap(
+    engine, transcript_cap
+) -> None:
+    run_id = _long_run(engine)
+    transcript_cap(1000)
+
+    page = _page(engine, run_id, max_chars=10**9)
+
+    assert page["transcript"]["limit_chars"] == 1000
+
+
+def test_a_message_larger_than_the_limit_is_returned_whole_and_paging_moves_on(
+    engine, transcript_cap
+) -> None:
+    run_id = _long_run(engine, count=3, size=5000)
+    transcript_cap(1000)
+
+    first = _page(engine, run_id)
+
+    assert len(first["messages"][0]["content"]) == 5002
+    assert first["transcript"]["one_message_exceeds_limit"] is True
+    assert first["transcript"]["next_message"] == 1
+
+
+def test_a_negative_page_is_an_error(engine) -> None:
+    run_id = _long_run(engine, count=2)
+
+    assert "error" in _page(engine, run_id, from_message=-1)
+
+
+@pytest.mark.asyncio
+async def test_a_client_pages_a_transcript_through_the_tool(
+    engine, transcript_cap
+) -> None:
+    run_id = _long_run(engine, count=20)
+    transcript_cap(600)
+    server = build_server(lambda: Session(engine))
+
+    collected, cursor = [], 0
+    async with Client(server, raise_exceptions=True) as client:
+        while cursor is not None:
+            result = await client.call_tool(
+                "get_run", {"run_id": run_id, "from_message": cursor}
+            )
+            collected += result.structured_content["messages"]
+            cursor = result.structured_content["transcript"]["next_message"]
+
+    assert len(collected) == 20
