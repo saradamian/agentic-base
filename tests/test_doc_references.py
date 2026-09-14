@@ -28,6 +28,7 @@ PAGES += sorted((ROOT / "docs").rglob("*.md"))
 EXTERNAL_NAMES = {
     "OTEL_*": "the OpenTelemetry SDK's own variables",
     "CONFLUENCE_*": "the configuration vocabulary of the reference Confluence server",
+    "SLURM_*": "agentic-env's Slurm product configuration, described where the copies are compared",
 }
 PATH_PREFIXES = ("tests/", "src/", "scripts/", "docs/", ".github/", "examples/")
 METHODS = ("get", "post", "put", "patch", "delete")
