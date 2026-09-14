@@ -13,10 +13,13 @@ FROM ${UV_IMAGE} AS uv
 
 FROM ${PYTHON_IMAGE} AS builder
 
-# The build context carries no git history, so the version setuptools-scm would read from it is
-# passed in. Without it the package reports its fallback, 0.0.0.
-ARG VERSION=0.0.0
-ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
+# The version is read from git, as the release workflow reads it, so the image says which build it
+# is whatever the pipeline passes. git is installed in this stage only; the final image copies the
+# environment and nothing else. VERSION overrides it when a pipeline has a better answer, such as a
+# shallow clone with no tags.
+ARG VERSION=""
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends git >/dev/null \
+    && rm -rf /var/lib/apt/lists/*
 
 # Change the working directory to the `app` directory
 WORKDIR /app
@@ -34,7 +37,8 @@ COPY . /app
 # Sync the project
 RUN --mount=from=uv,source=/uv,target=/bin/uv \
     --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-editable --no-dev --extra service --extra provenance
+    if [ -n "${VERSION}" ]; then export SETUPTOOLS_SCM_PRETEND_VERSION="${VERSION}"; fi \
+    && uv sync --frozen --no-editable --no-dev --extra service --extra provenance
 
 FROM ${PYTHON_IMAGE}
 

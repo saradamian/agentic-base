@@ -131,3 +131,12 @@ def test_the_chart_deploys_the_released_version_by_default() -> None:
     citation = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
 
     assert str(chart["appVersion"]) == str(citation["version"])
+
+
+def test_the_image_can_read_its_own_version() -> None:
+    """With .git out of the build context the image reported 0.0.0, the fallback, whatever it was."""
+    ignored = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+    assert not any(line.strip() in {".git", "**/.git"} for line in ignored)
+    assert "install -y -qq --no-install-recommends git" in dockerfile
