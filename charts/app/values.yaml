@@ -10,6 +10,18 @@ image:
 # Site-specific. Set per environment in the deployment overlay, not here.
 imagePullSecrets: []
 
+# The Secret whose keys become the service's environment: DATABASE_URL, API_TOKENS and, when
+# redaction uses a model, REDACTION_LLM_API_KEY. Created from the platform's secret management.
+# Site-specific. Set per environment in the deployment overlay, not here.
+envFromSecret: ""
+
+migrations:
+  # Run agentic-base-migrate before every install and upgrade, so a new version never starts against
+  # an older schema. The service also refuses to start when the schema is behind, so turning this
+  # off means running the command some other way first.
+  enabled: true
+  backoffLimit: 1
+
 nameOverride: ""
 fullnameOverride: ""
 

@@ -28,11 +28,13 @@ Two fields exist because their absence cost something real and are worth naming 
 
 from __future__ import annotations
 
+import enum
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.types import TypeDecorator
 from sqlmodel import Field, SQLModel
 
@@ -79,6 +81,22 @@ __all__ = [
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _stored_as_value(enum_type: type[enum.Enum]) -> SAEnum:
+    """An enum column holding the member's value as a plain string.
+
+    Not a database enum type: adding a member, as the label sources have been added to, would then
+    need a migration that altered the type, and a migration check comparing tables cannot see a
+    missing member. The models validate what is written, so the column only has to store it.
+    """
+    return SAEnum(
+        enum_type,
+        native_enum=False,
+        create_constraint=False,
+        length=64,
+        values_callable=lambda members: [m.value for m in members],
+    )
 
 
 class UTCDateTime(TypeDecorator[datetime]):
@@ -143,8 +161,12 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     precision: str = Field(default="")
     code_revision: str = Field(default="")
     principal: str = Field(default="", index=True)
-    classification: DataClass = Field(default=DataClass.UNCLASSIFIED, index=True)
-    isolation_tier: IsolationTier = Field(default=IsolationTier.UNSPECIFIED)
+    classification: DataClass = Field(
+        default=DataClass.UNCLASSIFIED, index=True, sa_type=_stored_as_value(DataClass)
+    )
+    isolation_tier: IsolationTier = Field(
+        default=IsolationTier.UNSPECIFIED, sa_type=_stored_as_value(IsolationTier)
+    )
     redaction: str = Field(default="none")
     disclosure: str = Field(default="none")
     content_marking: str = Field(default="none")
@@ -170,12 +192,18 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     """
 
     # --- outcome --------------------------------------------------------------
-    status: RunStatus = Field(default=RunStatus.COMPLETED, index=True)
+    status: RunStatus = Field(
+        default=RunStatus.COMPLETED, index=True, sa_type=_stored_as_value(RunStatus)
+    )
     failure_kind: str = Field(
         default="", description="Free-form detail behind a non-completed status."
     )
     resolved: bool | None = Field(default=None)
-    label_source: LabelSource = Field(default=LabelSource.UNLABELLED, index=True)
+    label_source: LabelSource = Field(
+        default=LabelSource.UNLABELLED,
+        index=True,
+        sa_type=_stored_as_value(LabelSource),
+    )
     labelled_at: datetime | None = Field(default=None, sa_column=Column(UTCDateTime))
 
     # --- honesty of the measurement itself ------------------------------------

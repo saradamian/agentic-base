@@ -148,3 +148,36 @@ def test_an_autoscaler_that_cannot_read_its_metric_raises_an_alert(values) -> No
     )
 
     assert "ScalingActive" in rule
+
+
+TEMPLATES = VALUES.parent / "templates"
+
+
+def test_a_new_version_migrates_the_database_before_it_starts(values) -> None:
+    """The service refuses to start against an older schema, so something has to migrate first."""
+    job = (TEMPLATES / "migration-job.yaml").read_text(encoding="utf-8")
+
+    assert values["migrations"]["enabled"] is True
+    assert '"helm.sh/hook": pre-install,pre-upgrade' in job
+    assert "agentic-base-migrate" in job
+
+
+def test_the_migration_hook_does_not_depend_on_a_resource_the_release_creates_later() -> (
+    None
+):
+    """Helm runs a pre-install hook before the chart's own ServiceAccount exists."""
+    job = (TEMPLATES / "migration-job.yaml").read_text(encoding="utf-8")
+
+    assert "serviceAccountName" not in job
+
+
+def test_the_service_and_its_migration_read_settings_from_the_same_secret(
+    values,
+) -> None:
+    deployment = (TEMPLATES / "deployment.yaml").read_text(encoding="utf-8")
+    job = (TEMPLATES / "migration-job.yaml").read_text(encoding="utf-8")
+
+    assert "envFromSecret" in values
+    for template in (deployment, job):
+        assert "{{- with .Values.envFromSecret }}" in template
+        assert "secretRef:" in template

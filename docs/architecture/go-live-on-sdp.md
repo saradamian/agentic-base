@@ -34,8 +34,10 @@ the request timeout, not a literal; registries are build arguments.
 6. **Match the names.** `project_name`, `tenant_namespace` and `helm_release_name` in the
    overlay's pipeline read `surf-agentic-base` and `services-surf-agentic-base`. They must match
    the tenant that is granted.
-7. **Point `database_url` at the tenant PostgreSQL** through the platform's secret management,
-   and add an Alembic migration step. SQLite is for local development only.
+7. **Point `database_url` at the tenant PostgreSQL** through the platform's secret management, in
+   the Secret the chart's `envFromSecret` names. The chart runs `agentic-base-migrate` as a
+   pre-install and pre-upgrade hook, and the service refuses to start against an older schema.
+   SQLite is for local development only.
 8. **Issue a token per writer** in `API_TOKENS`, through the same secret management, each mapped
    to the tenants that writer records for. Without it the service refuses every data request,
    which is the intended state of a deployment nobody has configured.

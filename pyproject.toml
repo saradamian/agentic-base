@@ -37,6 +37,7 @@ dependencies = [
 [project.scripts]
 agentic-base-mcp = "agentic_base.mcp.server:main"
 agentic-base-mlflow = "agentic_base.provenance.mlflow_export:main"
+agentic-base-migrate = "agentic_base.migrations.schema:main"
 
 [project.optional-dependencies]
 # Export into MLflow's tracking backend; heavy, so its own extra.
@@ -105,6 +106,8 @@ dev = [
 # The marker that lets a consumer's type checker read this package; the classifier alone is a claim.
 "agentic_base" = ["py.typed"]
 "agentic_base.hpc" = ["profiles/*.yaml"]
+# Alembic loads these by path, so they ship as data beside the package that runs them.
+"agentic_base.migrations" = ["script.py.mako", "versions/*.py"]
 
 [tool.setuptools.dynamic]
 readme = { file = ["README.md"], content-type = "text/markdown" }

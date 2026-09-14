@@ -245,8 +245,10 @@ async def test_the_installed_command_serves_the_database_it_is_pointed_at(
 ) -> None:
     """The server is reachable the way a chat client reaches it: a process over stdio."""
     url = f"sqlite:///{tmp_path / 'runs.db'}"
+    from agentic_base.migrations.schema import upgrade
+
+    upgrade(url)
     engine = create_engine(url)
-    SQLModel.metadata.create_all(engine)
     with Session(engine) as s:
         s.add(RunRecord(tenant="from-disk", item="task-1", arm="baseline"))
         s.commit()
