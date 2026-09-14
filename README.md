@@ -46,7 +46,8 @@ recorded after. `docs/architecture/cross-cutting.md` says which obligation each 
 Neither is exported in a private format. `agentic_base.provenance` turns one record into W3C
 PROV, an OpenLineage run event and a Process Run Crate, each through that standard's own library,
 with the scorer and its authority carried as a declared extension whose schema is in
-`docs/schemas/`. The same record exports into MLflow as a trace with a feedback assessment.
+`docs/schemas/`. The same record exports into MLflow as a trace with a feedback assessment;
+`agentic-base-mlflow --tenant <name>` sends a tenant's runs from the service's database.
 
 The referee is not a new mechanism. Clinical trials
 have shipped exactly this artifact for two decades: the **CONSORT flow diagram**, a per-arm
