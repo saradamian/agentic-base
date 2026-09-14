@@ -33,3 +33,36 @@ jobs:
       - run: .venv/bin/ruff format --check src tests
       - run: .venv/bin/mypy src tests
       - run: .venv/bin/pytest tests -q --cov=src --cov-report=term
+
+  # The image is what a deployment runs, and a gate over the source says nothing about it: built
+  # without the service extra, it started without structlog and exited. So it is built and started
+  # here on every change. It is not published or scanned here; the platform pipeline does both.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build --build-arg VERSION=0.0.0+ci -t agentic-base:ci .
+      - name: the image carries the service and its commands, and no development tools
+        run: |
+          docker run --rm --entrypoint /app/.venv/bin/python agentic-base:ci -c '
+          import importlib.metadata as m, importlib.util as u, shutil
+          missing = [d for d in ("fastapi", "sqlmodel", "structlog", "alembic", "prov") if u.find_spec(d) is None]
+          present = [d for d in ("pytest", "ruff", "mypy") if u.find_spec(d) is not None]
+          assert not missing, f"service dependencies missing: {missing}"
+          assert not present, f"development tools in the image: {present}"
+          print("surf-agentic-base", m.version("surf-agentic-base"))
+          '
+      - name: the migration command builds a database
+        run: >
+          docker run --rm --read-only --tmpfs /tmp -e DATABASE_URL=sqlite:////tmp/ci.db
+          --entrypoint /app/.venv/bin/agentic-base-migrate agentic-base:ci
+      - name: the service starts and answers
+        run: |
+          docker run -d --name svc --read-only --tmpfs /tmp -p 8080:8080 \
+            -e DATABASE_URL=sqlite:////tmp/svc.db -e METRICS_PORT=0 \
+            -e API_TOKENS='{"ci-token-000000000001": ["ci"]}' agentic-base:ci
+          for _ in $(seq 1 30); do curl -sf localhost:8080/health/liveness && break; sleep 1; done
+          docker logs svc
+          curl -sf localhost:8080/health/liveness
+          test "$(curl -s -o /dev/null -w '%{http_code}' 'localhost:8080/runs/export?tenant=ci')" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Authorization: Bearer ci-token-000000000001' 'localhost:8080/runs/export?tenant=ci')" = 200

@@ -57,8 +57,9 @@ that one of them is escapable by a determined attacker is welcome and will be ha
   outside the public list, an email address, a home path, a private address or a reference to an
   internal source. It works by shape, not by a list of the things it is meant to hide.
 
-What does not run here: a container image scan, because no image is built on GitHub. The
-deployment pipeline on the SURF Developer Platform builds the image and scans it there.
+The image is built and started on every change, to prove it runs and carries no development
+tools, but not published or scanned here: the deployment pipeline on the SURF Developer Platform
+builds the image it deploys and scans it there.
 
 ## Personal data
 

@@ -13,6 +13,11 @@ FROM ${UV_IMAGE} AS uv
 
 FROM ${PYTHON_IMAGE} AS builder
 
+# The build context carries no git history, so the version setuptools-scm would read from it is
+# passed in. Without it the package reports its fallback, 0.0.0.
+ARG VERSION=0.0.0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
+
 # Change the working directory to the `app` directory
 WORKDIR /app
 
@@ -21,7 +26,7 @@ RUN --mount=from=uv,source=/uv,target=/bin/uv \
     --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --frozen --no-install-project --no-editable
+    uv sync --frozen --no-install-project --no-editable --no-dev --extra service --extra provenance
 
 # Copy the project into the intermediate image
 COPY . /app
@@ -29,7 +34,7 @@ COPY . /app
 # Sync the project
 RUN --mount=from=uv,source=/uv,target=/bin/uv \
     --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-editable
+    uv sync --frozen --no-editable --no-dev --extra service --extra provenance
 
 FROM ${PYTHON_IMAGE}
 
@@ -41,8 +46,9 @@ WORKDIR /app
 # Copy the environment, but not the source code
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 
-RUN addgroup --gid 1001 --system "${GROUP}" && \
-    adduser --no-create-home --shell /bin/false --disabled-password --uid 1001 --system --ingroup "${GROUP}" "${USER}"
+# The same uid and gid the chart runs the pod as.
+RUN addgroup --gid 1000 --system "${GROUP}" && \
+    adduser --no-create-home --shell /bin/false --disabled-password --uid 1000 --system --ingroup "${GROUP}" "${USER}"
 
 USER $USER
 
