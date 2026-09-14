@@ -114,7 +114,6 @@ def test_pypi_receives_the_files_the_release_attested_not_a_rebuild() -> None:
     assert "gh attestation verify" in publish_runs
 
 
-
 def test_the_image_installs_the_service_and_not_the_development_tools() -> None:
     """Built without the service extra, the image started with no structlog and died; built with
     the default groups it carried pytest, ruff and mypy into production."""
