@@ -1,6 +1,5 @@
-Dockerfile
-**/.gitignore
-**/.gitmodules
+# Only files git does not track: excluding a tracked file makes the tree look modified inside the
+# build, and the version read from git then carries a local suffix instead of the release.
 **/.coverage
 **/venv
 **/.venv

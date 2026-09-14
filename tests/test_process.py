@@ -15,6 +15,7 @@ check on permitted failures is `scripts/assert_no_permitted_failures.py`, tested
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -139,4 +140,18 @@ def test_the_image_can_read_its_own_version() -> None:
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
     assert not any(line.strip() in {".git", "**/.git"} for line in ignored)
+    # A tracked file left out of the context reads as a modification, and a tag builds a dev version.
+    tracked = set(
+        subprocess.run(
+            ["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout.split()
+    )
+    patterns = [
+        line.strip().removeprefix("**/")
+        for line in ignored
+        if line.strip() and not line.startswith("#")
+    ]
+    assert not any(name in tracked for name in patterns), (
+        "a tracked file is excluded from the build"
+    )
     assert "install -y -qq --no-install-recommends git" in dockerfile
