@@ -44,7 +44,7 @@ the high-risk evidence cheap to produce without assuming every run needs it.
 
 | asks for | what it means for agents | lands in |
 |---|---|---|
-| automatic recording of events over the system's lifetime, kept at least six months | every run, every tool call, every outcome, with who decided it, written at the time | runs; the recording seam; `agentic_base.domain.retention` refuses a policy under six months, and the deployment runs the sweep |
+| automatic recording of events over the system's lifetime, kept at least six months | every run, every tool call, every outcome, with who decided it, written at the time | runs; the recording seam; `agentic_base.domain.retention` refuses a policy under six months, and `agentic-base-retention` runs the sweep, scheduled by the chart |
 | technical documentation and declared performance | the configuration fingerprint, the model, the instrument and its authority on every record; the validity check before a number is reported | runs |
 | human oversight | a person can approve, override or stop, and the record shows that they did | `approvals` on every run, with an endpoint to add one; a block obtaining one before it acts is not built |
 | transparency: a person knows they are dealing with an AI, and generated content is marked, **in force since 2 August 2026** | `disclosure` and `content_marking` on every run say whether it was done and by what means; the doing belongs to the channel that speaks to the person | channels; the fields exist, the channel does not |
@@ -59,7 +59,7 @@ from outside the EU, what the operator can see.
 | asks for | what it means for agents | lands in |
 |---|---|---|
 | purpose limitation and data minimisation | a run records what it needs to replay and audit, and nothing else; transcripts are the hard case | runs; redaction on write, off unless configured |
-| a record of processing, and the right to erasure | a run can be found by the person whose data it touched, and its transcript erased, with the record saying when and why | runs, through `agentic_base.domain.retention`: the erasure empties the transcript and leaves what the chain covers, so the record stays evidence. Finding a run by the person is `principal`; running the erasure on request or on a schedule is the deployment's |
+| a record of processing, and the right to erasure | a run can be found by the person whose data it touched, and its transcript erased, with the record saying when and why | runs, through `agentic_base.domain.retention`: the erasure empties the transcript and leaves what the chain covers, so the record stays evidence. Finding a run by the person is `principal`; `agentic-base-retention` runs it on a schedule or for one request |
 | pseudonymisation where appropriate | personal data is replaced before it reaches a record | the service. It replaces each finding with its entity type, which is redaction, not pseudonymisation: the same person is not given the same token across a run. Before it reaches a model is the agent's side and is not built |
 | what the operator can see | the platform's own staff are a party the design has to name | identity; platform |
 

@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     redaction_allow_list: str = ""
     """Comma-separated terms never redacted: the site's cluster, partition and service names."""
 
+    retention_policies: str = ""
+    """JSON: ``{"tenant": days, "*": days}``, how long each tenant's transcripts are kept. Read by
+    ``agentic-base-retention``; a policy under 183 days is refused. Empty means nothing is swept."""
+
 
 @cache
 def get_settings() -> Settings:

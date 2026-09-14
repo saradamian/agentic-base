@@ -45,8 +45,9 @@ know yet still writes, and the corpus can tell a run recorded before the answer 
 recorded after. `docs/architecture/cross-cutting.md` says which obligation each field serves.
 
 Every write goes into a hash-chained audit log that `GET /runs/integrity` verifies. A transcript
-can be redacted on the way in and erased later under a retention policy without breaking that
-chain, and a tenant can export everything it recorded in one request.
+can be redacted on the way in and erased later, by `agentic-base-retention` under each tenant's
+retention policy or for one person's request, without breaking that log, and a tenant can export
+everything it recorded in one request.
 
 An outcome cannot be recorded without naming who decided it, and only some deciders count. A
 benchmark's own harness or a person whose decision is the reference is citable; the agent's own

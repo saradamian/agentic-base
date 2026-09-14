@@ -128,14 +128,17 @@ core controls, so most of the second half of that table is inherited.
 
 ## What is missing, and should be said out loud
 
-- **Retention has a mechanism and no scheduler.** `agentic_base.domain.retention` decides which
-  transcripts are older than a tenant's policy, refuses a policy below the AI Act's six-month
-  floor rather than quietly clamping it, and erases a transcript by emptying it and saying so on
-  the record. Because the hash chain covers what an audit turns on and not the transcript, an
-  erasure leaves the chain intact, which is what makes the GDPR's erasure right and the AI Act's
-  log-keeping duty compatible rather than opposed. What is missing is the part that belongs to a
-  deployment: something that runs the sweep on a schedule, and a tenant setting to read the policy
-  from.
+- **Retention runs when a deployment turns it on, and nobody has decided the policies.**
+  `agentic_base.domain.retention` decides which transcripts are older than a tenant's policy,
+  refuses a policy below the AI Act's six-month floor rather than quietly clamping it, and erases a
+  transcript by emptying it and saying so on the record. `agentic-base-retention sweep --apply`
+  does that for every tenant under `RETENTION_POLICIES`, writes each erasure into the audit log,
+  and skips and names a tenant with no policy; `agentic-base-retention erase` answers one
+  person's request. The chart runs the sweep as a CronJob, off by default. Because the audit log
+  covers what an audit turns on and not the transcript, an erasure leaves it verifiable, which is
+  what makes the GDPR's erasure right and the AI Act's log-keeping duty compatible rather than
+  opposed. What is missing is organisational: the policy per tenant, and who is told what was
+  erased.
 - **The incident path has been walked once, on paper.** `incident-response.md` says which clock
   is which, who is told, and where each thing a report asks for lives. A tabletop against v0.3.4
   found that PyPI served a rebuilt wheel no attestation covered and that no release carried an
