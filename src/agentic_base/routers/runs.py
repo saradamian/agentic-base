@@ -4,7 +4,6 @@ import enum
 import json
 import tempfile
 from collections.abc import Iterator
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,7 +25,7 @@ from agentic_base.domain.run_record import (
     to_payload,
     to_record,
 )
-from agentic_base.domain.validity import ArmFlow, ChannelSpread, check_comparison
+from agentic_base.domain.validity import check_comparison, report_as_dict
 from agentic_base.provenance import to_openlineage, to_process_run_crate, to_prov
 from agentic_base.redaction.configured import get_redactor
 from agentic_base.redaction.redact import RedactionUnavailable, Redactor, redact_run
@@ -62,21 +61,10 @@ class ChannelSpreadResponse(BaseModel):
     rate_by_arm: dict[str, float]
     lowest_arm: str
     highest_arm: str
-    ratio: float
+    ratio: float | None
+    """Highest rate over lowest; null when the lowest arm has none, since JSON has no infinity."""
     absolute_difference: float
     description: str
-
-    @classmethod
-    def of(cls, spread: ChannelSpread) -> "ChannelSpreadResponse":
-        return cls(
-            channel=spread.channel,
-            rate_by_arm=spread.rate_by_arm,
-            lowest_arm=spread.lowest_arm,
-            highest_arm=spread.highest_arm,
-            ratio=spread.ratio,
-            absolute_difference=spread.absolute_difference,
-            description=spread.describe(),
-        )
 
 
 class ArmFlowResponse(BaseModel):
@@ -88,22 +76,13 @@ class ArmFlowResponse(BaseModel):
     analysed: int
     description: str
 
-    @classmethod
-    def of(cls, flow: ArmFlow) -> "ArmFlowResponse":
-        return cls(
-            arm=flow.arm,
-            assessed=flow.assessed,
-            excluded=flow.excluded,
-            analysed=flow.analysed,
-            description=flow.describe(),
-        )
-
 
 class ValidityResponse(BaseModel):
     """The verdict, with the two fields a reader must not have to infer.
 
     `sound` and `could_have_flagged` are derived on the domain object and are stated
-    explicitly here, because a verdict that is absent from a response reads as a pass.
+    explicitly here, because a verdict that is absent from a response reads as a pass. The
+    shape is :func:`agentic_base.domain.validity.report_as_dict`, the same one MCP serves.
     """
 
     sound: bool
@@ -117,15 +96,6 @@ class ValidityResponse(BaseModel):
     flagged: list[ChannelSpreadResponse]
     flow: list[ArmFlowResponse]
     """The per-arm accounting the verdict rests on, present whatever the verdict."""
-
-
-@dataclass(frozen=True)
-class _Observation:
-    """Adapter from a stored record to the shape the validity check needs."""
-
-    item: str
-    arm: str
-    channel: str
 
 
 def _redacted(payload: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
@@ -387,20 +357,4 @@ def validity_report(
     records = session.exec(statement).all()
     if item_prefix:
         records = [r for r in records if r.item.startswith(item_prefix)]
-    observations = [
-        _Observation(item=r.item, arm=r.arm, channel=r.exclusion_channel)
-        for r in records
-    ]
-    report = check_comparison(observations)
-    return ValidityResponse(
-        sound=report.sound,
-        could_have_flagged=report.could_have_flagged,
-        summary=report.summary(),
-        arms_examined=report.arms_examined,
-        channels_examined=report.channels_examined,
-        observations_examined=report.observations_examined,
-        paired_items=report.paired_items,
-        total_items=report.total_items,
-        flagged=[ChannelSpreadResponse.of(c) for c in report.flagged],
-        flow=[ArmFlowResponse.of(report.flow[arm]) for arm in sorted(report.flow)],
-    )
+    return ValidityResponse.model_validate(report_as_dict(check_comparison(records)))
