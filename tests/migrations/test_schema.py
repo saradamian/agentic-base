@@ -115,20 +115,24 @@ def test_a_shared_database_that_is_behind_is_refused_not_migrated(
 def test_the_command_upgrades_the_configured_database(
     tmp_path, monkeypatch, capsys
 ) -> None:
-    from agentic_base.config import get_settings
-    from agentic_base.db import get_engine
+    """Pointed at its own settings and engine, not by clearing the shared caches: clearing them
+    drops the session's engine undisposed, and its pooled connections are then finalised open at
+    some later garbage collection, which Python 3.13+ reports against whichever test is running."""
+    import agentic_base.config as config_module
+    import agentic_base.db as db_module
+    from agentic_base.config import Settings
 
-    monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'cmd.sqlite'}")
-    get_settings.cache_clear()
-    get_engine.cache_clear()
+    url = f"sqlite:///{tmp_path / 'cmd.sqlite'}"
+    engine = create_engine(url)
+    monkeypatch.setattr(
+        config_module, "get_settings", lambda: Settings(database_url=url)
+    )
+    monkeypatch.setattr(db_module, "get_engine", lambda: engine)
     try:
         main()
         main()
     finally:
-        get_engine().dispose()
-        monkeypatch.undo()
-        get_settings.cache_clear()
-        get_engine.cache_clear()
+        engine.dispose()
 
     assert capsys.readouterr().out.splitlines() == [
         f"database schema: empty -> {head_revision()}",
