@@ -49,6 +49,10 @@ class Limits(BaseSettings):
     mcp_max_rows: int = 200
     """Rows one MCP call may return. A chat client pays for each of them in context."""
 
+    mcp_max_transcript_chars: int = 60_000
+    """How much of one run's transcript an MCP call returns. Past it, messages are left out and
+    the result says how many, so a long run is legible as long rather than as short."""
+
 
 @cache
 def get_limits() -> Limits:

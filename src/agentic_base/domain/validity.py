@@ -30,10 +30,13 @@ Two rules learned by getting this wrong:
 
 from __future__ import annotations
 
+import math
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import Any, Protocol
+
+from agentic_base.limits import get_limits
 
 
 class Observation(Protocol):
@@ -196,8 +199,8 @@ def paired_items(observations: Iterable[Observation]) -> set[str]:
 def check_comparison(
     observations: Iterable[Observation],
     *,
-    spread_ratio_threshold: float = 2.0,
-    minimum_absolute_difference: float = 0.02,
+    spread_ratio_threshold: float | None = None,
+    minimum_absolute_difference: float | None = None,
 ) -> ValidityReport:
     """Adjudicate whether a contrast across arms is sound enough to report.
 
@@ -209,7 +212,16 @@ def check_comparison(
 
     The report always states how many arms, channels and observations were examined, so that a
     clean verdict from an input that could not have produced a finding is visible as such.
+
+    A threshold left out is read from the limits (`AP_VALIDITY_SPREAD_RATIO`,
+    `AP_VALIDITY_MIN_ABSOLUTE_DIFFERENCE`), so a deployment tunes it in one place for every
+    surface that asks.
     """
+    limits = get_limits()
+    if spread_ratio_threshold is None:
+        spread_ratio_threshold = limits.validity_spread_ratio
+    if minimum_absolute_difference is None:
+        minimum_absolute_difference = limits.validity_min_absolute_difference
     observations = list(observations)
     counts = missingness_by_arm(observations)
     arms = sorted(counts)
@@ -252,3 +264,43 @@ def check_comparison(
         total_items=len({obs.item for obs in observations}),
         flow=flow_by_arm(observations),
     )
+
+
+def report_as_dict(report: ValidityReport) -> dict[str, Any]:
+    """The report as plain JSON values, the one shape every surface serves.
+
+    An infinite ratio, a channel absent from one arm, becomes ``None``, because JSON has no
+    infinity and a serialiser that writes one produces a document other readers reject.
+    """
+    return {
+        "sound": report.sound,
+        "could_have_flagged": report.could_have_flagged,
+        "summary": report.summary(),
+        "arms_examined": report.arms_examined,
+        "channels_examined": report.channels_examined,
+        "observations_examined": report.observations_examined,
+        "paired_items": report.paired_items,
+        "total_items": report.total_items,
+        "flagged": [
+            {
+                "channel": c.channel,
+                "rate_by_arm": c.rate_by_arm,
+                "lowest_arm": c.lowest_arm,
+                "highest_arm": c.highest_arm,
+                "ratio": None if math.isinf(c.ratio) else c.ratio,
+                "absolute_difference": c.absolute_difference,
+                "description": c.describe(),
+            }
+            for c in report.flagged
+        ],
+        "flow": [
+            {
+                "arm": f.arm,
+                "assessed": f.assessed,
+                "excluded": f.excluded,
+                "analysed": f.analysed,
+                "description": f.describe(),
+            }
+            for f in (report.flow[arm] for arm in sorted(report.flow))
+        ],
+    }

@@ -216,6 +216,11 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
         return exclusion_channel(self)
 
     @property
+    def channel(self) -> str:
+        """The same, under the name the validity check reads, so a stored run is an observation."""
+        return exclusion_channel(self)
+
+    @property
     def citable(self) -> bool:
         """Whether this run's outcome may be reported as a result."""
         return is_citable(self)

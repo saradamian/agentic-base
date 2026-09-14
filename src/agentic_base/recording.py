@@ -51,7 +51,9 @@ class CallObserver(Protocol):
         """Called after dispatch. Returns the result to hand back.
 
         A host may wrap external content in a data boundary here, so the model receives it as data
-        rather than as instruction.
+        rather than as instruction. What it returns replaces every copy the client receives: the
+        text, and the structured content, parsed from the new text when it is still a JSON object
+        and wrapped as ``{"result": ...}`` when it is not.
         """
         ...
 

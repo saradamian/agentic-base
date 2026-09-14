@@ -25,11 +25,13 @@ from typing import Any
 
 from mcp.server import MCPServer
 from mcp.server.context import ServerRequestContext
+from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import CallToolResult, TextContent
-from sqlmodel import Session, select
+from sqlalchemy import func
+from sqlmodel import Session, col, select
 
 from agentic_base.domain.run_record import RunRecord
-from agentic_base.domain.validity import check_comparison
+from agentic_base.domain.validity import check_comparison, report_as_dict
 from agentic_base.limits import get_limits
 from agentic_base.recording import CallObserver, NullObserver, SafeObserver
 
@@ -43,34 +45,63 @@ def _distribution_version() -> str:
         return "0"
 
 
-class _Observation:
-    __slots__ = ("item", "arm", "channel")
-
-    def __init__(self, item: str, arm: str, channel: str) -> None:
-        self.item = item
-        self.arm = arm
-        self.channel = channel
-
-
 def _runs_for(session: Session, tenant: str) -> list[RunRecord]:
     return list(session.exec(select(RunRecord).where(RunRecord.tenant == tenant)).all())
 
 
+def _capped_transcript(record: RunRecord, budget: int) -> dict[str, Any]:
+    """The run with as much of its transcript as *budget* characters allow, and a note saying
+    how much was left out. A chat client pays for every character, and a silent cut would make a
+    long run read as a short one."""
+    data: dict[str, Any] = json.loads(record.model_dump_json())
+    messages = data.pop("messages") or []
+    system_prompt = data.get("system_prompt") or ""
+    prompt_cut = len(system_prompt) > budget
+    if prompt_cut:
+        data["system_prompt"] = system_prompt[:budget]
+    used = min(len(system_prompt), budget)
+    kept: list[Any] = []
+    for message in messages:
+        size = len(json.dumps(message))
+        if used + size > budget:
+            break
+        kept.append(message)
+        used += size
+    data["messages"] = kept
+    data["transcript"] = {
+        "limit_chars": budget,
+        "messages_total": len(messages),
+        "messages_returned": len(kept),
+        "system_prompt_truncated": prompt_cut,
+        "truncated": prompt_cut or len(kept) < len(messages),
+    }
+    return data
+
+
 def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[str, Any]:
-    """Run one tool. Returns the structured payload, not the protocol envelope."""
+    """Run one tool. Returns the structured payload, or ``{"error": ...}``, which the served
+    tool turns into an MCP tool error."""
     limits = get_limits()
 
     if name == "list_runs":
-        rows = _runs_for(session, arguments["tenant"])
+        where = [RunRecord.tenant == arguments["tenant"]]
         if arm := arguments.get("arm"):
-            rows = [r for r in rows if r.arm == arm]
-        rows.sort(key=lambda r: r.created_at, reverse=True)
+            where.append(RunRecord.arm == arm)
+        total = session.exec(
+            select(func.count()).select_from(RunRecord).where(*where)
+        ).one()
         cap = min(
             int(arguments.get("limit") or limits.mcp_max_rows), limits.mcp_max_rows
         )
+        rows = session.exec(
+            select(RunRecord)
+            .where(*where)
+            .order_by(col(RunRecord.created_at).desc())
+            .limit(cap)
+        ).all()
         return {
-            "total": len(rows),
-            "returned": min(len(rows), cap),
+            "total": int(total),
+            "returned": len(rows),
             "runs": [
                 {
                     "run_id": r.run_id,
@@ -84,32 +115,18 @@ def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[st
                     "classification": r.classification.value,
                     "principal": r.principal,
                 }
-                for r in rows[:cap]
+                for r in rows
             ],
         }
 
     if name == "get_run":
         record = session.get(RunRecord, arguments["run_id"])
         if record is None:
-            return {"error": "run not found"}
-        return dict(json.loads(record.model_dump_json()))
+            return {"error": f"run not found: {arguments['run_id']}"}
+        return _capped_transcript(record, limits.mcp_max_transcript_chars)
 
     if name == "validity_report":
-        rows = _runs_for(session, arguments["tenant"])
-        report = check_comparison(
-            _Observation(r.item, r.arm, r.exclusion_channel) for r in rows
-        )
-        return {
-            "sound": report.sound,
-            "could_have_flagged": report.could_have_flagged,
-            "summary": report.summary(),
-            "arms_examined": report.arms_examined,
-            "channels_examined": report.channels_examined,
-            "observations_examined": report.observations_examined,
-            "paired_items": report.paired_items,
-            "total_items": report.total_items,
-            "flagged": [c.describe() for c in report.flagged],
-        }
+        return report_as_dict(check_comparison(_runs_for(session, arguments["tenant"])))
 
     if name == "corpus_stats":
         rows = _runs_for(session, arguments["tenant"])
@@ -167,7 +184,9 @@ class ObservingMiddleware:
         text = _first_text(result)
         seen = self.observer.inspect_result(tool, text, success)
         if seen != text:
-            result = _with_first_text(result, seen)
+            # A client may read the structured copy instead of the text, so a rewrite that
+            # reached only the text would hand the original to exactly those clients.
+            result = _with_structured(_with_first_text(result, seen), seen)
         self.observer.record(
             tool, arguments, seen, success, elapsed_ms, method=ctx.method
         )
@@ -234,7 +253,12 @@ def build_server(
 
     def _call(name: str, **arguments: Any) -> dict[str, Any]:
         with session_factory() as session:
-            return call_tool(name, arguments, session)
+            payload = call_tool(name, arguments, session)
+        if set(payload) == {"error"}:
+            # Returned as a value it would read as a successful call to the model and to the
+            # observer alike; raised, the SDK sends it with isError set.
+            raise ToolError(payload["error"])
+        return payload
 
     @server.tool(name="list_runs")
     def list_runs(tenant: str, arm: str = "", limit: int = 0) -> dict[str, Any]:
@@ -283,3 +307,22 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def _with_structured(result: Any, text: str) -> Any:
+    """Replace the structured copy with the rewritten text: parsed when it is still a JSON
+    object, otherwise wrapped as ``{"result": text}``. Dropping it is not an option, because a
+    client refuses a result without structured content when the tool declares an output schema.
+    """
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        parsed = None
+    structured = parsed if isinstance(parsed, dict) else {"result": text}
+    if isinstance(result, CallToolResult):
+        if result.structured_content is None:
+            return result
+        return result.model_copy(update={"structured_content": structured})
+    if isinstance(result, dict) and result.get("structuredContent") is not None:
+        return {**result, "structuredContent": structured}
+    return result
