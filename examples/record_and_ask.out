@@ -1,0 +1,25 @@
+1. Recording 12 runs to http://localhost:8080
+   the run that crashed was kept: status=failed, failure_kind=RuntimeError
+
+2. Labelling the finished runs with the benchmark's own harness
+   a label that names no scorer is refused: HTTP 422
+
+3. Is the comparison sound?
+   not sound: timeout: 33.3% (with-planner) vs 0.0% (baseline)
+   baseline: assessed 6; excluded 0 (none); analysed 6
+   with-planner: assessed 6; excluded 2 (2 timeout); analysed 4
+
+4. Are the records as they were written?
+   intact: 12 runs match 22 entries
+
+5. What was stored of the transcript
+   (the crashed run has no transcript)
+   Fix task-1. Mail the report to <EMAIL_ADDRESS>.
+   redaction: agentic-base <version> patterns, no names or places
+
+6. One run in W3C PROV, for a reader that is not this service
+   sections: activity, agent, entity, prefix, used, wasAssociatedWith, wasAttributedTo, wasGeneratedBy
+   the outcome: {"ab:authority": "authoritative", "ab:degraded": false, "ab:instrument": "harness-1.4", "ab:label_source": "official_harness", "ab:resolved": true}
+
+7. Everything this tenant recorded, to take elsewhere
+   manifest says 12 records; the file has 12

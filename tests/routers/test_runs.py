@@ -289,6 +289,26 @@ def test_a_public_run_falls_back_to_patterns_and_says_so(app, test_client) -> No
     assert response.json()["redaction"] == "marker 1.0"
 
 
+def test_the_validity_report_carries_the_per_arm_flow_it_rests_on(test_client) -> None:
+    """A verdict without its accounting cannot be checked by the reader it is meant to convince."""
+    for item in ("t1", "t2"):
+        test_client.post("/runs", json=_payload(tenant="flowing", item=item, arm="a"))
+        test_client.post(
+            "/runs",
+            json=_payload(tenant="flowing", item=item, arm="b", status="timeout"),
+        )
+
+    report = test_client.get(
+        "/runs/validity/report", params={"tenant": "flowing"}
+    ).json()
+
+    assert [(f["arm"], f["assessed"], f["analysed"]) for f in report["flow"]] == [
+        ("a", 2, 2),
+        ("b", 2, 0),
+    ]
+    assert report["flow"][1]["excluded"] == {"timeout": 2}
+
+
 def _export(test_client, tenant):
     response = test_client.get("/runs/export", params={"tenant": tenant})
     lines = [line for line in response.text.splitlines() if line.strip()]

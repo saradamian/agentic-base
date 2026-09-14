@@ -29,7 +29,7 @@ EXTERNAL_NAMES = {
     "OTEL_*": "the OpenTelemetry SDK's own variables",
     "CONFLUENCE_*": "the configuration vocabulary of the reference Confluence server",
 }
-PATH_PREFIXES = ("tests/", "src/", "scripts/", "docs/", ".github/")
+PATH_PREFIXES = ("tests/", "src/", "scripts/", "docs/", ".github/", "examples/")
 METHODS = ("get", "post", "put", "patch", "delete")
 
 

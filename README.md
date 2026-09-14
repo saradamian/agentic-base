@@ -83,6 +83,88 @@ pip install 'surf-agentic-base[mlflow]'      # plus the MLflow export
 The import name is `agentic_base`. The distribution is named `surf-agentic-base` because
 `agentic-base` on PyPI belongs to an unrelated project.
 
+## Try it
+
+Two runnable examples, each with its output committed beside it and checked by a test, so what you
+see below is what you will get.
+
+**Without the service.** `examples/is_this_comparison_sound.py` uses the library half on a record
+type of its own. Two configurations of an agent attempt twenty tasks; one looks far better only
+because it times out on the hardest six, and a timeout has no verdict.
+
+```bash
+pip install surf-agentic-base
+python examples/is_this_comparison_sound.py
+```
+
+```text
+1. The number people report: resolved, over runs that finished
+   baseline      10/19 = 52.6%
+   with-planner  12/14 = 85.7%
+
+2. What the validity check says
+   not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline)
+   examined 40 runs, 2 arms, 1 exclusion channel(s); could have flagged: True
+
+3. The per-arm flow the verdict rests on
+   baseline: assessed 20; excluded 1 (1 timeout); analysed 19
+   with-planner: assessed 20; excluded 6 (6 timeout); analysed 14
+
+4. Two honest numbers instead of one flattering one
+   every run, a timeout counted as unresolved:
+   baseline      10/20 = 50.0%
+   with-planner  12/20 = 60.0%
+   only the 14 tasks both arms finished:
+   baseline      10/14 = 71.4%
+   with-planner  12/14 = 85.7%
+
+5. Which verdicts may be cited
+   the benchmark's own harness        citable: True
+   a quick in-tree check              citable: False
+   the harness, but it failed open    citable: False
+   the agent grading itself           citable: False
+```
+
+**With the service.** `examples/record_and_ask.py` records runs from a stand-in agent through the
+client, including one that crashes, labels them, and asks the service whether the comparison is
+sound, whether the records are intact, what was kept of a transcript, and for one run in W3C PROV.
+
+```bash
+pip install 'surf-agentic-base[service,provenance]'
+REDACTION=patterns just run        # in one terminal
+python examples/record_and_ask.py  # in another
+```
+
+```text
+1. Recording 12 runs to http://localhost:8080
+   the run that crashed was kept: status=failed, failure_kind=RuntimeError
+
+2. Labelling the finished runs with the benchmark's own harness
+   a label that names no scorer is refused: HTTP 422
+
+3. Is the comparison sound?
+   not sound: timeout: 33.3% (with-planner) vs 0.0% (baseline)
+   baseline: assessed 6; excluded 0 (none); analysed 6
+   with-planner: assessed 6; excluded 2 (2 timeout); analysed 4
+
+4. Are the records as they were written?
+   intact: 12 runs match 22 entries
+
+5. What was stored of the transcript
+   (the crashed run has no transcript)
+   Fix task-1. Mail the report to <EMAIL_ADDRESS>.
+   redaction: agentic-base <version> patterns, no names or places
+
+6. One run in W3C PROV, for a reader that is not this service
+   sections: activity, agent, entity, prefix, used, wasAssociatedWith, wasAttributedTo, wasGeneratedBy
+   the outcome: {"ab:authority": "authoritative", "ab:degraded": false, "ab:instrument": "harness-1.4", "ab:label_source": "official_harness", "ab:resolved": true}
+
+7. Everything this tenant recorded, to take elsewhere
+   manifest says 12 records; the file has 12
+```
+
+`<version>` is the installed package version.
+
 ## Running locally
 
 ```bash
