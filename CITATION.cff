@@ -11,7 +11,7 @@ authors:
   - family-names: Podareanu
     given-names: Damian
     affiliation: SURF
-version: 0.6.0
+version: 0.7.0
 date-released: "2026-09-14"
 license: EUPL-1.2
 repository-code: "https://github.com/saradamian/agentic-base"
