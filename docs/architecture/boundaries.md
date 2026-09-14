@@ -75,7 +75,8 @@ commercial SDK, a graph library, or a loop they wrote. What they get here:
 - a tenant's whole corpus in one request, so leaving does not go through us
 - an audit log written with every change, and a check that says whether a tenant's records are
   still as they were written
-- a read-only MCP surface on the official SDK so a chat client can ask
+- a read-only MCP surface on the official SDK so a chat client can ask, started with
+  `agentic-base-mcp`
 
 ### What is not here and is not coming
 

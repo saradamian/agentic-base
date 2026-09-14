@@ -21,7 +21,8 @@ policy, and how to erase one without breaking the chain. And a tenant can take i
 away in one request.
 
 It serves a run in W3C PROV, OpenLineage or a Process Run Crate, exports it to MLflow, and
-exposes the corpus read-only over MCP so someone in a chat client can ask.
+exposes the corpus read-only over MCP, with `agentic-base-mcp`, so someone in a chat client can
+ask.
 
 That is all of it. It does not run agents, serve models, schedule jobs or train.
 
