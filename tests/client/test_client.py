@@ -3,6 +3,7 @@
 import pytest
 
 from agentic_base.client import PendingRun, RunRecorder, git_revision
+from agentic_base.domain.outcomes import DataClass, IsolationTier, LabelSource
 from agentic_base.domain.run_record import RunStatus
 
 
@@ -59,3 +60,57 @@ def test_a_successful_run_records_its_duration(monkeypatch) -> None:
 
     assert recorded[0].elapsed_ms >= 0
     assert recorded[0].status is RunStatus.COMPLETED
+
+
+def test_the_recorder_can_supply_every_field_a_writer_owns() -> None:
+    """A field the record gains and the client cannot send is a field no client writes."""
+    from dataclasses import fields
+
+    from agentic_base.domain.outcomes import RunRecordCreate
+
+    set_by_recorder = {"tenant", "code_revision"}
+    set_by_label = {"resolved", "label_source", "degraded", "instrument"}
+    pending = {f.name for f in fields(PendingRun)}
+
+    assert set(RunRecordCreate.model_fields) - set_by_recorder - set_by_label <= pending
+
+
+def test_what_the_recorder_sends_is_what_the_service_stores(
+    test_client, monkeypatch
+) -> None:
+    import agentic_base.client as client_module
+
+    # The real client, with the network replaced by the application. TestClient refuses a
+    # timeout, which the real transport needs, so that one argument is dropped.
+    monkeypatch.setattr(
+        client_module.httpx,
+        "post",
+        lambda url, json, timeout: test_client.post(url, json=json),
+    )
+    recorder = RunRecorder("http://testserver", tenant="svc", code_revision="abc1234")
+
+    with recorder.run(
+        item="mr-101",
+        arm="reviewer-2026.09",
+        principal="urn:example:alice",
+        classification=DataClass.INTERNAL,
+        isolation_tier=IsolationTier.VIRTUALISED,
+        disclosure="each reply begins 'Automated review'",
+    ) as run:
+        run.messages = [{"role": "user", "content": "review this"}]
+    recorder.approve(
+        run.run_id,
+        action="push fix",
+        decision="approved",
+        by="urn:example:bob",
+        at="2026-09-14",
+    )
+    recorder.label(run.run_id, resolved=True, label_source=LabelSource.USER_FEEDBACK)
+
+    stored = test_client.get(f"/runs/{run.run_id}").json()
+    assert stored["principal"] == "urn:example:alice"
+    assert stored["classification"] == "internal"
+    assert stored["isolation_tier"] == "virtualised"
+    assert stored["disclosure"] == "each reply begins 'Automated review'"
+    assert stored["approvals"][0]["by"] == "urn:example:bob"
+    assert stored["label_source"] == "user_feedback"

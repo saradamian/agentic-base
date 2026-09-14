@@ -7,7 +7,7 @@
   "allOf": [{ "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet" }],
   "properties": {
     "resolved": { "type": ["boolean", "null"], "description": "The outcome, or null when no label has been attached." },
-    "labelSource": { "type": "string", "enum": ["unlabelled", "self_reported", "convenience_verifier", "official_harness", "benchmark_grader", "human"], "description": "Who decided the outcome." },
+    "labelSource": { "type": "string", "enum": ["unlabelled", "self_reported", "convenience_verifier", "official_harness", "benchmark_grader", "human", "user_feedback", "model_judge"], "description": "Who decided the outcome." },
     "authority": { "type": "string", "enum": ["none", "diagnostic", "authoritative"], "description": "Whether the label may be cited, independent of its modality." },
     "degraded": { "type": "boolean", "description": "True when the scoring instrument was not working and returned its fail-open default." },
     "instrument": { "type": "string" },

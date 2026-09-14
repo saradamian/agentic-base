@@ -5,9 +5,9 @@
 [![python](https://img.shields.io/badge/python-3.10%20to%203.14-blue.svg)](pyproject.toml)
 [![cite](https://img.shields.io/badge/cite-CITATION.cff-green.svg)](CITATION.cff)
 
-The agentic base layer for SURF: **the record and referee for agent runs, the security
-primitives an agent needs on a shared platform, and the engineering standard that keeps both
-honest**. It is the contracts layer under a set of capability blocks, one per SURF system, that
+The agentic base layer for SURF: **a system of record for what agents do, a referee for claims
+made from that record, the security primitives an agent needs on a shared platform, and the
+engineering standard that keeps all of it honest**. It is the contracts layer under a set of capability blocks, one per SURF system, that
 live in their own packages; see `docs/architecture/blocks.md`.
 
 It is built on the SURF Developer Platform golden path and adopts the common stack wherever the
@@ -15,12 +15,16 @@ common stack has an answer. It contains only the parts we could not find anywher
 
 ## The problem it addresses
 
-Agent runs are a fourth execution pattern beside training, fine-tuning and inference: a long-lived
-loop that consumes inference and executes code. They are expensive, hard to reproduce, and easy to
-report wrongly. This service records what actually ran with enough provenance to replay it and to
-audit it, and adjudicates whether a comparison between two configurations is sound enough to
-publish. It does not drive execution: the job orchestrator and the model server are other
-systems, and the two HPC modules here are a result channel and cluster facts, nothing more.
+An agent that works for people on a shared platform acts for someone, touches data of some class,
+sometimes does things a person should approve, and talks to people who have a right to know it is
+an AI. Afterwards someone asks what it did: the person it worked for, an auditor, an incident
+responder, a regulator. Most agents keep a log for their developers and nothing that answers
+those questions. This service records each run with that account, and keeps it intact.
+
+When a team changes its agent, a new model, a new prompt, a benchmark arm, it also wants to know
+whether the new one is better, and that comparison is easy to get wrong. The service is a referee
+for that as well. It does not drive execution: the job orchestrator and the model server are
+other systems, and the two HPC modules here are a result channel and cluster facts, nothing more.
 
 ## Adopted, not written here
 
@@ -29,35 +33,50 @@ tracker, a workflow engine, or an inference server. Every one of those exists an
 anything we would write. See [the reuse ledger](docs/architecture/reuse-ledger.md) for what is
 adopted and from where.
 
-## The record and the referee
+## The record, for any agent
 
-| module | what it does | why nothing off the shelf does it |
-|---|---|---|
-| `agentic_base.domain.run_record` | one row per run: the transcript the model actually received, the provenance of its environment, and the provenance of its outcome label | experiment trackers record what a run produced. The ones that record who decided type it by modality, human, model or code, which cannot tell a convenience checker from an authoritative harness, and none refuses an outcome that names no scorer |
-| `agentic_base.domain.validity` | adjudicates whether a contrast across arms is sound, by detecting exclusion channels whose rate differs by arm, and reports the per-arm accounting behind the verdict | trackers store, version and visualise runs. None of them tell you your comparison is invalid, and we found no reporting standard in agent evaluation that asks for the accounting that would show it |
+`agentic_base.domain.run_record` holds one row per run: the transcript the model actually
+received, the environment it ran in, and who decided its outcome. Every record also says who the
+run acted for, what class of data it touched and on which isolation tier, whether personal data
+was redacted before the transcript was written and by what, who approved which action, whether
+the person was told they were dealing with an AI, and how generated output was marked. Only the
+tenant and the code revision are required; the rest have defaults, so a writer that does not
+know yet still writes, and the corpus can tell a run recorded before the answer existed from one
+recorded after. `docs/architecture/cross-cutting.md` says which obligation each field serves.
 
-Every record also says who the run acted for, what class of data it touched and on which
-isolation tier, whether personal data was redacted before the transcript was written and by
-what, who approved which action, whether the person was told they were dealing with an AI, and
-how generated output was marked. Those fields have defaults, so a writer that does not know
-yet still writes, and the corpus can tell a run recorded before the answer existed from one
-recorded after. `docs/architecture/cross-cutting.md` says which obligation each one serves.
+Every write goes into a hash-chained audit log that `GET /runs/integrity` verifies. A transcript
+can be redacted on the way in and erased later under a retention policy without breaking that
+chain, and a tenant can export everything it recorded in one request.
 
-Neither is exported in a private format. `agentic_base.provenance` turns one record into W3C
+An outcome cannot be recorded without naming who decided it, and only some deciders count. A
+benchmark's own harness or a person whose decision is the reference is citable; the agent's own
+claim, a quick in-tree check, a user's thumbs-up or another model's score is kept and marked as
+diagnostic. Experiment trackers that record who decided type it by modality, human, model or
+code, which cannot tell a user's thumbs-up from a reviewer's decision, and none refuses an
+outcome that names no one.
+
+Nothing is exported in a private format. `agentic_base.provenance` turns one record into W3C
 PROV, an OpenLineage run event and a Process Run Crate, each through that standard's own library,
 with the scorer and its authority carried as a declared extension whose schema is in
 `docs/schemas/`. The same record exports into MLflow as a trace with a feedback assessment;
 `agentic-base-mlflow --tenant <name>` sends a tenant's runs from the service's database.
 
-The referee is not a new mechanism. Clinical trials
-have shipped exactly this artifact for two decades: the **CONSORT flow diagram**, a per-arm
-accounting of everyone who left the denominator and why, mandatory for publication since 2001,
-with an extension for AI interventions since 2020. The defect it exposes has a name in the
-missing-data literature, missingness that is **MNAR with respect to the treatment arm**. What is
-missing is not the idea. No experiment tracker implements the check, and we found no reporting
-standard in agent evaluation that requires the accounting, so `validity` implements the check and
-`flow_by_arm` produces the accounting in the standard's vocabulary: assessed, excluded with
-reasons, analysed.
+## The referee, when you compare
+
+`agentic_base.domain.validity` adjudicates whether a contrast across arms is sound: benchmark
+arms, or two versions of a service agent. It detects exclusion channels whose rate differs by arm,
+which do not cancel in a contrast, and reports the per-arm accounting behind the verdict.
+`item` names the unit of work two runs must share to be compared, `arm` names what is being
+compared; a record that compares nothing leaves both empty.
+
+The referee is not a new mechanism. Clinical trials have shipped exactly this artifact for two
+decades: the **CONSORT flow diagram**, a per-arm accounting of everyone who left the denominator
+and why, mandatory for publication since 2001, with an extension for AI interventions since 2020.
+The defect it exposes has a name in the missing-data literature, missingness that is **MNAR with
+respect to the treatment arm**. What is missing is not the idea. No experiment tracker implements
+the check, and we found no reporting standard in agent evaluation that requires the accounting,
+so `validity` implements the check and `flow_by_arm` produces the accounting in the standard's
+vocabulary: assessed, excluded with reasons, analysed.
 
 ## The rest of the library
 
@@ -86,8 +105,47 @@ The import name is `agentic_base`. The distribution is named `surf-agentic-base`
 
 ## Try it
 
-Two runnable examples, each with its output committed beside it and checked by a test, so what you
-see below is what you will get.
+Three runnable examples, each with its output committed beside it and checked by a test, so what
+you see below is what you will get.
+
+**An agent that works for people.** `examples/service_agent.py` records a merge-request review
+agent's runs through the client: who each review was for, the data class and tier, how the person
+was told it was an AI, a maintainer's approval, and three verdicts of different standing. Then it
+reads back everything the agent did for one person, and checks the records are intact.
+
+```bash
+pip install 'surf-agentic-base[service]'
+REDACTION=patterns just run          # in one terminal
+python examples/service_agent.py     # in another
+```
+
+```text
+1. Three reviews, each recorded for the person who asked
+   recorded 3 runs
+
+2. The agent wanted to push to mr-103; a maintainer decided
+   approval recorded
+
+3. Verdicts on the reviews, and which of them mean anything
+   mr-101  the developer's thumbs-up    user_feedback  diagnostic
+   mr-102  another model's score        model_judge    diagnostic
+   mr-103  the maintainer's decision    human          authoritative
+
+4. Everything the agent did for alice, from the tenant's export
+   mr-101: Automated review: Looks fine; one missing test for the retry path.
+     told it was an AI: every review comment begins 'Automated review:'
+     data class internal, tier virtualised
+     approvals: none
+     stored question: Review mr-101. Questions to <EMAIL_ADDRESS>.
+   mr-103: Automated review: Suggest a fix: pin the base image by digest. Push it?
+     told it was an AI: every review comment begins 'Automated review:'
+     data class internal, tier virtualised
+     approvals: approved by urn:example:maintainer-carol
+     stored question: Review mr-103. Questions to <EMAIL_ADDRESS>.
+
+5. Are the records as they were written?
+   intact: 3 runs match 7 entries
+```
 
 **Without the service.** `examples/is_this_comparison_sound.py` uses the library half on a record
 type of its own. Two configurations of an agent attempt twenty tasks; one looks far better only
