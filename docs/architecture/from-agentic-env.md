@@ -43,6 +43,22 @@ knows; and the MCP transport, which is the official SDK on both sides. It record
 version of this layer beside every run and refuses to pool runs across a version no epoch
 declares, so a release here that changes behaviour cannot be mistaken for the same software.
 
+## Here, and still copied there
+
+Six more modules came from agentic-env and agentic-env still runs its own version of each. Nothing
+there imports the one here, so until a row below is closed the two copies can drift, and the one
+agentic-env runs is the one its results rest on. Each row says how the two differ today and what
+closing it takes.
+
+| here | agentic-env today | how they differ | to close it |
+|---|---|---|---|
+| `agentic_base.security.netsec` | `agentic/security/netsec.py`, imported by six modules | both check the scheme, credentials, port and every resolved address, re-check each redirect hop, and pin the connection to the address they checked. agentic-env pins by overriding `socket.getaddrinfo` for the pinned host while the request runs, under a process-wide lock; this one rewrites the request to the checked address and keeps the name in the Host header and the TLS server name, with no global state. agentic-env reads its limits from the environment at import, this one when called | run agentic-env's netsec tests against this module; where both refuse the same addresses and redirects, switch its fetch to this one and delete the copy |
+| `agentic_base.llm.health` | `agentic/llm/health.py`, imported by eight modules | agentic-env asks whether `/models` answers, counts any non-5xx reply as available except a rejected credential, and separately lists served models and their context windows. This one asks for a completion and names the state: unreachable, unauthorised, model not served, completion failed, timeout. A wrong path answering 404 is available there and a failure here | decide which question a pre-flight asks; this one is the stricter answer. The served-model and context-window helpers are serving facts with no counterpart here, and can stay where they are |
+| `agentic_base.code_policy` | `agentic/sandbox/policy.py`, used by its sandbox executor | agentic-env's `SandboxPolicy` combines the same AST check with a regex blocklist and the allowed modules from its `SandboxConfig`; this one is the AST check alone and takes no configuration | make agentic-env's policy take its limits as arguments instead of importing `SandboxConfig`, a change that alters no behaviour, then have it call this module for the AST check |
+| `agentic_base.hpc.clusters` | `products/slurm_companion/config.py` and that product's profile files | this one is the profile schema, loaded from YAML with a guard that refuses a secret in a profile; agentic-env's is the product's configuration, read from `SLURM_*` variables, with its own profiles | not an agentic-env import. It is what the hpc block starts from when that block is extracted into its own package (`blocks.md`) |
+| `agentic_base.domain.epochs` | `agentic/core/component_versions.py` and its ledger reader | the same rule in two models. agentic-env declares sets of base-layer versions that are equivalent and refuses to pool runs spanning two sets; this one declares a boundary, a revision or component version at which a field changed meaning, and classifies each record before, after or unknown | pick one model. agentic-env's has a live corpus behind it; this one handles a meaning change on any field, not only a version |
+| `agentic_base.limits` | `agentic/limits.py`: 98 constants read from the environment at import, imported by 43 modules, after a bootstrap that layers presets first | this one is a settings object read when called, and it is used here by the health probe, netsec, the tool contract, the MCP server and the validity check | nothing, by design: the mechanism was the part to share and the constants stay with the application (`move-plan.md`). Moving agentic-env to read-time resolution would touch every one of those modules and its bootstrap order for no change in behaviour |
+
 ## Left out
 
 Each of these was measured, and the measurement is the reason.

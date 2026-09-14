@@ -36,7 +36,8 @@ pin on a minor range. The order was chosen for process risk rather than value: t
 protocol went first because it is stdlib-only, portable by construction, and cannot break a
 cluster, so a flaw in the loop would surface on a hundred lines rather than on a module
 something depends on. The span vocabulary, the provenance emitters and the MCP transport
-followed, each as its own merge request. `from-agentic-env.md` says what each one found.
+followed, each as its own merge request. `from-agentic-env.md` says what each one found, and
+lists the six modules still copied on both sides with what closing each takes.
 
 **`limits.py` moves as a mechanism, never as a file.** It holds product policy, slide word
 counts and page sizes among it. What is generic is env-configurable values resolved when read,
