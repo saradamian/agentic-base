@@ -90,6 +90,7 @@ something maintained already do this? `tests/test_reuse_ledger.py` fails when a 
 | `security/netsec.py` | SSRF validation and DNS pinning. The one wrapper that did this, `advocate`, last released 2020-07 and targets `requests` | BUILD. Revisit when httpx ships an SSRF-safe transport or a maintained library appears |
 | `hpc/job_result.py` | a delimited single-line base64 result channel over Slurm stdout | BUILD. Nothing models a value coming back from a batch job. Revisit when Slurm exposes a result channel |
 | `domain/validity.py` | see the standards table | BUILD the check, ADOPT the standard. Revisit when the build table's row for comparison validity says to |
+| `auth.py` | bearer tokens mapped to the tenants each may use, checked on every data route, refusing by default | BRIDGE: FastAPI's `HTTPBearer` carries the scheme; the tenant grants are ours, because no platform component yet says which tenants a caller may write. Revisit when the gateway passes a verified identity with tenant claims from the federation, and check the claim instead of a token |
 | `client.py` | an httpx client for the service's write path, one call per record | ADOPT httpx. The ten lines around it are the call site, not a client library |
 | `config.py` | `pydantic-settings` over environment variables | ADOPT |
 | `db.py` | engine and session from SQLModel | ADOPT |

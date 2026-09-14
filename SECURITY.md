@@ -23,6 +23,11 @@ and a credit in the advisory unless you ask otherwise.
 
 ## Scope
 
+The service refuses by default. Every data route needs a bearer token from `API_TOKENS`, and a
+token reaches only the tenants listed for it; another tenant's run looked up by id is not found
+rather than forbidden. `AUTH=none` exists for local development and logs a warning. A way to read
+or write a tenant's runs without a token that lists it is a vulnerability.
+
 The library half fetches URLs on behalf of agents and filters generated code before it runs.
 Both are documented as bounding accidental damage, not as boundaries against an adversary; see
 the module docstrings in `src/agentic_base/security` and `src/agentic_base/code_policy`. A report

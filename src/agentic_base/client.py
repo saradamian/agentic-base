@@ -10,7 +10,7 @@ resulted from making provenance optional.
 Usage:
 
     recorder = RunRecorder("https://agentic-base.example.org", tenant="hpml",
-                           code_revision=git_sha())
+                           code_revision=git_sha(), token=os.environ["AGENTIC_BASE_TOKEN"])
 
     with recorder.run(item="issue-4312", arm="baseline") as run:
         answer = my_agent(task)
@@ -107,6 +107,7 @@ class RunRecorder:
         tenant: str,
         code_revision: str,
         *,
+        token: str = "",
         timeout_s: float = 10.0,
     ) -> None:
         if not tenant:
@@ -121,6 +122,7 @@ class RunRecorder:
         self.tenant = tenant
         self.code_revision = code_revision
         self._timeout = timeout_s
+        self._headers = {"Authorization": f"Bearer {token}"} if token else {}
 
     def run(self, **kwargs: Any) -> _RunContext:
         """Open a run. Records on exit, including on an exception."""
@@ -137,7 +139,10 @@ class RunRecorder:
             },
         }
         response = httpx.post(
-            f"{self.base_url}/runs", json=payload, timeout=self._timeout
+            f"{self.base_url}/runs",
+            json=payload,
+            headers=self._headers,
+            timeout=self._timeout,
         )
         response.raise_for_status()
         return response.json()["run_id"]
@@ -162,6 +167,7 @@ class RunRecorder:
                 "at": at,
                 "note": note,
             },
+            headers=self._headers,
             timeout=self._timeout,
         )
         response.raise_for_status()
@@ -184,6 +190,7 @@ class RunRecorder:
                 "instrument": instrument,
                 "degraded": degraded,
             },
+            headers=self._headers,
             timeout=self._timeout,
         )
         response.raise_for_status()

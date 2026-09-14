@@ -17,6 +17,13 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./agentic-base.db"
     """PostgreSQL in every deployed environment; SQLite locally so the service runs with no infrastructure."""
 
+    auth: str = "tokens"
+    """``tokens`` requires a bearer token from ``api_tokens`` on every data route; ``none`` turns the
+    check off, for local development only. See src/agentic_base/auth.py."""
+    api_tokens: SecretStr = SecretStr("")
+    """JSON: ``{"<token>": ["tenant", ...]}``, ``"*"`` for every tenant. From the platform's secret
+    management, never a file in the image. With ``auth=tokens`` and none set, data routes refuse."""
+
     redaction: str = "none"
     """``none``; ``patterns`` for credentials, contact details, bank numbers and identifiers only;
     ``names`` to add people and places, with the detectors below. See docs/architecture/redaction.md."""

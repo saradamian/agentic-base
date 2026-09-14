@@ -115,6 +115,7 @@ reads back everything the agent did for one person, and checks the records are i
 
 ```bash
 pip install 'surf-agentic-base[service]'
+export API_TOKENS='{"example-token-0000001": ["example-team", "platform-team"]}'
 REDACTION=patterns just run          # in one terminal
 python examples/service_agent.py     # in another
 ```
@@ -190,6 +191,7 @@ sound, whether the records are intact, what was kept of a transcript, and for on
 
 ```bash
 pip install 'surf-agentic-base[service,provenance]'
+export API_TOKENS='{"example-token-0000001": ["example-team", "platform-team"]}'
 REDACTION=patterns just run        # in one terminal
 python examples/record_and_ask.py  # in another
 ```
@@ -220,13 +222,16 @@ python examples/record_and_ask.py  # in another
 
 7. Everything this tenant recorded, to take elsewhere
    manifest says 12 records; the file has 12
+   the same request without the token: HTTP 401
 ```
 
 `<version>` is the installed package version.
 
 **From a chat client.** `agentic-base-mcp` serves the same database read-only over MCP, with four
 tools: `list_runs`, `get_run`, `validity_report` and `corpus_stats`. Point it at the database the
-service writes, in the `mcpServers` block of Claude Desktop or a project's `.mcp.json`:
+service writes, in the `mcpServers` block of Claude Desktop or a project's `.mcp.json`. It opens
+that database itself, so it runs where its user may already read the database and is never
+published as a network service:
 
 ```json
 {
@@ -258,6 +263,15 @@ just check        # tests with coverage, ruff, mypy
 
 SQLite by default so it runs with no infrastructure. PostgreSQL, provided as a platform tenant
 resource, in every deployed environment.
+
+Every data route requires a bearer token. `API_TOKENS` maps each token to the tenants it may use,
+`["*"]` for all of them, and comes from the platform's secret management. With no tokens set the
+service refuses every data request and says what to set; `AUTH=none` turns the check off for local
+development, and the service logs a warning when it starts that way.
+
+```bash
+AUTH=none just run
+```
 
 ## Documentation
 
