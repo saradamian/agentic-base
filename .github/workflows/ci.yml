@@ -41,7 +41,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: docker build --build-arg VERSION=0.0.0+ci -t agentic-base:ci .
+        with:
+          fetch-depth: 0  # the tags, so the image reads its version from git as a release does
+      - run: docker build -t agentic-base:ci .
       - name: the image carries the service and its commands, and no development tools
         run: |
           docker run --rm --entrypoint /app/.venv/bin/python agentic-base:ci -c '
@@ -50,7 +52,9 @@ jobs:
           present = [d for d in ("pytest", "ruff", "mypy") if u.find_spec(d) is not None]
           assert not missing, f"service dependencies missing: {missing}"
           assert not present, f"development tools in the image: {present}"
-          print("surf-agentic-base", m.version("surf-agentic-base"))
+          version = m.version("surf-agentic-base")
+          assert version != "0.0.0", "the image fell back to 0.0.0: it could not read its version"
+          print("surf-agentic-base", version)
           '
       - name: the migration command builds a database
         run: >
