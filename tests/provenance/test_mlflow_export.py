@@ -2,20 +2,25 @@
 
 from __future__ import annotations
 
-import sys
+import uuid
 from datetime import datetime, timezone
 
+import mlflow
 import pytest
+from sqlmodel import Session
 
+from agentic_base.db import get_engine, init_db
 from agentic_base.domain.outcomes import LabelSource, RunRecordCreate
-from agentic_base.provenance.mlflow_export import outcome_metadata, to_mlflow
-
-if sys.version_info < (3, 14):
-    import mlflow  # the 3.10 leg must run this; a skip there would be a guard that cannot fail
-else:  # pragma: no cover
-    mlflow = pytest.importorskip(
-        "mlflow", reason="mlflow's dependency tree does not build on 3.14 yet"
-    )
+from agentic_base.domain.run_record import RunRecord
+from agentic_base.provenance.mlflow_export import (
+    RUN_ID_TAG,
+    TRANSCRIPT_FIELDS,
+    export_runs,
+    main,
+    outcome_metadata,
+    span_attributes,
+    to_mlflow,
+)
 
 CREATED = datetime(2026, 9, 12, 10, 0, tzinfo=timezone.utc)
 
@@ -33,6 +38,10 @@ def tracking(tmp_path_factory):
         f"sqlite:///{tmp_path_factory.mktemp('mlflow') / 'mlflow.db'}"
     )
     yield
+
+
+def _id() -> str:
+    return uuid.uuid4().hex
 
 
 def _run(**overrides) -> RunRecordCreate:
@@ -56,7 +65,7 @@ def _run(**overrides) -> RunRecordCreate:
 
 
 def test_the_export_round_trips_the_outcome_with_its_authority(tracking) -> None:
-    trace_id = to_mlflow(_run(), "abc", CREATED, experiment="probe")
+    trace_id = to_mlflow(_run(), _id(), CREATED, experiment="probe")
 
     trace = mlflow.get_trace(trace_id)
     (assessment,) = [a for a in trace.info.assessments if a.name == "resolved"]
@@ -69,7 +78,7 @@ def test_the_export_round_trips_the_outcome_with_its_authority(tracking) -> None
 
 
 def test_the_span_carries_the_transcript_and_the_standard_attributes(tracking) -> None:
-    trace_id = to_mlflow(_run(), "abc", CREATED, experiment="probe")
+    trace_id = to_mlflow(_run(), _id(), CREATED, experiment="probe")
 
     (span,) = mlflow.get_trace(trace_id).data.spans
     assert span.inputs["system_prompt"] == "You are careful."
@@ -87,7 +96,7 @@ def test_a_diagnostic_verdict_is_exported_as_diagnostic_not_hidden(tracking) -> 
             instrument="in-tree",
             degraded=True,
         ),
-        "abc",
+        _id(),
         CREATED,
         experiment="probe",
     )
@@ -103,7 +112,7 @@ def test_a_diagnostic_verdict_is_exported_as_diagnostic_not_hidden(tracking) -> 
 def test_an_unlabelled_run_exports_no_assessment(tracking) -> None:
     trace_id = to_mlflow(
         _run(resolved=None, label_source=LabelSource.UNLABELLED, instrument=""),
-        "abc",
+        _id(),
         CREATED,
         experiment="probe",
     )
@@ -121,3 +130,77 @@ def test_the_metadata_names_every_fact_the_source_type_cannot() -> None:
         "agentic_base.instrument",
         "agentic_base.writer",
     }
+
+
+def test_every_field_of_the_record_is_exported_somewhere() -> None:
+    """A field added to the record is exported without anyone editing this module."""
+    attributes = span_attributes(_run(), "abc", CREATED)
+    exported = {k.removeprefix("agentic_base.") for k in attributes} | set(
+        TRANSCRIPT_FIELDS
+    )
+
+    assert set(RunRecordCreate.model_fields) <= exported
+
+
+def test_the_transparency_and_oversight_fields_reach_mlflow(tracking) -> None:
+    run = _run(disclosure="banner on every reply", content_marking="c2pa:urn:x")
+    trace_id = to_mlflow(run, _id(), CREATED, experiment="probe")
+
+    (span,) = mlflow.get_trace(trace_id).data.spans
+    assert span.attributes["agentic_base.disclosure"] == "banner on every reply"
+    assert span.attributes["agentic_base.content_marking"] == "c2pa:urn:x"
+
+
+def test_exporting_leaves_the_callers_active_experiment_alone(tracking) -> None:
+    mine = mlflow.set_experiment("the-callers-own")
+
+    to_mlflow(_run(), _id(), CREATED, experiment="probe")
+
+    assert mlflow.tracking.fluent._get_experiment_id() == mine.experiment_id
+
+
+def test_exporting_the_same_run_twice_returns_the_trace_already_there(tracking) -> None:
+    run_id = _id()
+    first = to_mlflow(_run(), run_id, CREATED, experiment="probe")
+    second = to_mlflow(_run(), run_id, CREATED, experiment="probe")
+
+    experiment = mlflow.get_experiment_by_name("probe")
+    assert experiment is not None
+    found = mlflow.search_traces(
+        locations=[experiment.experiment_id],
+        filter_string=f"tag.`{RUN_ID_TAG}` = '{run_id}'",
+        return_type="list",
+    )
+    assert second == first
+    assert len(found) == 1
+
+
+def test_a_batch_export_says_how_many_it_wrote_and_how_many_were_there(
+    tracking,
+) -> None:
+    runs = [(_run(item=f"t{n}"), _id(), CREATED) for n in range(3)]
+
+    assert export_runs(runs[:2], experiment="batch") == (2, 0)
+    assert export_runs(runs, experiment="batch") == (1, 2)
+
+
+def test_the_command_exports_a_tenant_from_the_service_database(
+    tracking, capsys
+) -> None:
+    init_db()
+    tenant = f"cmd-{_id()}"
+    with Session(get_engine()) as session:
+        for item in ("a", "b"):
+            session.add(
+                RunRecord(tenant=tenant, item=item, arm="x", code_revision="abc")
+            )
+        session.commit()
+
+    main(["--tenant", tenant, "--experiment", "from-the-command"])
+    main(["--tenant", tenant, "--experiment", "from-the-command"])
+
+    lines = capsys.readouterr().out.splitlines()
+    assert lines == [
+        f"tenant {tenant}: 2 run(s); exported 2, already in experiment 'from-the-command' 0",
+        f"tenant {tenant}: 2 run(s); exported 0, already in experiment 'from-the-command' 2",
+    ]

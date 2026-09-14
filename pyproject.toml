@@ -36,6 +36,7 @@ dependencies = [
 
 [project.scripts]
 agentic-base-mcp = "agentic_base.mcp.server:main"
+agentic-base-mlflow = "agentic_base.provenance.mlflow_export:main"
 
 [project.optional-dependencies]
 # Export into MLflow's tracking backend; heavy, so its own extra.
@@ -92,9 +93,8 @@ dev = [
   "mkdocs-techdocs-core==1.7.1",
   # The suite runs on the consumer floor too, so the 3.10 leg needs a TOML reader.
   'tomli>=2.4; python_version < "3.11"',
-  # The MLflow export test needs MLflow; its dependency tree does not build on 3.14 yet, so the
-  # 3.10 leg runs it and the 3.14 leg skips it with a visible reason.
-  'mlflow>=3.16,<4; python_version < "3.14"',
+  # The MLflow export test needs MLflow, on both ends of the supported range.
+  "mlflow>=3.16,<4",
 
 ]
 

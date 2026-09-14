@@ -5745,7 +5745,7 @@ service = [
 dev = [
     { name = "coverage" },
     { name = "mkdocs-techdocs-core" },
-    { name = "mlflow", marker = "python_full_version < '3.14'" },
+    { name = "mlflow" },
     { name = "mypy" },
     { name = "mypy-extensions" },
     { name = "pytest" },
@@ -5790,7 +5790,7 @@ provides-extras = ["mlflow", "provenance", "service"]
 dev = [
     { name = "coverage", specifier = "==7.16.1" },
     { name = "mkdocs-techdocs-core", specifier = "==1.7.1" },
-    { name = "mlflow", marker = "python_full_version < '3.14'", specifier = ">=3.16,<4" },
+    { name = "mlflow", specifier = ">=3.16,<4" },
     { name = "mypy", specifier = "==2.3.1" },
     { name = "mypy-extensions", specifier = "==1.1.0" },
     { name = "pytest", specifier = "==9.1.1" },

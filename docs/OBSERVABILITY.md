@@ -72,6 +72,7 @@ A hosted Phoenix wants an API key: `OTEL_EXPORTER_OTLP_HEADERS="api_key=$PHOENIX
 ## Provenance is not telemetry
 
 A run's provenance in W3C PROV, OpenLineage or a Process Run Crate comes from
-`GET /runs/{run_id}/provenance?format=...`, and an export into MLflow from
+`GET /runs/{run_id}/provenance?format=...`, and an export into MLflow from `agentic-base-mlflow`
+(a tenant from the service's database) or
 `agentic_base.provenance.mlflow_export`. Those are records of what a run was; the signals above
 are records of what this service did while serving them.
