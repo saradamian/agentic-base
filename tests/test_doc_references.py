@@ -87,14 +87,18 @@ def missing_path_reference(reference: str) -> str | None:
 
 
 def _settings_fields() -> set[str]:
-    tree = ast.parse((SRC / "agentic_base" / "config.py").read_text())
-    return {
-        node.target.id.upper()
-        for cls in tree.body
-        if isinstance(cls, ast.ClassDef)
-        for node in cls.body
-        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
-    }
+    """Service settings from ``config.py``, and the ``AP_``-prefixed limits from ``limits.py``."""
+    names: set[str] = set()
+    for module, prefix in (("config.py", ""), ("limits.py", "AP_")):
+        tree = ast.parse((SRC / "agentic_base" / module).read_text())
+        names |= {
+            prefix + node.target.id.upper()
+            for cls in tree.body
+            if isinstance(cls, ast.ClassDef)
+            for node in cls.body
+            if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name)
+        }
+    return names
 
 
 def _source_constants() -> set[str]:
@@ -194,8 +198,9 @@ def test_a_planted_reference_of_each_kind_is_reported() -> None:
     page = (
         "`agentic_base.domain.integrity.no_such_function` `agentic_base.nowhere` "
         "`tests/test_nothing_here.py` `REDACTION_NO_SUCH_SETTING` `GET /runs/nowhere` "
+        "`AP_MCP_MAX_ROWS` `AP_NO_SUCH_LIMIT` "
         "`agentic_base.domain.integrity.verify_chain` `REDACTION_LLM_*` `GET /runs/export?tenant=x`"
     )
     problems, examined = check(page)
-    assert examined == {"modules": 3, "paths": 1, "names": 2, "endpoints": 2}
-    assert len(problems) == 5, problems
+    assert examined == {"modules": 3, "paths": 1, "names": 4, "endpoints": 2}
+    assert len(problems) == 6, problems

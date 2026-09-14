@@ -241,6 +241,14 @@ service writes, in the `mcpServers` block of Claude Desktop or a project's `.mcp
 
 Then ask it, for example, whether the comparison for `example-team` is sound.
 
+`get_run` returns a long transcript in pages, so no part of a run is out of reach:
+`transcript.next_message` says where the next page starts, and a call with `from_message` set to
+it returns that page. A page holds at most `AP_MCP_MAX_TRANSCRIPT_CHARS` characters of messages,
+60,000 unless set, and `0` removes the limit. A caller can ask for smaller pages with `max_chars`.
+A message longer than the limit is returned whole rather than cut, and the system prompt comes
+whole on the first page. `list_runs` returns at most `AP_MCP_MAX_ROWS` rows, 200 unless set, and
+says how many there were.
+
 ## Running locally
 
 ```bash
