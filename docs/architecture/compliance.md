@@ -138,10 +138,11 @@ core controls, so most of the second half of that table is inherited.
   from.
 - **The incident path has been walked once, on paper.** `incident-response.md` says which clock
   is which, who is told, and where each thing a report asks for lives. A tabletop against v0.3.4
-  found that PyPI served a rebuilt wheel no attestation covered, now fixed for the next release,
-  and that no release yet carries an SBOM. What is missing is a named person for the software's
+  found that PyPI served a rebuilt wheel no attestation covered and that no release carried an
+  SBOM; 0.4.0 fixes both, verified on the files PyPI serves. A walk of the service rows against a
+  local instance found the audit log was never written, now fixed. What is missing is a named person for the software's
   vulnerability duty, an answer to the Cyber Resilience Act scope question, an account on the
-  reporting platform, and a drill of the service rows once there is a service.
+  reporting platform, and a drill of the service rows against the deployed service.
 - **Human oversight is recorded, not required.** Article 14 expects oversight measures for
   high-risk systems. The record carries approvals, overrides and interventions with who decided
   and when, and an endpoint to add one; nothing yet forces a block to obtain one before it acts.
