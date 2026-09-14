@@ -57,6 +57,18 @@ checks by shape and says which line; a new public host is added to its list, and
 is a review decision. Numbers from the AI Factory's plan, task and deliverable names included,
 are fine; its documents are not, and neither is anything quoted from them.
 
+## Changing the schema
+
+A change to a table model needs a migration in the same pull request. Generate it against a
+database at the current head and read what it produced before committing it:
+
+```
+PYTHONPATH=src python -c "from alembic import command; from agentic_base.migrations.schema import alembic_config, upgrade; url='sqlite:////tmp/head.db'; upgrade(url); command.revision(alembic_config(url), message='what changed', autogenerate=True)"
+```
+
+`tests/migrations/test_schema.py` fails when the models and the migrations disagree. Enum columns
+store their values as strings, so adding a member to an enum needs no migration.
+
 ## Tests
 
 One test per behaviour, at the highest seam that can actually fail. Name the behaviour and the

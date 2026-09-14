@@ -8,7 +8,7 @@ and tested without infrastructure.
 from collections.abc import Iterator
 from functools import cache
 
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, create_engine
 
 from agentic_base.config import get_settings
 
@@ -26,15 +26,14 @@ def get_engine():  # noqa: ANN201 - engine type is a SQLAlchemy internal
 
 
 def init_db() -> None:
-    """Create tables that do not exist yet.
+    """Bring the database to the schema this build needs, or refuse to start.
 
-    Schema evolution in a deployed environment is Alembic's job. This exists so that local
-    runs and tests do not need a migration step.
+    A local SQLite file is migrated in place; any other database must already be current. See
+    :mod:`agentic_base.migrations`.
     """
-    import agentic_base.domain.audit  # noqa: F401  - registers the audit log
-    import agentic_base.domain.run_record  # noqa: F401  - registers the table
+    from agentic_base.migrations.schema import ensure_current
 
-    SQLModel.metadata.create_all(get_engine())
+    ensure_current(get_engine(), get_settings().database_url)
 
 
 def get_session() -> Iterator[Session]:

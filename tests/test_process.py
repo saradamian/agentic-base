@@ -63,9 +63,18 @@ def test_every_source_module_has_a_test_module() -> None:
     existed. Nothing had imported it, so nothing had failed.
     """
     wired_only = {"__init__", "main", "config", "db"}
-    modules = {
-        path.stem for path in (ROOT / "src" / "agentic_base").rglob("*.py")
-    } - wired_only
+    # Alembic runs env.py and the revision files itself; the migration test exercises all of them.
+    alembic_scripts = {"env"} | {
+        path.stem
+        for path in (ROOT / "src" / "agentic_base" / "migrations" / "versions").glob(
+            "*.py"
+        )
+    }
+    modules = (
+        {path.stem for path in (ROOT / "src" / "agentic_base").rglob("*.py")}
+        - wired_only
+        - alembic_scripts
+    )
     tested = {
         path.stem.removeprefix("test_") for path in (ROOT / "tests").rglob("test_*.py")
     }

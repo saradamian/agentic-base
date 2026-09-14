@@ -66,8 +66,14 @@ def _rows(header_starts: tuple[str, ...]) -> list[dict[str, str]]:
 
 
 def _modules() -> set[str]:
+    """Every module, except the scripts Alembic runs rather than anyone importing them."""
     return {
-        str(p.relative_to(SRC)) for p in SRC.rglob("*.py") if p.name != "__init__.py"
+        str(p.relative_to(SRC))
+        for p in SRC.rglob("*.py")
+        if p.name != "__init__.py"
+        and not p.relative_to(SRC)
+        .as_posix()
+        .startswith(("migrations/env.py", "migrations/versions/"))
     }
 
 
