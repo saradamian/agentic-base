@@ -20,13 +20,17 @@ A record that compares nothing leaves `item` and `arm` empty.
 
 Three things it does on the way. When redaction is configured it removes personal data and
 credentials from the transcript before writing it, and refuses the write rather than store a
-transcript it could not redact. It knows which transcripts are older than a tenant's retention
-policy, and how to erase one without breaking the chain. And a tenant can take its whole corpus
-away in one request.
+transcript it could not redact. `agentic-base-retention` erases transcripts older than a tenant's
+retention policy, on a schedule, or one on a person's request, without breaking the audit log. And
+a tenant can take its whole corpus away in one request.
 
 It serves a run in W3C PROV, OpenLineage or a Process Run Crate, exports a tenant's runs to MLflow
 with `agentic-base-mlflow`, and exposes the corpus read-only over MCP with `agentic-base-mcp`, so
 someone in a chat client can ask.
+
+Every data request needs a bearer token that lists the tenant it names. A release migrates the
+schema before it starts, with `agentic-base-migrate`, and the service refuses to run against an
+older one.
 
 That is all of it. It does not run agents, serve models, schedule jobs or train.
 

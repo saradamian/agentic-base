@@ -232,13 +232,46 @@ none can be skipped by a green gate; `tests/test_secret_scan.py` fails when the 
 matching the module's pattern; the release workflow refuses to publish without the attestations,
 and `tests/test_process.py` fails if the publish job builds the distribution again.
 
+## The image is what runs, so the image is what is checked
+
+A gate over the source says nothing about the artifact a deployment pulls. Here the Dockerfile
+kept its original `uv sync` after the library and the service were split, so the image installed
+the development tools and not the service, and exited on start with a missing module. Nothing
+built the image, so nothing noticed, for as long as the split had existed.
+
+**Guard:** the `image` job in `.github/workflows/ci.yml`, a required check, builds the image,
+checks what it carries, runs the migration and starts the service; `tests/test_process.py` holds
+the Dockerfile's sync flags and the chart's `appVersion`.
+
+## A schema change is a migration, and the service checks for it
+
+A table created from the models on first start is right once. A column added later does nothing to
+a database that exists, and the service then fails at the first write that needs it, in production.
+So the schema is versioned, a release migrates before it starts, and the service refuses to start
+against an older schema instead of finding out one request at a time. Enum columns store values as
+strings, because a database enum type needs a migration to gain a member and no table comparison
+sees one missing.
+
+**Guard:** `tests/migrations/test_schema.py` migrates an empty database and compares it with the
+models, and fails when any column is a database enum type.
+
+## Refuse by default
+
+A service holding transcripts that answers whoever reaches it is open until someone remembers to
+close it, and nobody is reminded. So a data route refuses without a token, a deployment with no
+tokens configured refuses everything and names the setting, and turning the check off takes a
+setting whose name says what it does and a warning at start.
+
+**Guard:** `tests/test_auth.py::test_every_runs_route_asks_who_is_calling` fails when a route is
+added without the check.
+
 ## Settings that are free on the first day
 
 From willma2, which merged 490 requests this way: rebase merge, squash always, pipeline must pass,
 discussions resolved, source branch removed, protected trunk. Here they are a branch ruleset
-requiring pull requests, five required checks strict (both interpreters, the dependency review,
-the audit and the secret scan), linear history, resolved threads, no
-force-push, no deletion and no bypass actors, plus a tag ruleset making releases immutable.
+requiring pull requests, six required checks strict (both interpreters, the dependency review,
+the audit, the secret scan and the image), linear history, resolved threads, no force-push, no
+deletion and no bypass actors, plus a tag ruleset making releases immutable.
 
 Required approvals are zero, deliberately, while there is one maintainer: a person cannot approve
 their own pull request, and a rule that blocks everything gets bypassed. The gate is the reviewer
