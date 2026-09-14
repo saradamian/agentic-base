@@ -40,7 +40,13 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class LabelSource(str, enum.Enum):
-    """Who decided this run's outcome."""
+    """Who decided this run's outcome.
+
+    Benchmarks bring their own scorers and most of these names come from them, but a service
+    agent's outcomes are decided too: by the person who used it, by a model asked to judge, or
+    by someone whose decision is the reference. Each has a name here, and only the last kind is
+    citable.
+    """
 
     UNLABELLED = "unlabelled"
     SELF_REPORTED = "self_reported"
@@ -60,6 +66,17 @@ class LabelSource(str, enum.Enum):
     named apart from the harness because a reader must not assume the SWE-bench calibration."""
 
     HUMAN = "human"
+    """A person whose judgement is the reference for this label: an annotator working to stated
+    criteria, or a reviewer whose decision is the outcome. Not a passing thumbs-up."""
+
+    USER_FEEDBACK = "user_feedback"
+    """The person the agent worked for said whether it helped: a rating, an accepted or rejected
+    suggestion. Worth recording and worth watching, and not a measurement: people rate what they
+    wanted to hear, and the ones who rate are not a sample."""
+
+    MODEL_JUDGE = "model_judge"
+    """A model other than the agent scored the outcome. Informative, and not citable until that
+    judge has been calibrated against a reference on the same kind of work."""
 
 
 CITABLE_LABEL_SOURCES = frozenset(
@@ -90,6 +107,8 @@ _AUTHORITY: dict[LabelSource, LabelAuthority] = {
     LabelSource.OFFICIAL_HARNESS: LabelAuthority.AUTHORITATIVE,
     LabelSource.BENCHMARK_GRADER: LabelAuthority.AUTHORITATIVE,
     LabelSource.HUMAN: LabelAuthority.AUTHORITATIVE,
+    LabelSource.USER_FEEDBACK: LabelAuthority.DIAGNOSTIC,
+    LabelSource.MODEL_JUDGE: LabelAuthority.DIAGNOSTIC,
 }
 
 _MLFLOW_SOURCE_TYPE: dict[LabelSource, str] = {
@@ -99,6 +118,8 @@ _MLFLOW_SOURCE_TYPE: dict[LabelSource, str] = {
     LabelSource.OFFICIAL_HARNESS: "CODE",
     LabelSource.BENCHMARK_GRADER: "CODE",
     LabelSource.HUMAN: "HUMAN",
+    LabelSource.USER_FEEDBACK: "HUMAN",
+    LabelSource.MODEL_JUDGE: "LLM_JUDGE",
 }
 
 
@@ -283,8 +304,17 @@ class RunRecordCreate(BaseModel):
     """
 
     item: str = ""
+    """The unit of work: a benchmark task, a merge request, a ticket, a question. What two runs
+    must share to be compared on the same thing. Empty when there is no such unit."""
+
     arm: str = ""
+    """What is being compared: a benchmark arm, or for a service agent the version, model or
+    prompt it ran as. Empty when nothing is being compared; the record needs neither."""
+
     arm_fingerprint: str = ""
+    """A digest of the configuration behind ``arm``, so two runs sharing a label but not a
+    configuration are never pooled. Empty when ``arm`` is."""
+
     system_prompt: str = ""
     messages: list[dict[str, Any]] = Field(default_factory=list)
     model: str = ""

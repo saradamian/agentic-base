@@ -34,7 +34,12 @@ from typing import Any, Literal
 
 import httpx
 
-from agentic_base.domain.outcomes import LabelSource, RunStatus
+from agentic_base.domain.outcomes import (
+    DataClass,
+    IsolationTier,
+    LabelSource,
+    RunStatus,
+)
 
 
 def git_revision(path: str = ".") -> str:
@@ -69,6 +74,18 @@ class PendingRun:
     model: str = ""
     endpoint: str = ""
     precision: str = ""
+    component_versions: dict[str, str] = field(default_factory=dict)
+    principal: str = ""
+    """The person the run acted for, as the federation names them. Empty for a service identity."""
+    classification: DataClass = DataClass.UNCLASSIFIED
+    isolation_tier: IsolationTier = IsolationTier.UNSPECIFIED
+    redaction: str = "none"
+    """What already removed personal data before this record, if the writer did it itself."""
+    disclosure: str = "none"
+    """How the person was told they were dealing with an AI."""
+    content_marking: str = "none"
+    approvals: list[dict[str, Any]] = field(default_factory=list)
+    """Approvals known when the run is recorded; later ones go through `RunRecorder.approve`."""
     status: RunStatus = RunStatus.COMPLETED
     failure_kind: str = ""
     prompt_tokens: int = 0
@@ -124,6 +141,30 @@ class RunRecorder:
         )
         response.raise_for_status()
         return response.json()["run_id"]
+
+    def approve(
+        self,
+        run_id: str,
+        *,
+        action: str,
+        decision: str,
+        by: str,
+        at: str,
+        note: str = "",
+    ) -> None:
+        """Record that a person approved, refused or overrode an action of this run."""
+        response = httpx.post(
+            f"{self.base_url}/runs/{run_id}/approvals",
+            json={
+                "action": action,
+                "decision": decision,
+                "by": by,
+                "at": at,
+                "note": note,
+            },
+            timeout=self._timeout,
+        )
+        response.raise_for_status()
 
     def label(
         self,

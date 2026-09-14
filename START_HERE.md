@@ -6,13 +6,17 @@ A few pages, then the code. There is no larger specification behind this.
 
 It is a system of record for agent runs, and a referee for claims made from that record.
 
-You post a run. The service stores what the model received, the environment it ran in, and a
-fingerprint of the configuration. You attach an outcome later, and the service refuses it unless
-you name who decided. It tells you whether a comparison between two configurations is sound. It
-appends every write to a hash-chained audit log and verifies it on request, so a later edit is
-detectable. Each record says who the run acted for, what class of data it touched and on which
-isolation tier, whether the transcript was redacted and by what, whether the person was told they
-were dealing with an AI, and who approved which action.
+You post a run. The service stores what the model received and the environment it ran in, and
+each record says who the run acted for, what class of data it touched and on which isolation
+tier, whether the transcript was redacted and by what, whether the person was told they were
+dealing with an AI, and who approved which action. Every write goes into a hash-chained audit log
+that is verified on request, so a later edit is detectable. That account is what any agent
+working for people needs, benchmark or not.
+
+You attach an outcome later, and the service refuses it unless you name who decided; a user's
+thumbs-up or another model's score is kept and marked as diagnostic, not citable. When you
+compare, benchmark arms or two versions of an agent, it tells you whether the comparison is sound.
+A record that compares nothing leaves `item` and `arm` empty.
 
 Three things it does on the way. When redaction is configured it removes personal data and
 credentials from the transcript before writing it, and refuses the write rather than store a

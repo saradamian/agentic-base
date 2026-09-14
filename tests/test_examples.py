@@ -13,9 +13,11 @@ import socket
 import subprocess
 import sys
 import time
+from collections.abc import Iterator
 from pathlib import Path
 
 import httpx
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples"
@@ -53,12 +55,14 @@ def test_the_library_example_prints_what_its_output_file_shows() -> None:
     assert _run("is_this_comparison_sound.py") == expected
 
 
-def test_the_service_example_prints_what_its_output_file_shows(tmp_path) -> None:
+@pytest.fixture(scope="module")
+def service_url(tmp_path_factory) -> Iterator[str]:
+    """A real service on a free port, as a reader would start it."""
     port = _free_port()
     base_url = f"http://127.0.0.1:{port}"
     env = {
         **os.environ,
-        "DATABASE_URL": f"sqlite:///{tmp_path / 'runs.db'}",
+        "DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('examples') / 'runs.db'}",
         "REDACTION": "patterns",
         "OTEL_SDK_DISABLED": "true",
     }
@@ -89,18 +93,27 @@ def test_the_service_example_prints_what_its_output_file_shows(tmp_path) -> None
             except httpx.TransportError:
                 assert time.monotonic() < deadline, "the service did not start"
                 time.sleep(0.2)
-        printed = _run("record_and_ask.py", {"AGENTIC_BASE_URL": base_url})
+        yield base_url
     finally:
         server.terminate()
         server.wait(timeout=30)
 
-    assert (
-        _normalised(printed, base_url) == (EXAMPLES / "record_and_ask.out").read_text()
-    )
+
+@pytest.mark.parametrize("script", ["record_and_ask", "service_agent"])
+def test_a_service_example_prints_what_its_output_file_shows(
+    service_url, script
+) -> None:
+    printed = _run(f"{script}.py", {"AGENTIC_BASE_URL": service_url})
+
+    assert _normalised(printed, service_url) == (EXAMPLES / f"{script}.out").read_text()
 
 
 def test_the_readme_shows_the_output_the_examples_print() -> None:
     readme = (ROOT / "README.md").read_text()
 
-    for name in ("is_this_comparison_sound.out", "record_and_ask.out"):
+    for name in (
+        "is_this_comparison_sound.out",
+        "record_and_ask.out",
+        "service_agent.out",
+    ):
         assert (EXAMPLES / name).read_text() in readme, f"README does not show {name}"

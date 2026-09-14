@@ -111,6 +111,29 @@ def test_the_two_code_scorers_differ_in_authority_while_sharing_a_modality() -> 
     assert authority_of(convenience) is not authority_of(official)
 
 
+def test_a_service_agents_own_feedback_is_recorded_and_not_citable() -> None:
+    """A person's thumbs-up and a model's score are worth keeping and are not measurements."""
+    assert authority_of(LabelSource.USER_FEEDBACK) is LabelAuthority.DIAGNOSTIC
+    assert authority_of(LabelSource.MODEL_JUDGE) is LabelAuthority.DIAGNOSTIC
+    assert authority_of(LabelSource.HUMAN) is LabelAuthority.AUTHORITATIVE
+    assert mlflow_source_type(LabelSource.USER_FEEDBACK) == "HUMAN"
+    assert mlflow_source_type(LabelSource.MODEL_JUDGE) == "LLM_JUDGE"
+
+
+def test_the_facet_schema_lists_every_label_source() -> None:
+    import json
+    from pathlib import Path
+
+    schema = json.loads(
+        (
+            Path(__file__).resolve().parents[2] / "docs/schemas/OutcomeRunFacet.json"
+        ).read_text()
+    )
+    listed = schema["properties"]["labelSource"]["enum"]
+
+    assert sorted(listed) == sorted(s.value for s in LabelSource)
+
+
 def test_every_source_maps_onto_an_mlflow_source_type() -> None:
     for source in LabelSource:
         assert mlflow_source_type(source) in {"HUMAN", "LLM_JUDGE", "CODE"}

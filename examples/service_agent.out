@@ -1,0 +1,25 @@
+1. Three reviews, each recorded for the person who asked
+   recorded 3 runs
+
+2. The agent wanted to push to mr-103; a maintainer decided
+   approval recorded
+
+3. Verdicts on the reviews, and which of them mean anything
+   mr-101  the developer's thumbs-up    user_feedback  diagnostic
+   mr-102  another model's score        model_judge    diagnostic
+   mr-103  the maintainer's decision    human          authoritative
+
+4. Everything the agent did for alice, from the tenant's export
+   mr-101: Automated review: Looks fine; one missing test for the retry path.
+     told it was an AI: every review comment begins 'Automated review:'
+     data class internal, tier virtualised
+     approvals: none
+     stored question: Review mr-101. Questions to <EMAIL_ADDRESS>.
+   mr-103: Automated review: Suggest a fix: pin the base image by digest. Push it?
+     told it was an AI: every review comment begins 'Automated review:'
+     data class internal, tier virtualised
+     approvals: approved by urn:example:maintainer-carol
+     stored question: Review mr-103. Questions to <EMAIL_ADDRESS>.
+
+5. Are the records as they were written?
+   intact: 3 runs match 7 entries

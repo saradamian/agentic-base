@@ -115,10 +115,14 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     # --- tenancy and grouping -------------------------------------------------
     tenant: str = Field(index=True, description="Owning project or research group.")
     item: str = Field(
-        default="", index=True, description="What was attempted. Pairing key."
+        default="",
+        index=True,
+        description="The unit of work: a benchmark task, a merge request, a ticket. Pairing key.",
     )
     arm: str = Field(
-        default="", index=True, description="Condition under which it ran."
+        default="",
+        index=True,
+        description="What is being compared: a benchmark arm, or an agent version or model.",
     )
     arm_fingerprint: str = Field(
         default="",
