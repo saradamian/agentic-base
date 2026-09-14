@@ -1,0 +1,25 @@
+1. The number people report: resolved, over runs that finished
+   baseline      10/19 = 52.6%
+   with-planner  12/14 = 85.7%
+
+2. What the validity check says
+   not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline)
+   examined 40 runs, 2 arms, 1 exclusion channel(s); could have flagged: True
+
+3. The per-arm flow the verdict rests on
+   baseline: assessed 20; excluded 1 (1 timeout); analysed 19
+   with-planner: assessed 20; excluded 6 (6 timeout); analysed 14
+
+4. Two honest numbers instead of one flattering one
+   every run, a timeout counted as unresolved:
+   baseline      10/20 = 50.0%
+   with-planner  12/20 = 60.0%
+   only the 14 tasks both arms finished:
+   baseline      10/14 = 71.4%
+   with-planner  12/14 = 85.7%
+
+5. Which verdicts may be cited
+   the benchmark's own harness        citable: True
+   a quick in-tree check              citable: False
+   the harness, but it failed open    citable: False
+   the agent grading itself           citable: False

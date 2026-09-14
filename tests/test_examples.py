@@ -1,0 +1,106 @@
+"""The examples run, and print exactly what their output files and the README show.
+
+An example nobody runs is prose, and prose has no positive control. Each example is executed as a
+reader would run it, and its output is compared with the file committed beside it, so a change
+that alters what a user sees fails here instead of in someone's terminal.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import socket
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import httpx
+
+ROOT = Path(__file__).resolve().parents[1]
+EXAMPLES = ROOT / "examples"
+
+
+def _normalised(text: str, base_url: str = "") -> str:
+    """Remove what differs by install and by machine: the package version and the port."""
+    if base_url:
+        text = text.replace(base_url, "http://localhost:8080")
+    return re.sub(r"agentic-base \S+ patterns", "agentic-base <version> patterns", text)
+
+
+def _run(script: str, env: dict[str, str] | None = None) -> str:
+    result = subprocess.run(
+        [sys.executable, str(EXAMPLES / script)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env={**os.environ, **(env or {})},
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout
+
+
+def _free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def test_the_library_example_prints_what_its_output_file_shows() -> None:
+    expected = (EXAMPLES / "is_this_comparison_sound.out").read_text()
+
+    assert _run("is_this_comparison_sound.py") == expected
+
+
+def test_the_service_example_prints_what_its_output_file_shows(tmp_path) -> None:
+    port = _free_port()
+    base_url = f"http://127.0.0.1:{port}"
+    env = {
+        **os.environ,
+        "DATABASE_URL": f"sqlite:///{tmp_path / 'runs.db'}",
+        "REDACTION": "patterns",
+        "OTEL_SDK_DISABLED": "true",
+    }
+    server = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "uvicorn",
+            "--app-dir",
+            str(ROOT / "src"),
+            "agentic_base.main:get_app",
+            "--factory",
+            "--port",
+            str(port),
+        ],
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        deadline = time.monotonic() + 60
+        while True:
+            try:
+                httpx.get(
+                    f"{base_url}/runs/integrity", params={"tenant": "x"}, timeout=1
+                )
+                break
+            except httpx.TransportError:
+                assert time.monotonic() < deadline, "the service did not start"
+                time.sleep(0.2)
+        printed = _run("record_and_ask.py", {"AGENTIC_BASE_URL": base_url})
+    finally:
+        server.terminate()
+        server.wait(timeout=30)
+
+    assert (
+        _normalised(printed, base_url) == (EXAMPLES / "record_and_ask.out").read_text()
+    )
+
+
+def test_the_readme_shows_the_output_the_examples_print() -> None:
+    readme = (ROOT / "README.md").read_text()
+
+    for name in ("is_this_comparison_sound.out", "record_and_ask.out"):
+        assert (EXAMPLES / name).read_text() in readme, f"README does not show {name}"

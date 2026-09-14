@@ -26,7 +26,7 @@ from agentic_base.domain.run_record import (
     to_payload,
     to_record,
 )
-from agentic_base.domain.validity import ChannelSpread, check_comparison
+from agentic_base.domain.validity import ArmFlow, ChannelSpread, check_comparison
 from agentic_base.provenance import to_openlineage, to_process_run_crate, to_prov
 from agentic_base.redaction.configured import get_redactor
 from agentic_base.redaction.redact import RedactionUnavailable, Redactor, redact_run
@@ -79,6 +79,26 @@ class ChannelSpreadResponse(BaseModel):
         )
 
 
+class ArmFlowResponse(BaseModel):
+    """One arm's row of the CONSORT flow: attempted, left and why, and what remains."""
+
+    arm: str
+    assessed: int
+    excluded: dict[str, int]
+    analysed: int
+    description: str
+
+    @classmethod
+    def of(cls, flow: ArmFlow) -> "ArmFlowResponse":
+        return cls(
+            arm=flow.arm,
+            assessed=flow.assessed,
+            excluded=flow.excluded,
+            analysed=flow.analysed,
+            description=flow.describe(),
+        )
+
+
 class ValidityResponse(BaseModel):
     """The verdict, with the two fields a reader must not have to infer.
 
@@ -95,6 +115,8 @@ class ValidityResponse(BaseModel):
     paired_items: int
     total_items: int
     flagged: list[ChannelSpreadResponse]
+    flow: list[ArmFlowResponse]
+    """The per-arm accounting the verdict rests on, present whatever the verdict."""
 
 
 @dataclass(frozen=True)
@@ -380,4 +402,5 @@ def validity_report(
         paired_items=report.paired_items,
         total_items=report.total_items,
         flagged=[ChannelSpreadResponse.of(c) for c in report.flagged],
+        flow=[ArmFlowResponse.of(report.flow[arm]) for arm in sorted(report.flow)],
     )
