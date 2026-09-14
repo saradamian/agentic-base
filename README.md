@@ -165,6 +165,23 @@ python examples/record_and_ask.py  # in another
 
 `<version>` is the installed package version.
 
+**From a chat client.** `agentic-base-mcp` serves the same database read-only over MCP, with four
+tools: `list_runs`, `get_run`, `validity_report` and `corpus_stats`. Point it at the database the
+service writes, in the `mcpServers` block of Claude Desktop or a project's `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "agentic-base": {
+      "command": "agentic-base-mcp",
+      "env": { "DATABASE_URL": "sqlite:////absolute/path/to/agentic-base.db" }
+    }
+  }
+}
+```
+
+Then ask it, for example, whether the comparison for `example-team` is sound.
+
 ## Running locally
 
 ```bash

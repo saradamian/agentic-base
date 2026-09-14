@@ -34,6 +34,9 @@ dependencies = [
   "pyyaml>=6",
 ]
 
+[project.scripts]
+agentic-base-mcp = "agentic_base.mcp.server:main"
+
 [project.optional-dependencies]
 # Export into MLflow's tracking backend; heavy, so its own extra.
 mlflow = ["mlflow>=3.16,<4"]

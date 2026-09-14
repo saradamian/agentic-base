@@ -266,3 +266,20 @@ def build_server(
 def serve_stdio(session_factory: Callable[[], Session]) -> None:
     """Serve over stdio. Nothing else may write to stdout while this runs."""
     build_server(session_factory).run("stdio")
+
+
+def main() -> None:
+    """The ``agentic-base-mcp`` command: the corpus at ``DATABASE_URL``, over stdio.
+
+    It reads the same settings as the service, so pointed at the service's database it serves
+    the records the service wrote.
+    """
+    from agentic_base.db import get_engine, init_db
+
+    init_db()
+    engine = get_engine()
+    serve_stdio(lambda: Session(engine))
+
+
+if __name__ == "__main__":
+    main()

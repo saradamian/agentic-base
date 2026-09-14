@@ -1,9 +1,13 @@
 """The read-only MCP surface."""
 
 import json
+import os
+import sys
+from pathlib import Path
 
 import pytest
 from mcp import Client
+from mcp.client.stdio import StdioServerParameters
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
@@ -235,3 +239,36 @@ async def test_the_sdk_traces_a_served_call_into_the_configured_provider(
 
     scopes = {s.instrumentation_scope.name for s in exporter.get_finished_spans()}
     assert "mcp-python-sdk" in scopes, scopes
+
+
+@pytest.mark.asyncio
+async def test_the_installed_command_serves_the_database_it_is_pointed_at(
+    tmp_path,
+) -> None:
+    """The server is reachable the way a chat client reaches it: a process over stdio."""
+    url = f"sqlite:///{tmp_path / 'runs.db'}"
+    engine = create_engine(url)
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as s:
+        s.add(RunRecord(tenant="from-disk", item="task-1", arm="baseline"))
+        s.commit()
+    engine.dispose()
+
+    command = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "agentic_base.mcp.server"],
+        env={
+            **os.environ,
+            "DATABASE_URL": url,
+            "OTEL_SDK_DISABLED": "true",
+            # this tree's code, whatever copy the interpreter has installed
+            "PYTHONPATH": str(Path(__file__).resolve().parents[2] / "src"),
+        },
+    )
+    async with Client(command, raise_exceptions=True) as client:
+        tools = sorted(t.name for t in (await client.list_tools()).tools)
+        stats = await client.call_tool("corpus_stats", {"tenant": "from-disk"})
+
+    assert tools == ["corpus_stats", "get_run", "list_runs", "validity_report"]
+    assert stats.structured_content is not None
+    assert json.dumps(stats.structured_content).count("baseline") >= 1

@@ -34,7 +34,7 @@ def _run(script: str, env: dict[str, str] | None = None) -> str:
         capture_output=True,
         text=True,
         timeout=120,
-        env={**os.environ, **(env or {})},
+        env={**os.environ, "PYTHONPATH": str(ROOT / "src"), **(env or {})},
         check=False,
     )
     assert result.returncode == 0, result.stderr
