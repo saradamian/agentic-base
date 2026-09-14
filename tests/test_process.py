@@ -112,3 +112,23 @@ def test_pypi_receives_the_files_the_release_attested_not_a_rebuild() -> None:
     )
     assert "uv build" not in publish_runs
     assert "gh attestation verify" in publish_runs
+
+
+
+def test_the_image_installs_the_service_and_not_the_development_tools() -> None:
+    """Built without the service extra, the image started with no structlog and died; built with
+    the default groups it carried pytest, ruff and mypy into production."""
+    dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    syncs = [line for line in dockerfile.splitlines() if "uv sync" in line]
+
+    assert len(syncs) == 2
+    for line in syncs:
+        assert "--no-dev" in line and "--extra service" in line and "--frozen" in line
+
+
+def test_the_chart_deploys_the_released_version_by_default() -> None:
+    """The image tag defaults to the chart's appVersion, which stayed 0.0.1 through five releases."""
+    chart = yaml.safe_load((ROOT / "charts/app/Chart.yaml").read_text(encoding="utf-8"))
+    citation = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
+
+    assert str(chart["appVersion"]) == str(citation["version"])
