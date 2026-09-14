@@ -57,10 +57,11 @@ boundary becomes unattributable, which is what the epoch constants exist to prev
 **The consumer records the resolved version of every component.** A configuration fingerprint
 governs flags and cannot see the version of imported code, so once `agentic-env` imports from
 here, two runs can share a fingerprint and a revision and still have run different software.
-`RunRecord` carries `component_versions`; `epochs` treats a record with no version for a named
-component as unplaceable instead of guessing. agentic-env writes the installed version beside
-every fingerprint, never inside it, declares which versions are equivalent, and its ledger
-reader refuses to pool across a version no declaration names. Folding the version into the
+`RunRecord` carries `component_versions`, and `epochs.VersionEpochs` refuses to pool runs whose
+versions no declaration names or that span two declared sets. agentic-env writes the installed
+version beside every fingerprint, never inside it, declares which versions are equivalent, and
+its ledger reader refuses to pool across a version no declaration names; the equivalence sets
+here are that model, moved. Folding the version into the
 fingerprint was tried and reversed: it re-keyed every existing cell.
 
 Publishing a version here does nothing unless the consumer reads it, and the code that changed

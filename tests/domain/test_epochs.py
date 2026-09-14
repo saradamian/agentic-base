@@ -2,7 +2,14 @@
 
 from datetime import datetime, timedelta, timezone
 
-from agentic_base.domain.epochs import Epoch, MeaningChange, check_poolable, classify
+from agentic_base.domain.epochs import (
+    Epoch,
+    MeaningChange,
+    VersionEpochs,
+    check_poolable,
+    classify,
+    version_key,
+)
 from agentic_base.domain.run_record import RunRecord
 
 LANDED = datetime(2026, 9, 1, tzinfo=timezone.utc)
@@ -80,62 +87,66 @@ def test_an_empty_set_reports_itself_as_inconclusive() -> None:
     assert "inconclusive" in verdict.summary()
 
 
-def _component_change() -> MeaningChange:
-    return MeaningChange(
-        commit="cafe123",
-        subject="validity threshold",
-        description="the default spread ratio changed",
-        effective_at=LANDED,
-        component="surf-agentic-base",
-        min_version="0.3.0",
-    )
+BASE_03 = "surf-agentic-base=0.3.4"
+BASE_04 = "surf-agentic-base=0.4.0"
+BASE_06 = "surf-agentic-base=0.6.0"
+EPOCHS = VersionEpochs(epochs=(frozenset({"", BASE_03, BASE_04}), frozenset({BASE_06})))
 
 
-def _with_versions(**versions: str) -> RunRecord:
+def _run_on(**versions: str) -> RunRecord:
     return RunRecord(
         tenant="hpml", code_revision="abc1234", component_versions=dict(versions)
     )
 
 
-def test_a_run_on_an_older_component_version_is_placed_before() -> None:
-    assert (
-        classify(_with_versions(**{"surf-agentic-base": "0.2.9"}), _component_change())
-        is Epoch.BEFORE
-    )
+def test_a_version_key_is_stable_and_empty_for_a_run_that_recorded_none() -> None:
+    assert version_key({"b": "2", "a": "1"}) == "a=1,b=2"
+    assert version_key({}) == version_key(None) == ""
 
 
-def test_a_run_on_the_first_changed_version_is_placed_after() -> None:
-    assert (
-        classify(_with_versions(**{"surf-agentic-base": "0.3.0"}), _component_change())
-        is Epoch.AFTER
-    )
-
-
-def test_a_run_that_recorded_no_version_for_that_component_cannot_be_placed() -> None:
-    """The case that appears the moment an application imports a library that moves underneath it.
-
-    A configuration fingerprint governs flags and cannot see the version of imported code, so two
-    runs can share a fingerprint and a revision and still have run different software.
-    """
-    assert (
-        classify(_with_versions(**{"something-else": "1.0.0"}), _component_change())
-        is Epoch.UNKNOWN
-    )
-
-
-def test_a_version_that_cannot_be_read_yields_no_placement_rather_than_a_guess() -> (
+def test_versions_declared_in_one_epoch_pool_with_the_runs_recorded_before_versions() -> (
     None
 ):
+    verdict = EPOCHS.check(["", BASE_03, BASE_04])
+
+    assert verdict.poolable
+    assert verdict.keys_examined == 3
+
+
+def test_versions_from_two_declared_epochs_may_not_pool() -> None:
+    verdict = EPOCHS.check([BASE_04, BASE_06])
+
+    assert not verdict.poolable
+    assert verdict.epochs_spanned == 2
+
+
+def test_a_version_nobody_declared_is_refused_however_close_it_is() -> None:
+    """A boundary model would have put 0.4.1 on a side without anyone reviewing the release."""
+    verdict = EPOCHS.check([BASE_04, "surf-agentic-base=0.4.1"])
+
+    assert not verdict.poolable
+    assert verdict.undeclared == ("surf-agentic-base=0.4.1",)
+
+
+def test_runs_that_recorded_no_versions_pool_only_if_an_epoch_declares_them() -> None:
     assert (
-        classify(_with_versions(**{"surf-agentic-base": "main"}), _component_change())
-        is Epoch.UNKNOWN
+        not VersionEpochs(epochs=(frozenset({BASE_06}),)).check(["", BASE_06]).poolable
     )
 
 
-def test_component_runs_that_straddle_a_version_boundary_may_not_be_pooled() -> None:
-    records = [
-        _with_versions(**{"surf-agentic-base": "0.2.9"}),
-        _with_versions(**{"surf-agentic-base": "0.3.1"}),
+def test_no_versions_examined_is_inconclusive_rather_than_poolable() -> None:
+    verdict = EPOCHS.check([])
+
+    assert not verdict.could_have_failed
+    assert verdict.summary().startswith("inconclusive")
+
+
+def test_records_are_checked_by_the_versions_they_recorded() -> None:
+    same = [_run_on(), _run_on(**{"surf-agentic-base": "0.4.0"})]
+    across = [
+        _run_on(**{"surf-agentic-base": "0.4.0"}),
+        _run_on(**{"surf-agentic-base": "0.6.0"}),
     ]
 
-    assert not check_poolable(records, _component_change()).poolable
+    assert EPOCHS.check_records(same).poolable
+    assert not EPOCHS.check_records(across).poolable

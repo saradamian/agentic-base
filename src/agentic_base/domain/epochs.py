@@ -17,13 +17,23 @@ refused, not estimated.
 
 This costs almost nothing today and cannot be added later, because a boundary cannot be declared
 for records that never recorded which code produced them.
+
+Two kinds of declaration live here, because code changes underneath a run in two ways.
+
+* An application's own code changes at a commit. :class:`MeaningChange` declares that boundary, and
+  records are placed before or after it by their revision.
+* A library the application imports changes at a release. :class:`VersionEpochs` declares which
+  recorded versions are equivalent, and refuses to pool any version nobody declared. A boundary
+  would be the wrong shape for this: every release after it would join the new side unreviewed,
+  and the runs recorded before versions were written could never be placed. The equivalence
+  sets are agentic-env's, proven on its campaign ledger before they moved here.
 """
 
 from __future__ import annotations
 
 import enum
-from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
@@ -49,17 +59,6 @@ class MeaningChange(BaseModel):
         description="What changed meaning: a field name, a metric, an arm label, a scorer.",
     )
     description: str = Field(description="What it meant before, and what it means now.")
-    component: str = Field(
-        default="",
-        description=(
-            "Which component changed. Empty means this application's own code, placed by its "
-            "revision. Named means a dependency, placed by the version the run recorded for it."
-        ),
-    )
-    min_version: str = Field(
-        default="",
-        description="First version of that component carrying the new meaning.",
-    )
     effective_at: datetime = Field(
         description=(
             "When the commit landed. Used to place records whose own commit is not one we know "
@@ -91,41 +90,13 @@ class PoolVerdict:
         return f"not poolable: {self.reason}"
 
 
-def _version_tuple(value: str) -> tuple[int, ...] | None:
-    """Numeric parts of a dotted version, or None when it cannot be read as one.
-
-    Unreadable is not the same as old. A version this cannot parse yields no placement rather than
-    a guess, because a guess here silently pools two populations.
-    """
-    parts: list[int] = []
-    for chunk in value.split("."):
-        digits = "".join(c for c in chunk if c.isdigit())
-        if not digits:
-            break
-        parts.append(int(digits))
-    return tuple(parts) or None
-
-
 def classify(record, change: MeaningChange) -> Epoch:
     """Place one record relative to one declared boundary.
 
     A record whose own revision is the declaring commit is on the new side, because the commit is
-    the first to carry the new meaning.
-
-    A boundary declared on a component is placed by the version the run recorded for it. A run that
-    recorded no version for that component cannot be placed, which is the case that appears the
-    moment an application starts importing a library that moves underneath it.
+    the first to carry the new meaning. A change in an imported library is not declared here; see
+    :class:`VersionEpochs`.
     """
-    if change.component:
-        versions = getattr(record, "component_versions", None) or {}
-        seen = versions.get(change.component)
-        if not seen or not change.min_version:
-            return Epoch.UNKNOWN
-        left, right = _version_tuple(seen), _version_tuple(change.min_version)
-        if left is None or right is None:
-            return Epoch.UNKNOWN
-        return Epoch.AFTER if left >= right else Epoch.BEFORE
-
     revision = getattr(record, "code_revision", "") or ""
     if revision and revision == change.commit:
         return Epoch.AFTER
@@ -185,3 +156,86 @@ def check_poolable(records: Sequence, change: MeaningChange) -> PoolVerdict:
             ),
         )
     return PoolVerdict(poolable=True, subject=change.subject, counts=counts)
+
+
+def version_key(versions: Mapping[str, str] | None) -> str:
+    """One string per distinct set of component versions; ``""`` for a run that recorded none."""
+    return ",".join(
+        f"{name}={value}" for name, value in sorted((versions or {}).items())
+    )
+
+
+@dataclass(frozen=True)
+class VersionVerdict:
+    """Whether runs recorded against these component versions may be compared as one population."""
+
+    poolable: bool
+    keys_examined: int
+    undeclared: tuple[str, ...] = ()
+    epochs_spanned: int = 0
+    reason: str = ""
+
+    @property
+    def could_have_failed(self) -> bool:
+        """False when no version was examined, so a clean verdict says nothing."""
+        return self.keys_examined > 0
+
+    def summary(self) -> str:
+        if not self.could_have_failed:
+            return "inconclusive: no component versions examined"
+        if self.poolable:
+            return f"poolable: {self.keys_examined} version set(s), one declared epoch"
+        return f"not poolable: {self.reason}"
+
+
+@dataclass(frozen=True)
+class VersionEpochs:
+    """Sets of component versions declared equivalent for pooling.
+
+    Each set holds :func:`version_key` values. ``""``, a run recorded before versions were written,
+    belongs to an epoch only when a set names it, which is how a corpus that predates recording is
+    declared equivalent to the first versions recorded after it. Runs may pool when every key they
+    carry is declared and all fall in one set. A version nobody declared is refused, however close
+    it is to one that was: extending a set is a reviewed statement that a release did not change
+    what the runs measure, and it is made with its reason beside it.
+    """
+
+    epochs: tuple[frozenset[str], ...] = field(default_factory=tuple)
+
+    def epoch_of(self, key: str) -> int | None:
+        """The index of the set a key belongs to, or None when no set declares it."""
+        for index, epoch in enumerate(self.epochs):
+            if key in epoch:
+                return index
+        return None
+
+    def check(self, keys: Iterable[str]) -> VersionVerdict:
+        """Whether runs carrying these version keys may pool."""
+        distinct = sorted(set(keys))
+        undeclared = tuple(k for k in distinct if self.epoch_of(k) is None)
+        if undeclared:
+            shown = ", ".join(repr(k) for k in undeclared)
+            return VersionVerdict(
+                poolable=False,
+                keys_examined=len(distinct),
+                undeclared=undeclared,
+                reason=f"no declared epoch names {shown}; declare one, with the reason",
+            )
+        spanned = len({self.epoch_of(k) for k in distinct})
+        if spanned > 1:
+            return VersionVerdict(
+                poolable=False,
+                keys_examined=len(distinct),
+                epochs_spanned=spanned,
+                reason=f"the versions span {spanned} declared epochs; split the comparison",
+            )
+        return VersionVerdict(
+            poolable=True, keys_examined=len(distinct), epochs_spanned=spanned
+        )
+
+    def check_records(self, records: Iterable[object]) -> VersionVerdict:
+        """The same, reading ``component_versions`` from each record."""
+        return self.check(
+            version_key(getattr(record, "component_versions", None))
+            for record in records
+        )
