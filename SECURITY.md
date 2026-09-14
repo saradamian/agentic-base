@@ -4,8 +4,8 @@
 
 | version | supported |
 |---|---|
-| 0.4.x | yes |
-| 0.3.x and earlier | no |
+| 0.5.x | yes |
+| 0.4.x and earlier | no |
 
 While the major version is `0`, only the latest minor receives fixes.
 
