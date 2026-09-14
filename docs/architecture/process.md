@@ -13,8 +13,8 @@ of it is free before there is history to migrate.
 These are repository rulesets, not files, so they are listed here and read back when in doubt.
 
 - `main` takes pull requests only. Required checks, strict: the gate on `3.10` and `3.14`, the
-  dependency review, the audit of the fully pinned set, and the secret scan. Linear history. Review threads
-  resolved. No force-push, no deletion, no bypass actors.
+  dependency review, the audit of the fully pinned set, the secret scan, and the image built and
+  started. Linear history. Review threads resolved. No force-push, no deletion, no bypass actors.
 - Squash is the only merge method. Rebase merge was removed because it replays commits unsigned;
   see `ENGINEERING.md`.
 - Tags matching `v*` cannot be moved or deleted.

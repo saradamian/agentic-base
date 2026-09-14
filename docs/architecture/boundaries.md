@@ -77,6 +77,10 @@ commercial SDK, a graph library, or a loop they wrote. What they get here:
   still as they were written
 - a read-only MCP surface on the official SDK so a chat client can ask, started with
   `agentic-base-mcp`
+- a bearer token per writer, reaching only the tenants listed for it, required on every data route
+- a versioned schema that a release migrates before it starts, with `agentic-base-migrate`
+- retention that erases due transcripts on a schedule, and one on request, with
+  `agentic-base-retention`
 
 ### What is not here and is not coming
 

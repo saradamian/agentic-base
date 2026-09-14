@@ -44,7 +44,8 @@ that one of them is escapable by a determined attacker is welcome and will be ha
 - The same workflow's `secrets` job scans every file and every commit with gitleaks, plus one rule
   of our own for a key in the shape a SURF service issues, which no provider rule matches. GitHub's
   generic, non-provider patterns are not available on this repository.
-- All three `supply-chain` jobs are required checks, beside the gate on both interpreters.
+- All three `supply-chain` jobs are required checks, beside the gate on both interpreters and the
+  `image` job, which builds the image and starts it.
 - CodeQL on every push and pull request; secret scanning with push protection.
 - OpenSSF Scorecard on every push to `main` and weekly, published to code scanning.
 - Every release carries build provenance for the distribution files. From 0.4.0 it also carries
