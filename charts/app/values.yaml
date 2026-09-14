@@ -15,6 +15,15 @@ imagePullSecrets: []
 # Site-specific. Set per environment in the deployment overlay, not here.
 envFromSecret: ""
 
+retention:
+  # Erase transcripts older than each tenant's policy with agentic-base-retention. Off until the
+  # policies are agreed, because an erasure cannot be undone. The policies are JSON, tenant to days
+  # with "*" for the rest, and a policy under 183 days stops the run; set them here or as
+  # RETENTION_POLICIES in the envFromSecret Secret.
+  enabled: false
+  schedule: "17 3 * * *"
+  policies: ""
+
 migrations:
   # Run agentic-base-migrate before every install and upgrade, so a new version never starts against
   # an older schema. The service also refuses to start when the schema is behind, so turning this

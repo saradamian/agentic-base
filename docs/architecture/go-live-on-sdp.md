@@ -69,10 +69,12 @@ CPU a long transcript holds the write for tens of seconds. Put the site's cluste
 in `REDACTION_ALLOW_LIST` in the overlay, never in this repository. `redaction.md` has the
 measurements and what happens when both detectors fail.
 
-**Retention.** The library decides which transcripts are older than a policy and erases them
-without breaking the chain; nothing runs it yet. The deployment needs a scheduled job that runs
-the sweep, a tenant setting to read the policy from, and a decision on who is told what was
-erased.
+**Retention.** `agentic-base-retention sweep` erases transcripts older than each tenant's policy
+and records every erasure in the audit log; run it once without `--apply` to see what it would
+erase. The chart runs it nightly when `retention.enabled` is set, with the policies in
+`retention.policies` or `RETENTION_POLICIES`. What the deployment still needs is the policies
+themselves, agreed per tenant and at least 183 days, and a decision on who is told what was
+erased. A person's request is `agentic-base-retention erase --run-id ... --reason ...`.
 
 **What the tenant sets.** Every run carries the class of data it touched and the isolation tier
 it ran under. Today the writer states both. On the platform the tenant's use case should set

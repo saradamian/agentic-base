@@ -38,6 +38,7 @@ dependencies = [
 agentic-base-mcp = "agentic_base.mcp.server:main"
 agentic-base-mlflow = "agentic_base.provenance.mlflow_export:main"
 agentic-base-migrate = "agentic_base.migrations.schema:main"
+agentic-base-retention = "agentic_base.retention_sweep:main"
 
 [project.optional-dependencies]
 # Export into MLflow's tracking backend; heavy, so its own extra.

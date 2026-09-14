@@ -181,3 +181,16 @@ def test_the_service_and_its_migration_read_settings_from_the_same_secret(
     for template in (deployment, job):
         assert "{{- with .Values.envFromSecret }}" in template
         assert "secretRef:" in template
+
+
+def test_retention_is_off_until_someone_turns_it_on(values) -> None:
+    """An erasure cannot be undone, so the chart does not erase anything by default."""
+    assert values["retention"]["enabled"] is False
+
+
+def test_the_retention_job_sweeps_once_at_a_time_with_the_service_settings() -> None:
+    job = (TEMPLATES / "retention-cronjob.yaml").read_text(encoding="utf-8")
+
+    assert 'agentic-base-retention", "sweep", "--apply"]' in job
+    assert "concurrencyPolicy: Forbid" in job
+    assert "{{- with .Values.envFromSecret }}" in job

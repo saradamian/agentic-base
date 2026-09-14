@@ -1,0 +1,182 @@
+"""Running retention against the database: what is erased, what is left, and what the log says."""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+
+import pytest
+from sqlmodel import Session, select
+
+from agentic_base.domain import audit
+from agentic_base.domain.audit import AuditEntry
+from agentic_base.domain.run_record import RunRecord
+from agentic_base.retention_sweep import (
+    erase_run,
+    main,
+    parse_policies,
+    sweep,
+)
+
+NOW = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
+
+
+def _add(session: Session, tenant: str, days_old: int, item: str) -> str:
+    record = RunRecord(
+        tenant=tenant,
+        item=item,
+        created_at=NOW - timedelta(days=days_old),
+        system_prompt="you are careful",
+        messages=[{"role": "user", "content": "private details"}],
+    )
+    session.add(record)
+    audit.append(session, record, "created")
+    session.commit()
+    return record.run_id
+
+
+def _get(engine, run_id: str) -> RunRecord:
+    with Session(engine) as session:
+        record = session.get(RunRecord, run_id)
+        assert record is not None
+        return record
+
+
+@pytest.fixture()
+def corpus(engine):
+    with Session(engine) as session:
+        return {
+            "old": _add(session, "team-a", 400, "old"),
+            "recent": _add(session, "team-a", 10, "recent"),
+            "other-old": _add(session, "team-b", 400, "other-old"),
+        }
+
+
+def test_a_dry_run_reports_what_is_due_and_changes_nothing(engine, corpus) -> None:
+    with Session(engine) as session:
+        done, skipped = sweep(
+            session, parse_policies('{"team-a": 365}'), NOW, apply=False
+        )
+
+    (team_a,) = done
+    assert (team_a.examined, team_a.due, team_a.erased) == (2, 1, 0)
+    assert skipped == ["team-b"]
+    assert _get(engine, corpus["old"]).messages != []
+
+
+def test_applying_erases_only_due_transcripts_and_the_log_still_verifies(
+    engine, corpus
+) -> None:
+    with Session(engine) as session:
+        sweep(session, parse_policies('{"team-a": 365}'), NOW, apply=True)
+
+    old, recent = _get(engine, corpus["old"]), _get(engine, corpus["recent"])
+    assert (old.system_prompt, old.messages) == ("", [])
+    assert old.extra["erasure"]["reason"] == "retention policy: kept 365 days"
+    assert recent.messages != []
+    with Session(engine) as session:
+        verdict = audit.verify(session, "team-a")
+        events = [e.event for e in session.exec(select(AuditEntry)).all()]
+    assert verdict.intact, verdict.summary()
+    assert events.count("erased") == 1
+
+
+def test_a_second_sweep_finds_the_erasure_already_done(engine, corpus) -> None:
+    policies = parse_policies('{"team-a": 365}')
+    with Session(engine) as session:
+        sweep(session, policies, NOW, apply=True)
+        (again,), _ = sweep(session, policies, NOW, apply=True)
+
+    assert (again.due, again.erased, again.already_erased) == (1, 0, 1)
+
+
+def test_a_tenant_with_no_policy_is_skipped_and_named_not_erased(
+    engine, corpus
+) -> None:
+    with Session(engine) as session:
+        _, skipped = sweep(session, parse_policies('{"team-a": 365}'), NOW, apply=True)
+
+    assert skipped == ["team-b"]
+    assert _get(engine, corpus["other-old"]).messages != []
+
+
+def test_a_default_policy_covers_unnamed_tenants_and_a_named_one_overrides_it(
+    engine, corpus
+) -> None:
+    with Session(engine) as session:
+        done, skipped = sweep(
+            session, parse_policies('{"*": 365, "team-a": 500}'), NOW, apply=True
+        )
+
+    assert skipped == []
+    assert _get(engine, corpus["other-old"]).messages == []
+    assert _get(engine, corpus["old"]).messages != []  # 400 days is inside team-a's 500
+
+
+def test_an_erasure_on_request_ignores_age_and_happens_once(engine, corpus) -> None:
+    with Session(engine) as session:
+        first = erase_run(session, corpus["recent"], "the person asked", NOW)
+        second = erase_run(session, corpus["recent"], "the person asked", NOW)
+        verdict = audit.verify(session, "team-a")
+
+    assert (first, second) == (True, False)
+    assert (
+        _get(engine, corpus["recent"]).extra["erasure"]["reason"] == "the person asked"
+    )
+    assert verdict.intact
+
+
+def test_an_unknown_run_cannot_be_erased(engine) -> None:
+    with Session(engine) as session, pytest.raises(LookupError):
+        erase_run(session, "nope", "asked", NOW)
+
+
+@pytest.mark.parametrize(
+    ("raw", "message"),
+    [
+        ("{nope", "not valid JSON"),
+        ('{"team-a": "365"}', "whole days"),
+        ('{"team-a": true}', "whole days"),
+        ('{"team-a": 30}', "floor"),
+    ],
+)
+def test_a_malformed_or_too_short_policy_refuses_the_run(raw, message) -> None:
+    with pytest.raises(ValueError, match=message):
+        parse_policies(raw)
+
+
+def test_the_command_reports_a_dry_run_then_erases(
+    engine, corpus, monkeypatch, capsys
+) -> None:
+    import agentic_base.config as config_module
+    import agentic_base.db as db_module
+    from agentic_base.config import Settings
+
+    settings = Settings(retention_policies='{"*": 365}')
+    monkeypatch.setattr(config_module, "get_settings", lambda: settings)
+    monkeypatch.setattr(db_module, "get_engine", lambda: engine)
+    monkeypatch.setattr(db_module, "init_db", lambda: None)
+
+    assert main(["sweep"]) == 0
+    assert main(["sweep", "--apply"]) == 0
+    out = capsys.readouterr().out
+
+    assert "team-a: examined 2, due 1" in out and "would erase 1" in out
+    assert "dry run: nothing erased" in out
+    assert "erased 1, already erased 0" in out
+
+
+def test_the_command_refuses_to_sweep_with_no_policies(
+    engine, monkeypatch, capsys
+) -> None:
+    import agentic_base.config as config_module
+    import agentic_base.db as db_module
+    from agentic_base.config import Settings
+
+    monkeypatch.setattr(
+        config_module, "get_settings", lambda: Settings(retention_policies="")
+    )
+    monkeypatch.setattr(db_module, "get_engine", lambda: engine)
+    monkeypatch.setattr(db_module, "init_db", lambda: None)
+
+    assert main(["sweep", "--apply"]) == 1
+    assert "no RETENTION_POLICIES" in capsys.readouterr().out
