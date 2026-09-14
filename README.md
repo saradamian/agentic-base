@@ -1,9 +1,9 @@
 # surf-agentic-base
 
 [![ci](https://github.com/saradamian/agentic-base/actions/workflows/ci.yml/badge.svg)](https://github.com/saradamian/agentic-base/actions/workflows/ci.yml)
-[![licence: EUPL-1.2](https://img.shields.io/badge/licence-EUPL--1.2-blue.svg)](LICENSE)
-[![python](https://img.shields.io/badge/python-3.10%20to%203.14-blue.svg)](pyproject.toml)
-[![cite](https://img.shields.io/badge/cite-CITATION.cff-green.svg)](CITATION.cff)
+[![licence: EUPL-1.2](https://img.shields.io/badge/licence-EUPL--1.2-blue.svg)](https://github.com/saradamian/agentic-base/blob/main/LICENSE)
+[![python](https://img.shields.io/badge/python-3.10%20to%203.14-blue.svg)](https://github.com/saradamian/agentic-base/blob/main/pyproject.toml)
+[![cite](https://img.shields.io/badge/cite-CITATION.cff-green.svg)](https://github.com/saradamian/agentic-base/blob/main/CITATION.cff)
 
 The agentic base layer for SURF: **a system of record for what agents do, a referee for claims
 made from that record, the security primitives an agent needs on a shared platform, and the
@@ -30,7 +30,7 @@ other systems, and the two HPC modules here are a result channel and cluster fac
 
 It does not ship an agent framework, a tracing backend, a metrics store, a dashboard, an experiment
 tracker, a workflow engine, or an inference server. Every one of those exists and is better than
-anything we would write. See [the reuse ledger](docs/architecture/reuse-ledger.md) for what is
+anything we would write. See [the reuse ledger](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/reuse-ledger.md) for what is
 adopted and from where.
 
 ## The record, for any agent
@@ -275,16 +275,16 @@ AUTH=none just run
 
 ## Documentation
 
-- [Blocks and layers](docs/architecture/blocks.md): the design, what exists behind each block, the order to build
-- [Decisions](docs/decisions.md): eleven choices that are cheap now and expensive to reverse
-- [Reuse ledger](docs/architecture/reuse-ledger.md): adopt, bridge, or build, with the reason
-- [Logging, security, safety and compliance](docs/architecture/cross-cutting.md): where each lives, the obligations, and what the vision should say
-- [Observability](docs/OBSERVABILITY.md): what the service emits and where to point it
-- [What came from agentic-env](docs/architecture/from-agentic-env.md): what was extracted, what was left, what the first consumer found
-- [Compliance evidence](docs/architecture/compliance.md): what the record produces for the AI Act, NIS2, the Cyber Resilience Act and the Data Act, and what is missing
-- [Redaction](docs/architecture/redaction.md): what removes personal data from a transcript, and what each mode catches and costs
-- [Incident response](docs/architecture/incident-response.md): the two reporting clocks, who is told, and what this repository hands you
-- [Going live on SDP](docs/architecture/go-live-on-sdp.md): the deployment repository and what is left to settle
+- [Blocks and layers](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/blocks.md): the design, what exists behind each block, the order to build
+- [Decisions](https://github.com/saradamian/agentic-base/blob/main/docs/decisions.md): eleven choices that are cheap now and expensive to reverse
+- [Reuse ledger](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/reuse-ledger.md): adopt, bridge, or build, with the reason
+- [Logging, security, safety and compliance](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/cross-cutting.md): where each lives, the obligations, and what the vision should say
+- [Observability](https://github.com/saradamian/agentic-base/blob/main/docs/OBSERVABILITY.md): what the service emits and where to point it
+- [What came from agentic-env](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/from-agentic-env.md): what was extracted, what was left, what the first consumer found
+- [Compliance evidence](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/compliance.md): what the record produces for the AI Act, NIS2, the Cyber Resilience Act and the Data Act, and what is missing
+- [Redaction](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/redaction.md): what removes personal data from a transcript, and what each mode catches and costs
+- [Incident response](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/incident-response.md): the two reporting clocks, who is told, and what this repository hands you
+- [Going live on SDP](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/go-live-on-sdp.md): the deployment repository and what is left to settle
 
 ## The standard
 
