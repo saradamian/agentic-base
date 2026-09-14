@@ -1,14 +1,14 @@
 """Record runs from your own agent into the service, then ask it the questions that matter.
 
-Start the service first, in another terminal:
+Start the service first, in another terminal, with a token for the example's tenant:
 
     pip install 'surf-agentic-base[service,provenance]'
-    just run                       # or: uvicorn --app-dir src agentic_base.main:get_app --factory --port 8080
+    API_TOKENS='{"example-token-0000001": ["example-team"]}' just run
 
 Then:
 
-    python examples/record_and_ask.py              # talks to http://localhost:8080
-    AGENTIC_BASE_URL=https://... python examples/record_and_ask.py
+    python examples/record_and_ask.py              # http://localhost:8080, that token
+    AGENTIC_BASE_URL=https://... AGENTIC_BASE_TOKEN=... python examples/record_and_ask.py
 """
 
 from __future__ import annotations
@@ -22,6 +22,8 @@ from agentic_base.client import RunRecorder
 from agentic_base.domain.outcomes import LabelSource, RunStatus
 
 BASE_URL = os.environ.get("AGENTIC_BASE_URL", "http://localhost:8080")
+TOKEN = os.environ.get("AGENTIC_BASE_TOKEN", "example-token-0000001")
+api = httpx.Client(base_url=BASE_URL, headers={"Authorization": f"Bearer {TOKEN}"})
 TENANT = "example-team"
 
 
@@ -39,7 +41,9 @@ def my_agent(task: str) -> list[dict[str, str]]:
 
 
 def main() -> None:
-    recorder = RunRecorder(BASE_URL, tenant=TENANT, code_revision="3f2a9c1")
+    recorder = RunRecorder(
+        BASE_URL, tenant=TENANT, code_revision="3f2a9c1", token=TOKEN
+    )
     ids: dict[tuple[str, str], str] = {}
 
     print(f"1. Recording 12 runs to {BASE_URL}")
@@ -56,7 +60,7 @@ def main() -> None:
                 pass  # recorded as failed on the way out, with the exception's name
             ids[(arm, task)] = run.run_id
 
-    stored = httpx.get(f"{BASE_URL}/runs/{ids[('baseline', 'task-4')]}").json()
+    stored = api.get(f"/runs/{ids[('baseline', 'task-4')]}").json()
     print(
         f"   the run that crashed was kept: status={stored['status']}, failure_kind={stored['failure_kind']}"
     )
@@ -72,25 +76,21 @@ def main() -> None:
             label_source=LabelSource.OFFICIAL_HARNESS,
             instrument="harness-1.4",
         )
-    refused = httpx.post(
-        f"{BASE_URL}/runs/{ids[('baseline', 'task-1')]}/label", json={"resolved": True}
+    refused = api.post(
+        f"/runs/{ids[('baseline', 'task-1')]}/label", json={"resolved": True}
     )
     print(f"   a label that names no scorer is refused: HTTP {refused.status_code}")
 
     print()
     print("3. Is the comparison sound?")
-    report = httpx.get(
-        f"{BASE_URL}/runs/validity/report", params={"tenant": TENANT}
-    ).json()
+    report = api.get("/runs/validity/report", params={"tenant": TENANT}).json()
     print(f"   {report['summary']}")
     for arm in report["flow"]:
         print(f"   {arm['description']}")
 
     print()
     print("4. Are the records as they were written?")
-    integrity = httpx.get(
-        f"{BASE_URL}/runs/integrity", params={"tenant": TENANT}
-    ).json()
+    integrity = api.get("/runs/integrity", params={"tenant": TENANT}).json()
     print(f"   {integrity['summary']}")
 
     print()
@@ -98,14 +98,14 @@ def main() -> None:
     print(
         f"   {stored['messages'][0]['content'] if stored['messages'] else '(the crashed run has no transcript)'}"
     )
-    first = httpx.get(f"{BASE_URL}/runs/{ids[('baseline', 'task-1')]}").json()
+    first = api.get(f"/runs/{ids[('baseline', 'task-1')]}").json()
     print(f"   {first['messages'][0]['content']}")
     print(f"   redaction: {first['redaction']}")
 
     print()
     print("6. One run in W3C PROV, for a reader that is not this service")
-    prov = httpx.get(
-        f"{BASE_URL}/runs/{ids[('baseline', 'task-1')]}/provenance",
+    prov = api.get(
+        f"/runs/{ids[('baseline', 'task-1')]}/provenance",
         params={"format": "prov"},
     ).json()
     print(f"   sections: {', '.join(sorted(prov))}")
@@ -114,13 +114,13 @@ def main() -> None:
 
     print()
     print("7. Everything this tenant recorded, to take elsewhere")
-    lines = httpx.get(
-        f"{BASE_URL}/runs/export", params={"tenant": TENANT}
-    ).text.splitlines()
+    lines = api.get("/runs/export", params={"tenant": TENANT}).text.splitlines()
     manifest = json.loads(lines[0])
     print(
         f"   manifest says {manifest['records']} records; the file has {len(lines) - 1}"
     )
+    anonymous = httpx.get(f"{BASE_URL}/runs/export", params={"tenant": TENANT})
+    print(f"   the same request without the token: HTTP {anonymous.status_code}")
 
 
 if __name__ == "__main__":

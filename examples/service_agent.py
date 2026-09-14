@@ -9,7 +9,7 @@ anything.
 Start the service first, in another terminal:
 
     pip install 'surf-agentic-base[service]'
-    REDACTION=patterns just run
+    API_TOKENS='{"example-token-0000001": ["platform-team"]}' REDACTION=patterns just run
 
 Then:
 
@@ -32,6 +32,8 @@ from agentic_base.domain.outcomes import (
 )
 
 BASE_URL = os.environ.get("AGENTIC_BASE_URL", "http://localhost:8080")
+TOKEN = os.environ.get("AGENTIC_BASE_TOKEN", "example-token-0000001")
+api = httpx.Client(base_url=BASE_URL, headers={"Authorization": f"Bearer {TOKEN}"})
 TENANT = "platform-team"
 DISCLOSURE = "every review comment begins 'Automated review:'"
 
@@ -51,7 +53,9 @@ REQUESTS = [
 
 
 def main() -> None:
-    recorder = RunRecorder(BASE_URL, tenant=TENANT, code_revision="7c1e0d2")
+    recorder = RunRecorder(
+        BASE_URL, tenant=TENANT, code_revision="7c1e0d2", token=TOKEN
+    )
     ids: dict[str, str] = {}
 
     print("1. Three reviews, each recorded for the person who asked")
@@ -101,16 +105,12 @@ def main() -> None:
         ("mr-102", "another model's score"),
         ("mr-103", "the maintainer's decision"),
     ):
-        source = LabelSource(
-            httpx.get(f"{BASE_URL}/runs/{ids[mr]}").json()["label_source"]
-        )
+        source = LabelSource(api.get(f"/runs/{ids[mr]}").json()["label_source"])
         print(f"   {mr}  {who:28} {source.value:14} {authority_of(source).value}")
 
     print()
     print("4. Everything the agent did for alice, from the tenant's export")
-    lines = httpx.get(
-        f"{BASE_URL}/runs/export", params={"tenant": TENANT}
-    ).text.splitlines()
+    lines = api.get("/runs/export", params={"tenant": TENANT}).text.splitlines()
     for line in lines[1:]:
         entry = json.loads(line)
         record = entry["record"]
@@ -129,9 +129,7 @@ def main() -> None:
 
     print()
     print("5. Are the records as they were written?")
-    integrity = httpx.get(
-        f"{BASE_URL}/runs/integrity", params={"tenant": TENANT}
-    ).json()
+    integrity = api.get("/runs/integrity", params={"tenant": TENANT}).json()
     print(f"   {integrity['summary']}")
 
 

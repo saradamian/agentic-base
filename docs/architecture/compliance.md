@@ -120,7 +120,7 @@ this service alone.
 | data and workflow provenance in a standard format | PROV, RO-Crate and OpenLineage emission |
 | dependency and supply-chain evidence | on GitHub, a dependency review, an advisory audit of the pinned set and a secret scan on every change, and an SBOM and build provenance attested on every release; on the platform, Dependency Track on every build |
 | vulnerability handling | the same, plus Renovate, and a private reporting channel with a stated response window in `SECURITY.md` |
-| access control and authentication | SURFconext and SRAM through the platform |
+| access control and authentication | SURFconext and SRAM through the platform for people; for the callers that write and read runs, a bearer token per writer mapped to the tenants it may use, required on every data route and refusing when none is configured |
 | log aggregation and retention | Loki and Prometheus through the platform |
 
 The platform's own principles already require audit and reporting functions that demonstrate its

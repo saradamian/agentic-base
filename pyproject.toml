@@ -247,6 +247,8 @@ filterwarnings = [
 ]
 env = [
   "METRICS_PORT=0", # Don't start metrics server during tests
+  # The service refuses without tokens by default; tests of that live in test_auth.py and set it.
+  "AUTH=none",
 ]
 strict = true # enable strictness options https://docs.pytest.org/en/stable/explanation/goodpractices.html#using-pytest-s-strict-mode
 

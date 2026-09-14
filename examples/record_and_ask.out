@@ -23,3 +23,4 @@
 
 7. Everything this tenant recorded, to take elsewhere
    manifest says 12 records; the file has 12
+   the same request without the token: HTTP 401

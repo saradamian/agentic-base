@@ -85,7 +85,9 @@ def test_what_the_recorder_sends_is_what_the_service_stores(
     monkeypatch.setattr(
         client_module.httpx,
         "post",
-        lambda url, json, timeout: test_client.post(url, json=json),
+        lambda url, json, headers, timeout: test_client.post(
+            url, json=json, headers=headers
+        ),
     )
     recorder = RunRecorder("http://testserver", tenant="svc", code_revision="abc1234")
 
@@ -114,3 +116,40 @@ def test_what_the_recorder_sends_is_what_the_service_stores(
     assert stored["disclosure"] == "each reply begins 'Automated review'"
     assert stored["approvals"][0]["by"] == "urn:example:bob"
     assert stored["label_source"] == "user_feedback"
+
+
+def test_the_recorder_sends_its_token_and_is_refused_without_one(
+    app, test_client, monkeypatch
+) -> None:
+    import agentic_base.client as client_module
+    from agentic_base.auth import AccessPolicy, get_access_policy
+
+    monkeypatch.setattr(
+        client_module.httpx,
+        "post",
+        lambda url, json, headers, timeout: test_client.post(
+            url, json=json, headers=headers
+        ),
+    )
+    token = "token-for-svc-00000001"
+    app.dependency_overrides[get_access_policy] = lambda: AccessPolicy(
+        enabled=True, tokens={token: frozenset({"svc"})}
+    )
+    try:
+        with_token = RunRecorder(
+            "http://testserver", tenant="svc", code_revision="a", token=token
+        )
+        without = RunRecorder("http://testserver", tenant="svc", code_revision="a")
+        with with_token.run(item="ok") as run:
+            pass
+        # The test client's responses come from its own httpx build, so match by name and status.
+        with (
+            pytest.raises(Exception, match="401") as refused,
+            without.run(item="refused"),
+        ):
+            pass
+        assert type(refused.value).__name__ == "HTTPStatusError"
+    finally:
+        app.dependency_overrides.pop(get_access_policy)
+
+    assert run.run_id

@@ -11,6 +11,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from prometheus_client import start_http_server
 from prometheus_fastapi_instrumentator import Instrumentator
 
+from agentic_base.auth import get_access_policy
 from agentic_base.config import get_settings
 from agentic_base.db import get_engine, init_db
 from agentic_base.observability.tracing import configure_tracing
@@ -29,6 +30,11 @@ def get_app() -> FastAPI:
     logger = structlog.get_logger(__name__)
 
     init_db()
+    # Build the access policy now, so a malformed API_TOKENS fails the start, not the first call.
+    if not get_access_policy().enabled:
+        logger.warning(
+            "AUTH=none: every tenant's runs are open to anyone who reaches the service"
+        )
     # Build the redactor now, so a missing extra or model fails the start and not the first write.
     get_redactor()
 

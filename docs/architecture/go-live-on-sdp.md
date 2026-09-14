@@ -36,7 +36,10 @@ the request timeout, not a literal; registries are build arguments.
    the tenant that is granted.
 7. **Point `database_url` at the tenant PostgreSQL** through the platform's secret management,
    and add an Alembic migration step. SQLite is for local development only.
-8. **Push, and let the pipeline deploy** to development first, then promote.
+8. **Issue a token per writer** in `API_TOKENS`, through the same secret management, each mapped
+   to the tenants that writer records for. Without it the service refuses every data request,
+   which is the intended state of a deployment nobody has configured.
+9. **Push, and let the pipeline deploy** to development first, then promote.
 
 ## What to settle before it is useful
 

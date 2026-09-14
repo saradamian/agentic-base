@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from starlette import status
 
+from agentic_base.auth import Access, caller_access
 from agentic_base.db import get_session
 from agentic_base.domain import audit
 from agentic_base.domain.outcomes import DataClass
@@ -31,6 +32,19 @@ from agentic_base.redaction.configured import get_redactor
 from agentic_base.redaction.redact import RedactionUnavailable, Redactor, redact_run
 
 router = APIRouter(prefix="/runs", tags=["runs"])
+
+
+def _visible_run(session: Session, run_id: str, access: Access) -> RunRecord:
+    """The run, or 404 when it does not exist or belongs to a tenant this caller may not use.
+
+    The same answer for both, so a token cannot learn that another tenant's run exists.
+    """
+    record = session.get(RunRecord, run_id)
+    if record is None or not access.allows(record.tenant):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        )
+    return record
 
 
 def _commit_with_entry(session: Session, record: RunRecord, event: str) -> RunRecord:
@@ -120,6 +134,7 @@ def create_run(
     payload: RunRecordCreate,
     session: Session = Depends(get_session),
     redactor: Redactor | None = Depends(get_redactor),
+    access: Access = Depends(caller_access),
 ) -> RunRecord:
     """Record one agent run, transcript and provenance included.
 
@@ -127,6 +142,7 @@ def create_run(
     scorer that produced it. When redaction is configured, the transcript is redacted before it
     is written, unless the writer already redacted it and said with what.
     """
+    access.require(payload.tenant)
     if redactor is not None:
         payload = _redacted(payload, redactor)
     return _commit_with_entry(session, to_record(payload), "created")
@@ -143,6 +159,7 @@ class _ExportLine(BaseModel):
 def export_tenant(
     tenant: str = Query(..., description="The tenant whose corpus is exported."),
     session: Session = Depends(get_session),
+    access: Access = Depends(caller_access),
 ) -> StreamingResponse:
     """Everything recorded for one tenant, as newline-delimited JSON.
 
@@ -158,6 +175,7 @@ def export_tenant(
     into another instance of this service, and `GET /runs/{id}/provenance` gives any single run in
     W3C PROV, OpenLineage or an RO-Crate for a reader that is not this service.
     """
+    access.require(tenant)
     ids = list(
         session.exec(
             select(RunRecord.run_id)
@@ -218,12 +236,14 @@ class IntegrityResponse(BaseModel):
 def integrity(
     tenant: str = Query(..., description="The tenant whose records to verify."),
     session: Session = Depends(get_session),
+    access: Access = Depends(caller_access),
 ) -> IntegrityResponse:
     """Recompute the tenant's audit log and compare every run to its latest entry.
 
     Read `could_have_failed` before believing `intact`: a tenant with no runs verifies trivially.
     This detects an edit by anyone who does not rewrite the whole log; it is not a signature.
     """
+    access.require(tenant)
     verdict = audit.verify(session, tenant)
     return IntegrityResponse(
         tenant=tenant,
@@ -239,14 +259,13 @@ def integrity(
 
 
 @router.get("/{run_id}")
-def get_run(run_id: str, session: Session = Depends(get_session)) -> RunRecord:
+def get_run(
+    run_id: str,
+    session: Session = Depends(get_session),
+    access: Access = Depends(caller_access),
+) -> RunRecord:
     """Retrieve one run."""
-    record = session.get(RunRecord, run_id)
-    if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
-        )
-    return record
+    return _visible_run(session, run_id, access)
 
 
 class ProvenanceFormat(str, enum.Enum):
@@ -271,17 +290,14 @@ def run_provenance(
         "Crate's ro-crate-metadata.json.",
     ),
     session: Session = Depends(get_session),
+    access: Access = Depends(caller_access),
 ) -> Response:
     """One run in a provenance standard, produced by that standard's own library.
 
     The scorer that decided the outcome and whether its verdict may be cited travel as a
     declared extension in every format; see docs/schemas.
     """
-    record = session.get(RunRecord, run_id)
-    if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
-        )
+    record = _visible_run(session, run_id, access)
     payload = to_payload(record)
     if format is ProvenanceFormat.PROV:
         body = (
@@ -303,25 +319,27 @@ def run_provenance(
 
 @router.post("/{run_id}/approvals")
 def record_approval(
-    run_id: str, approval: Approval, session: Session = Depends(get_session)
+    run_id: str,
+    approval: Approval,
+    session: Session = Depends(get_session),
+    access: Access = Depends(caller_access),
 ) -> RunRecord:
     """Record that a person approved, refused or overrode an action of this run.
 
     Kept beside the run rather than in a prompt log, because human oversight is a thing an
     audit asks to see, and the answer has to be who, what and when.
     """
-    record = session.get(RunRecord, run_id)
-    if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
-        )
+    record = _visible_run(session, run_id, access)
     record.approvals = [*record.approvals, approval.model_dump()]
     return _commit_with_entry(session, record, "approved")
 
 
 @router.post("/{run_id}/label")
 def label_run(
-    run_id: str, update: LabelUpdate, session: Session = Depends(get_session)
+    run_id: str,
+    update: LabelUpdate,
+    session: Session = Depends(get_session),
+    access: Access = Depends(caller_access),
 ) -> RunRecord:
     """Attach an outcome to a run.
 
@@ -329,11 +347,7 @@ def label_run(
     cited, and a corpus that permits unattributed labels discovers this only once it is
     expensive to fix.
     """
-    record = session.get(RunRecord, run_id)
-    if record is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
-        )
+    record = _visible_run(session, run_id, access)
     record.resolved = update.resolved
     record.label_source = update.label_source
     record.instrument = update.instrument
@@ -347,12 +361,14 @@ def validity_report(
     tenant: str = Query(..., description="Tenant whose runs to adjudicate."),
     item_prefix: str = Query("", description="Optional filter on the item key."),
     session: Session = Depends(get_session),
+    access: Access = Depends(caller_access),
 ) -> ValidityResponse:
     """Adjudicate whether a contrast across this tenant's arms is sound enough to report.
 
     Read `could_have_flagged` before believing `sound`: a clean verdict over one arm, or over
     a set with no exclusions in it, is not evidence of anything.
     """
+    access.require(tenant)
     statement = select(RunRecord).where(RunRecord.tenant == tenant)
     records = session.exec(statement).all()
     if item_prefix:
