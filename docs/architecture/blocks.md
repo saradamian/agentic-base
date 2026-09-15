@@ -114,17 +114,26 @@ semantics so its documentation can point at theirs, and serves on this repositor
 transport. It does not import their server: it pins `mcp<2`, this repository is on 2.x, and the
 two majors cannot share an environment.
 
-**What the block keeps as contracts, with tests, because the reference server lacks them:**
+**What the block keeps as contracts, with tests.** Some of these the reference server also has,
+and one of them it has more thoroughly. Saying which is which is how the block's documentation
+stays honest about what it adds:
 
 1. host pinning on every page reference, so a page argument cannot become a request to another
-   host carrying the wiki token;
-2. token redaction on every error string, since MCP output lands in a chat window;
+   host carrying the wiki token. Upstream rejects private and loopback addresses; it does not pin
+   to the configured wiki, which is the check that matters once the attacker's host is a public
+   one;
+2. token redaction on every error string, since MCP output lands in a chat window. Upstream masks
+   credentials in log lines, a different surface;
 3. writes absent from the tool list unless enabled, not refused at call time, with separate read
-   and write space allow-lists;
+   and write space allow-lists. Upstream's read-only mode already filters write-tagged tools out
+   of both the listing and dispatch, which is the stronger form and is worth adopting rather than
+   reimplementing. The write-space allow-list is the part that is ours: `CONFLUENCE_SPACES_FILTER`
+   scopes searches, and nothing upstream scopes writes;
 4. every read result carries id, space, version, last-modified and a clickable URL, because a
    model cannot cite what it was never given;
 5. a pre-flight check that walks configuration, credentials, authentication, visible spaces and
    one live search, each failure naming the variable to change, exit 1 as a deployment gate.
+   Upstream ships no equivalent.
 
 **The split.** The block holds infrastructure: the client, the configuration, the five contracts,
 the MCP surface recording through this repository's observer seam, the reader, the check. It is
@@ -138,8 +147,8 @@ stages and ships its skill.
 **Before publishing:** the identifier sweep, since deploy files and examples carry site strings
 and a colleague's name has to be caught by hand; a fresh tree with none of agentic-env's
 history; documentation written for a stranger's Confluence. Measured on the current product,
-1,687 lines, the only site-specific string in code is one image path in a compose file, and its
-fourteen configuration variables carry no site value.
+1,934 lines, the only site-specific string in code is one image path in a compose file, and its
+eleven tools and fifteen configuration variables carry no site value.
 
 ## How people get an agent
 
