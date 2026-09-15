@@ -6,12 +6,22 @@ describes the site. This test is the upstream layer and it works by SHAPE, not b
 a word list only ever catches what its author already thought of:
 
 * a URL whose host is not on the short list of public hosts this project cites;
+* a ``host:port`` with no scheme, which is what a registry image line looks like;
 * an email address, other than the noreply identity commits carry;
 * an absolute path under a home directory;
 * an IP address outside the documentation and loopback ranges;
+* a bank account, card or citizen service number, by checksum, from the redaction layer's own
+  detector rather than a second copy of those rules;
 * attribution to a source a reader cannot open.
 
-Names of people are not detectable by shape and are the private list's job, or a person's.
+**What this does not look for, and who does.** Credentials are gitleaks', which runs over the
+history as well as the tree and knows provider shapes; a second opinion here would be one more
+rule to drift against `.gitleaks.toml`, which is what `tests/test_secret_scan.py` exists to
+prevent. Names of people are not detectable by shape: the redaction layer finds them with a model
+at transcript write time, and a model cannot gate a build, because an unreachable endpoint
+degrades to a permissive verdict and a green gate that could not have failed is worse than none.
+So names are the private list's job, or a person's.
+
 Every detector below was planted against and watched to fail before it was trusted.
 """
 
@@ -20,6 +30,8 @@ from __future__ import annotations
 import ipaddress
 import re
 from pathlib import Path
+
+from agentic_base.redaction.patterns import BSN, CARD, IBAN, PatternDetector
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -91,6 +103,9 @@ EXAMPLE_HOSTS = {
 }
 
 URL = re.compile(r"https?://([A-Za-z0-9.-]+)(?::\d+)?[/\s)\]>\"'`]?")
+# A registry image line carries a host and no scheme: `image: registry.site:5050/group/app:tag`.
+# Requiring a scheme is how one of these survived a review of the product this standard came from.
+HOST_PORT = re.compile(r"(?<![\w.-])([a-z0-9-]+(?:\.[a-z0-9-]+)+):\d{2,5}(?![\w.-])")
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 HOME_PATH = re.compile(r"/(home|Users)/[A-Za-z0-9._-]+")
 # Not preceded or followed by a path or version character, so `cuDNN/9.10.1.4-CUDA` is a version.
@@ -138,12 +153,43 @@ FILES = [
 ]
 
 
+#: Checksummed shapes the redaction layer already models. Credentials are gitleaks'; email and
+#: IP stay with the rules above, which carry allow-lists a detector has no place knowing about.
+DELEGATED_ENTITIES = frozenset({IBAN, CARD, BSN})
+_PATTERNS = PatternDetector()
+
+#: Published example values: the ECBS's IBAN, the card networks' test numbers, and the eleven-test
+#: fixtures. They belong to nobody, and the redaction layer's own tests are made of them. Same
+#: reasoning as the documentation IP ranges above, and the same cost if the list grows by habit:
+#: every addition is a decision that a real number is not being waved through.
+PUBLISHED_TEST_VECTORS = {
+    "NL91ABNA0417164300",
+    "4111111111111111",
+    "123456782",
+    "111222333",
+}
+
+
+def _is_published_vector(value: str) -> bool:
+    return value.replace(" ", "").replace(".", "").replace("-", "") in (
+        PUBLISHED_TEST_VECTORS
+    )
+
+
 def _findings(text: str) -> list[str]:
     out = []
     for m in URL.finditer(text):
         host = m.group(1).lower().rstrip(".")
         if not _public(host) and not _is_ip(host):
             out.append(f"url host {host}")
+    for m in HOST_PORT.finditer(text):
+        host = m.group(1).lower().rstrip(".")
+        if not _public(host) and not _is_ip(host):
+            out.append(f"host:port {host}")
+    for span in _PATTERNS.detect(text):
+        value = text[span.start : span.end]
+        if span.entity in DELEGATED_ENTITIES and not _is_published_vector(value):
+            out.append(f"{span.entity.lower()} {value}")
     for m in EMAIL.finditer(text):
         if m.group(0).split("@")[1].lower() not in ALLOWED_EMAIL_HOSTS:
             out.append(f"email {m.group(0)}")
@@ -192,6 +238,10 @@ def test_each_detector_fires_on_a_planted_example() -> None:
         "a home path": "logs in /home/someone/run.log",
         "an ip": "the box at 145.100.1.1",
         "a source word": "as the design memo says",
+        "a registry image": "image: registry.some-institute.net:5050/group/app:latest",
+        "an iban": "pay GB82WEST12345698765432 on receipt",
+        "a card": "card 5555555555554444 on file",
+        "a citizen service number": "bsn 100000009 in the record",
     }
     for what, text in planted.items():
         assert _findings(text), f"{what} was planted and not detected"

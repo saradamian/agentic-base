@@ -201,10 +201,26 @@ not who wrote the content.
 The repository is public. A hostname, an internal address, a home path, a colleague's address or
 a reference to a document a reader cannot open is a disclosure the moment it is pushed, and a
 word list of things to avoid only catches what its author already thought of. So the check works
-by shape: any link to a host outside a short public list, any email other than the forge's
-noreply identity, any absolute home path, any address outside the documentation ranges, any
-attribution to an internal source. The site's own identifiers are checked on the deployment side
-against a list kept in the overlay, because a list of what a site hides describes the site.
+by shape: any link to a host outside a short public list, any `host:port` with no scheme, which is
+what a registry image line looks like, any email other than the forge's noreply identity, any
+absolute home path, any address outside the documentation ranges, any bank account, card or
+citizen service number that passes its checksum, and any attribution to an internal source. The
+site's own identifiers are checked on the deployment side against a list kept in the overlay,
+because a list of what a site hides describes the site.
+
+Three instruments overlap here and the division between them is deliberate, because two verdicts
+on one question drift and the weaker one is the one people quote. **Credentials are gitleaks'**,
+over the history as well as the tree; this check does not look for them, for the same reason
+`tests/test_secret_scan.py` holds one rule in one place. **The checksummed money and identity
+shapes are the redaction layer's**, so this check calls its detector rather than carrying a second
+copy of the eleven test and the Luhn check. **Hosts, home paths and internal-source attributions
+are this check's own**: they are neither credentials nor personal data, no scanner is looking for
+them, and they are what a reader of a freshly published repository notices first. **Names of
+people are nobody's gate.** The redaction layer finds them with a model when a transcript is
+written, and a model cannot gate a build: an unreachable endpoint degrades to a permissive verdict
+and a green gate that could not have failed is worse than none. Measured on the product this
+standard was drawn from, every name-shaped hit in the source was a false positive, so names are
+the private list's job or a person's, and the guard says so rather than implying coverage.
 
 **Guard:** `tests/test_public_hygiene.py`, with a planted-example test for every detector so the
 guard is known to fire. The history was searched the same way before the repository went public.
