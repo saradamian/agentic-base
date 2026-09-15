@@ -358,6 +358,66 @@ def test_an_exported_run_can_be_written_back(test_client) -> None:
     assert replayed.json()["messages"] == [{"role": "user", "content": "hi"}]
 
 
+def test_an_exported_run_keeps_every_field_a_reader_would_judge_it_by(
+    test_client,
+) -> None:
+    """Portable in shape is not portable in evidence.
+
+    A corpus that survives the move with its transcript but without its scorer, its instrument
+    or who it acted for is worse than one that does not move at all: it still reads like a
+    corpus. The test above proves the export is the write path's shape; this one proves the
+    fields that decide whether a run may be cited come through unchanged.
+    """
+    judged_by = (
+        "resolved",
+        "label_source",
+        "degraded",
+        "instrument",
+        "principal",
+        "classification",
+        "isolation_tier",
+        "redaction",
+        "disclosure",
+        "content_marking",
+        "approvals",
+        "status",
+        "code_revision",
+        "component_versions",
+        "arm_fingerprint",
+        "model",
+        "endpoint",
+        "precision",
+    )
+    created = test_client.post(
+        "/runs",
+        json=_payload(
+            tenant="evidence",
+            code_revision="deadbee",
+            component_versions={"surf-agentic-base": "0.7.0"},
+            arm_fingerprint="ff00ff",
+            model="m",
+            endpoint="https://example.org/v1",
+            precision="bf16",
+            principal="urn:person:1",
+            classification="personal",
+            isolation_tier="isolated",
+            redaction="patterns+gliner",
+            disclosure="channel-notice",
+            content_marking="c2pa:abc",
+            resolved=True,
+            label_source=LabelSource.OFFICIAL_HARNESS.value,
+            instrument="official",
+        ),
+    ).json()
+
+    _, _, records = _export(test_client, "evidence")
+    record = records[0]["record"]
+    replayed = test_client.post("/runs", json=record).json()
+
+    assert [f for f in judged_by if f not in record] == []
+    assert {f: replayed[f] for f in judged_by} == {f: created[f] for f in judged_by}
+
+
 def test_an_exported_run_says_which_run_it_is_and_when_in_utc(test_client) -> None:
     """Without the id and the time an export cannot answer what ran when, and a replay would
     stamp every run with the moment it was replayed."""
