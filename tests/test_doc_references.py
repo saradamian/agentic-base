@@ -118,6 +118,13 @@ def missing_name_reference(
         return None
     if reference.endswith("_*") and any(f.startswith(reference[:-1]) for f in fields):
         return None
+    # A declared foreign prefix covers the concrete names under it: a page comparing our
+    # vocabulary with someone else's has to be able to name theirs.
+    if any(
+        declared.endswith("_*") and reference.startswith(declared[:-1])
+        for declared in EXTERNAL_NAMES
+    ):
+        return None
     return (
         f"`{reference}`: not a setting, a constant in src/, or a listed external name"
     )
