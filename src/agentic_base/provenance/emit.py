@@ -52,11 +52,26 @@ def _outcome(run: RunRecordCreate) -> dict[str, Any]:
         "label_source": run.label_source.value,
         "authority": authority_of(run.label_source).value,
         "degraded": run.degraded,
-        "instrument": run.instrument,
+        **({"instrument": run.instrument} if run.instrument else {}),
     }
 
 
+def _stated(facts: dict[str, Any]) -> dict[str, Any]:
+    """Only what somebody recorded.
+
+    A field nobody filled arrives as an empty string or a zero, and written into a document it
+    stops being an absence and becomes a claim: a run whose energy nobody measured was published
+    as having drawn 0.0 joules. `unclassified`, `none` and an empty approvals list stay, because
+    each is a statement the record makes on purpose.
+    """
+    return {k: v for k, v in facts.items() if v != "" and v != 0 and v != {}}
+
+
 def _environment(run: RunRecordCreate) -> dict[str, Any]:
+    return _stated(_environment_fields(run))
+
+
+def _environment_fields(run: RunRecordCreate) -> dict[str, Any]:
     return {
         "code_revision": run.code_revision,
         "component_versions": dict(run.component_versions),
@@ -75,13 +90,15 @@ def _environment(run: RunRecordCreate) -> dict[str, Any]:
 
 def _cost(run: RunRecordCreate) -> dict[str, float | int]:
     """Three axes kept apart: tokens price an API, elapsed prices an allocation, joules are
-    physical."""
-    return {
-        "prompt_tokens": run.prompt_tokens,
-        "completion_tokens": run.completion_tokens,
-        "elapsed_ms": run.elapsed_ms,
-        "joules": run.joules,
-    }
+    physical. An axis nobody measured is left out, not reported as zero."""
+    return _stated(
+        {
+            "prompt_tokens": run.prompt_tokens,
+            "completion_tokens": run.completion_tokens,
+            "elapsed_ms": run.elapsed_ms,
+            "joules": run.joules,
+        }
+    )
 
 
 def _iso(moment: datetime) -> str:
@@ -187,7 +204,7 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
             labelSource=outcome["label_source"],
             authority=outcome["authority"],
             degraded=outcome["degraded"],
-            instrument=outcome["instrument"],
+            instrument=run.instrument,
             arm=run.arm,
             armFingerprint=run.arm_fingerprint,
             status=run.status.value,
@@ -229,8 +246,15 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
     )
 
 
+AUTHORING_TOOL = "surf-agentic-base"
+
+
 def build_process_run_crate(
-    run: RunRecordCreate, run_id: str, created_at: datetime
+    run: RunRecordCreate,
+    run_id: str,
+    created_at: datetime,
+    *,
+    application: str = "",
 ) -> ROCrate:
     """The Process Run Crate as a library object, not yet written anywhere.
 
@@ -240,6 +264,15 @@ def build_process_run_crate(
     ``CreateAction`` whose instrument is the software that ran it and whose result is the
     outcome with its provenance as ``PropertyValue`` entities, which is how the profile says to
     attach facts the vocabulary does not name.
+
+    *application* names the software that performed the run, one of ``component_versions``.
+    This library did not: it wrote the crate. Those are two actions and the crate records two,
+    the run with the application as its instrument, and the writing of the crate with this
+    library as its instrument and the crate as its result, which is how RO-Crate says to record
+    the software that produced one. With no application named, every recorded component other
+    than this library stands as the instrument; with none recorded at all, the run keeps this
+    library there, because the profile requires an instrument and an honest weak answer beats
+    a missing one.
     """
     try:
         from rocrate.model import ContextEntity
@@ -251,18 +284,24 @@ def build_process_run_crate(
     crate.name = f"agentic run {run_id}"
     crate.root_dataset["conformsTo"] = {"@id": PROCESS_RUN_CRATE_PROFILE}
 
-    software_id = "#surf-agentic-base"
     versions = run.component_versions
-    crate.add(
-        ContextEntity(
-            crate,
-            software_id,
-            properties={
-                "@type": "SoftwareApplication",
-                "name": "surf-agentic-base",
-                "version": versions.get("surf-agentic-base", ""),
-            },
-        )
+
+    def software(name: str) -> dict[str, str]:
+        properties = {"@type": "SoftwareApplication", "name": name}
+        if versions.get(name):
+            properties["version"] = versions[name]
+        crate.add(ContextEntity(crate, f"#{name}", properties=properties))
+        return {"@id": f"#{name}"}
+
+    if application:
+        ran = [application]
+    else:
+        ran = [name for name in versions if name != AUTHORING_TOOL] or [AUTHORING_TOOL]
+    instruments = [software(name) for name in ran]
+    author = (
+        {"@id": f"#{AUTHORING_TOOL}"}
+        if AUTHORING_TOOL in ran
+        else software(AUTHORING_TOOL)
     )
 
     def value(name: str, item: Any) -> ContextEntity:
@@ -293,7 +332,7 @@ def build_process_run_crate(
             "@type": "CreateAction",
             "name": f"run {run_id}",
             "startTime": _iso(created_at),
-            "instrument": {"@id": software_id},
+            "instrument": instruments[0] if len(instruments) == 1 else instruments,
             "actionStatus": {
                 "@id": "http://schema.org/CompletedActionStatus"
                 if run.status.value == "completed"
@@ -313,6 +352,19 @@ def build_process_run_crate(
     action["object"] = objects
     if results:
         action["result"] = results
+    crate.root_dataset["mentions"] = {"@id": f"#{run_id}"}
+    crate.add(
+        ContextEntity(
+            crate,
+            "#crate-authoring",
+            properties={
+                "@type": "CreateAction",
+                "name": "wrote this crate from the run record",
+                "instrument": author,
+                "result": {"@id": "./"},
+            },
+        )
+    )
     return crate
 
 

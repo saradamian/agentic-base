@@ -252,3 +252,71 @@ def test_the_crate_can_be_extended_before_it_is_written(tmp_path) -> None:
     results = [r["@id"] for r in reloaded.dereference("#abc")["result"]]
     assert "patch.diff" in results
     assert (out / "patch.diff").exists()
+
+
+def _graph(crate) -> dict:
+    return {e["@id"]: e for e in crate.metadata.generate()["@graph"]}
+
+
+def test_the_run_names_the_application_that_ran_it_not_the_library_that_wrote_the_crate() -> (
+    None
+):
+    """The record-keeping library performed nothing. The two roles are two actions."""
+    from agentic_base.provenance import build_process_run_crate
+
+    run = _run(
+        component_versions={"surf-agentic-base": "0.7.0", "agentic-env": "0.8.0"}
+    )
+    graph = _graph(build_process_run_crate(run, "abc", CREATED))
+
+    assert graph["#abc"]["instrument"] == {"@id": "#agentic-env"}
+    assert graph["#agentic-env"]["version"] == "0.8.0"
+    authoring = graph["#crate-authoring"]
+    assert authoring["instrument"] == {"@id": "#surf-agentic-base"}
+    assert authoring["result"] == {"@id": "./"}
+
+
+def test_a_named_application_is_the_instrument_whatever_else_was_recorded() -> None:
+    from agentic_base.provenance import build_process_run_crate
+
+    run = _run(component_versions={"surf-agentic-base": "0.7.0", "vllm": "0.27"})
+    graph = _graph(build_process_run_crate(run, "abc", CREATED, application="my-agent"))
+
+    assert graph["#abc"]["instrument"] == {"@id": "#my-agent"}
+    assert "version" not in graph["#my-agent"]
+
+
+def test_a_run_that_recorded_no_other_software_still_has_an_instrument() -> None:
+    """The profile requires one, and a weak answer is more use than a missing field."""
+    from agentic_base.provenance import build_process_run_crate
+
+    graph = _graph(build_process_run_crate(_run(), "abc", CREATED))
+
+    assert graph["#abc"]["instrument"] == {"@id": "#surf-agentic-base"}
+
+
+def test_a_cost_nobody_measured_is_absent_from_every_document() -> None:
+    """A zero in a published record is a measurement. Nobody measured this run's energy."""
+    from agentic_base.provenance import build_process_run_crate
+
+    run = _run(joules=0.0, prompt_tokens=0, principal="")
+
+    graph = _graph(build_process_run_crate(run, "abc", CREATED))
+    assert "#abc/joules" not in graph
+    assert "#abc/prompt_tokens" not in graph
+    assert "#abc/principal" not in graph
+    assert graph["#abc/completion_tokens"]["value"] == "300"
+
+    prov = json.loads(to_prov(run, "abc", CREATED).serialize(format="json"))
+    attributes = {k for node in prov["activity"].values() for k in node}
+    assert "ab:joules" not in attributes and "ab:completion_tokens" in attributes
+
+
+def test_a_deliberate_none_is_a_statement_and_stays() -> None:
+    from agentic_base.provenance import build_process_run_crate
+
+    graph = _graph(build_process_run_crate(_run(), "abc", CREATED))
+
+    assert graph["#abc/classification"]["value"] == "unclassified"
+    assert graph["#abc/redaction"]["value"] == "none"
+    assert graph["#abc/approvals"]["value"] == "[]"
