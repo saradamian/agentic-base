@@ -5,92 +5,76 @@
 [![python](https://img.shields.io/badge/python-3.10%20to%203.14-blue.svg)](https://github.com/saradamian/agentic-base/blob/main/pyproject.toml)
 [![cite](https://img.shields.io/badge/cite-CITATION.cff-green.svg)](https://github.com/saradamian/agentic-base/blob/main/CITATION.cff)
 
-The agentic base layer for SURF: **a system of record for what agents do, a referee for claims
-made from that record, the security primitives an agent needs on a shared platform, and the
-engineering standard that keeps all of it honest**. It is the contracts layer under a set of capability blocks, one per SURF system, that
-live in their own packages; see `docs/architecture/blocks.md`.
+Records what an AI agent did, for the people who will ask about it later, and refuses a record
+nobody could check.
 
-It is built on the SURF Developer Platform golden path and adopts the common stack wherever the
-common stack has an answer. It contains only the parts we could not find anywhere else.
+## It refuses three things
 
-## The problem it addresses
+**An outcome with no scorer.** `POST /runs` with `resolved: true` and no `label_source` returns
+HTTP 422. "It worked" is worth nothing to the next reader unless the record says who decided:
+the benchmark's own harness, a maintainer, the agent grading itself. Those are not the same
+claim, and only the first two can be cited.
 
-An agent that works for people on a shared platform acts for someone, touches data of some class,
-sometimes does things a person should approve, and talks to people who have a right to know it is
-an AI. Afterwards someone asks what it did: the person it worked for, an auditor, an incident
-responder, a regulator. Most agents keep a log for their developers and nothing that answers
-those questions. This service records each run with that account, and keeps it intact.
+**A comparison that lost runs unevenly.** One agent resolves 85.7 % and another 52.6 %. The first
+also timed out on six hard tasks, the second on one, and a timeout has no verdict. Count every
+run and the gap is 60 % against 50 %. `validity` catches this and shows the per-arm accounting.
+Clinical trials have published that accounting since 2001, as the CONSORT flow diagram. No
+experiment tracker we found checks it.
 
-When a team changes its agent, a new model, a new prompt, a benchmark arm, it also wants to know
-whether the new one is better, and that comparison is easy to get wrong. The service is a referee
-for that as well. It does not drive execution: the job orchestrator and the model server are
-other systems, and the two HPC modules here are a result channel and cluster facts, nothing more.
+**Personal data on the shared tier.** A run classified `personal` or `health` that names the
+`community` isolation tier is rejected at the write path. It is the one combination no regime
+permits.
 
-## Adopted, not written here
+## Who asks later
 
-It does not ship an agent framework, a tracing backend, a metrics store, a dashboard, an experiment
-tracker, a workflow engine, or an inference server. Every one of those exists and is better than
-anything we would write. See [the reuse ledger](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/reuse-ledger.md) for what is
-adopted and from where.
+The person the agent worked for. An auditor. An incident responder. A regulator with
+the AI Act in hand. Most agents keep a debug log for their developers, which answers none of
+them.
 
-## The record, for any agent
+Each record says who the run acted for, what class of data it touched and on which tier, whether
+personal data was removed from the transcript and by what, who approved which action, and
+whether the person was told they were dealing with an AI. Every create, label and approval joins
+a hash chain per tenant, and `GET /runs/integrity` checks it. A transcript can be redacted on the
+way in and erased on a retention schedule without breaking that chain. A tenant takes its whole
+corpus away in one request, in the shape the write path accepts.
 
-`agentic_base.domain.run_record` holds one row per run: the transcript the model actually
-received, the environment it ran in, and who decided its outcome. Every record also says who the
-run acted for, what class of data it touched and on which isolation tier, whether personal data
-was redacted before the transcript was written and by what, who approved which action, whether
-the person was told they were dealing with an AI, and how generated output was marked. Only the
-tenant and the code revision are required; the rest have defaults, so a writer that does not
-know yet still writes, and the corpus can tell a run recorded before the answer existed from one
-recorded after. `docs/architecture/cross-cutting.md` says which obligation each field serves.
+Only two fields are required: the tenant and the code revision. A writer that does not know the
+rest yet still writes, and the corpus can tell a run recorded before an answer existed from one
+recorded after.
 
-Every write goes into a hash-chained audit log that `GET /runs/integrity` verifies. A transcript
-can be redacted on the way in and erased later, by `agentic-base-retention` under each tenant's
-retention policy or for one person's request, without breaking that log, and a tenant can export
-everything it recorded in one request.
+## What you use it for
 
-An outcome cannot be recorded without naming who decided it, and only some deciders count. A
-benchmark's own harness or a person whose decision is the reference is citable; the agent's own
-claim, a quick in-tree check, a user's thumbs-up or another model's score is kept and marked as
-diagnostic. Experiment trackers that record who decided type it by modality, human, model or
-code, which cannot tell a user's thumbs-up from a reviewer's decision, and none refuses an
-outcome that names no one.
+| you want to | use | what it gives you |
+|---|---|---|
+| keep an account of what your agent did | the service, through `agentic_base.client` | records under audit, per tenant, behind bearer tokens |
+| hand a run to someone else's tooling | `agentic_base.provenance` | W3C PROV, a Process Run Crate, an OpenLineage event, each through that standard's own library |
+| know whether version B beats version A | `agentic_base.domain.validity` | a verdict, the exclusion channels behind it, and whether the check could have flagged anything |
+| see runs in a tracker you already have | `agentic-base-mlflow` | each run as an MLflow trace with a feedback assessment |
+| ask about runs from a chat client | `agentic-base-mcp` | four read-only tools over the same database |
+| stop an agent fetching an internal URL | `agentic_base.security.netsec` | URL validation with DNS pinning |
+| remove personal data before it is stored | `agentic_base.redaction` | patterns always, names from a model with a fallback, refusing to write when neither can answer |
 
-Nothing is exported in a private format. `agentic_base.provenance` turns one record into W3C
-PROV, an OpenLineage run event and a Process Run Crate, each through that standard's own library,
-with the scorer and its authority carried as a declared extension whose schema is in
-`docs/schemas/`. The same record exports into MLflow as a trace with a feedback assessment;
-`agentic-base-mlflow --tenant <name>` sends a tenant's runs from the service's database.
+Smaller pieces an agent on a shared platform tends to get wrong when it writes its own: a
+pre-filter over generated code, a probe that asks a model for a completion instead of trusting a
+status code, a retry policy that replaces a dead connection pool, a value returned from a batch
+job over its stdout. [Boundaries](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/boundaries.md)
+lists them all.
 
-## The referee, when you compare
+The library half runs on Python 3.10 with four dependencies and no database, because that is the
+floor its first consumer runs on. The service is an extra.
 
-`agentic_base.domain.validity` adjudicates whether a contrast across arms is sound: benchmark
-arms, or two versions of a service agent. It detects exclusion channels whose rate differs by arm,
-which do not cancel in a contrast, and reports the per-arm accounting behind the verdict.
-`item` names the unit of work two runs must share to be compared, `arm` names what is being
-compared; a record that compares nothing leaves both empty.
+## What it is not
 
-The referee is not a new mechanism. Clinical trials have shipped exactly this artifact for two
-decades: the **CONSORT flow diagram**, a per-arm accounting of everyone who left the denominator
-and why, mandatory for publication since 2001, with an extension for AI interventions since 2020.
-The defect it exposes has a name in the missing-data literature, missingness that is **MNAR with
-respect to the treatment arm**. What is missing is not the idea. No experiment tracker implements
-the check, and we found no reporting standard in agent evaluation that requires the accounting,
-so `validity` implements the check and `flow_by_arm` produces the accounting in the standard's
-vocabulary: assessed, excluded with reasons, analysed.
+Not an agent framework, a tracing backend, a metrics store, an experiment tracker, a workflow
+engine or an inference server. Each exists and is better than one we would write.
+[The reuse ledger](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/reuse-ledger.md)
+gives a verdict per concern, adopt, bridge or build, and a test fails when the code does by hand
+what the ledger says it adopted. It does not drive execution either: the orchestrator and the
+model server are other systems.
 
-## The rest of the library
-
-Small things an agent on a shared platform gets wrong when it writes its own: the outbound URL
-check with DNS pinning, the structural pre-filter over generated code, a completion probe that
-asks a model for an answer instead of trusting a status code, a retry policy that recycles a
-dead transport, cluster facts without credentials, a value back from a batch job, the tool
-contract, the span vocabulary from the standard packages, and the recording seam a served call
-passes through. Two more that exist because a regime asks for them and the record is where they
-land: redaction of a transcript before it is written, patterns always and names from a model with
-a fallback, failing closed rather than claiming more than ran; and a retention policy that
-refuses to keep less than the law requires, with an erasure the hash chain survives.
-`docs/architecture/boundaries.md` lists them; `docs/architecture/reuse-ledger.md` says for each whether it is adopted, bridged or built, and a test holds the code to that ledger.
+It is built on the SURF Developer Platform golden path, and it is the contracts layer under a set
+of capability blocks, one per SURF system, that live in their own packages. See
+[blocks and layers](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/blocks.md).
 
 ## Installing
 
