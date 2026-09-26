@@ -226,3 +226,31 @@ def test_format_jsonl_reads_json_lines_whatever_the_file_is_called(
     assert "--format jsonl" in capsys.readouterr().err
 
     assert main(["check", "--format", "jsonl", str(renamed)]) == 1
+
+
+def _uneven_csv(tmp_path: Path, name: str) -> Path:
+    """The uneven-timeout scenario of `_uneven`, as a table."""
+    rows = ["item,arm,resolved,channel"]
+    for n in range(40):
+        rows.append(f"t{n},a,true,")
+        rows.append(f"t{n},b,,timeout" if n < 12 else f"t{n},b,false,")
+    path = tmp_path / name
+    path.write_text("\n".join(rows) + "\n")
+    return path
+
+
+def test_a_csv_file_is_read_by_its_suffix(tmp_path, capsys) -> None:
+    code = main(["check", str(_uneven_csv(tmp_path, "runs.csv"))])
+
+    assert code == 1
+    assert (
+        "b: assessed 40; excluded 12 (12 timeout); analysed 28"
+        in capsys.readouterr().out
+    )
+
+
+def test_format_csv_reads_a_table_whatever_the_file_is_called(tmp_path, capsys) -> None:
+    path = _uneven_csv(tmp_path, "runs.txt")
+
+    assert main(["check", str(path), "--format", "csv"]) == 1
+    assert main(["check", str(path)]) == 2, "read as JSONL, a table is unreadable"

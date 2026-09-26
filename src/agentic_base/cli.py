@@ -1,9 +1,9 @@
 """``agentic-base check``: the two checks, over logs the caller already has.
 
-No server, database or token: the command reads eval results from disk — JSONL, or an Inspect
-AI ``.eval``/``.json`` log — through `agentic_base.adapters`, runs `check_comparison` over
-them, and prints the CONSORT-style per-arm flow, the verdict line and a citability line. The
-exit code carries the verdict so the command gates a CI job:
+No server, database or token: the command reads eval results from disk — JSONL, CSV with a
+header row, or an Inspect AI ``.eval``/``.json`` log — through `agentic_base.adapters`, runs
+`check_comparison` over them, and prints the CONSORT-style per-arm flow, the verdict line and a
+citability line. The exit code carries the verdict so the command gates a CI job:
 
 * **0** — sound, and the check could have flagged something: at least two arms, at least one
   exclusion channel, every difference inside an interval narrow enough to have caught a gap.
@@ -28,6 +28,7 @@ from pathlib import Path
 from agentic_base.adapters import (
     LogObservation,
     citability,
+    from_csv,
     from_inspect_log,
     from_jsonl,
 )
@@ -42,6 +43,9 @@ _EXIT_CODES = "exit codes: 0 sound, 1 not sound, 2 inconclusive or unreadable in
 
 INSPECT_SUFFIXES = (".eval", ".json")
 """Paths with these suffixes are read as Inspect AI logs; everything else as JSONL."""
+
+CSV_SUFFIXES = (".csv",)
+"""Paths with these suffixes are read as CSV with a header row."""
 
 
 def exit_code(report: ValidityReport) -> int:
@@ -71,7 +75,10 @@ def _load(path: Path, args: argparse.Namespace) -> list[LogObservation]:
     fmt = getattr(args, "format", "auto")
     if fmt == "inspect" or (fmt == "auto" and path.suffix in INSPECT_SUFFIXES):
         return from_inspect_log(path, arm=args.arm or "model")
-    return from_jsonl(
+    reader = from_jsonl
+    if fmt == "csv" or (fmt == "auto" and path.suffix in CSV_SUFFIXES):
+        reader = from_csv
+    return reader(
         path,
         item=args.item,
         arm=args.arm or "arm",
@@ -128,35 +135,37 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
         epilog=_EXIT_CODES,
     )
-    check.add_argument("paths", nargs="+", help="JSONL files and/or Inspect logs")
+    check.add_argument(
+        "paths", nargs="+", help="JSONL or CSV files and/or Inspect logs"
+    )
     check.add_argument(
         "--arm",
         default=None,
-        help="JSONL: the field holding the arm (default 'arm'); "
+        help="JSONL/CSV: the field holding the arm (default 'arm'); "
         "Inspect: 'model' (default), 'task', or a metadata key",
     )
     check.add_argument(
-        "--item", default="item", help="JSONL field holding the unit of work"
+        "--item", default="item", help="JSONL/CSV field holding the unit of work"
     )
     check.add_argument(
-        "--verdict", default="resolved", help="JSONL field holding the outcome"
+        "--verdict", default="resolved", help="JSONL/CSV field holding the outcome"
     )
     check.add_argument(
         "--channel",
         default="channel",
-        help="JSONL field naming how a run left the denominator",
+        help="JSONL/CSV field naming how a run left the denominator",
     )
     check.add_argument(
         "--scorer",
         default="label_source",
-        help="JSONL field naming who decided the outcome",
+        help="JSONL/CSV field naming who decided the outcome",
     )
     check.add_argument(
         "--format",
-        choices=("auto", "jsonl", "inspect"),
+        choices=("auto", "jsonl", "csv", "inspect"),
         default="auto",
         help="how to read the paths; 'auto' (default) reads .eval and .json as Inspect "
-        "logs and anything else as JSONL",
+        "logs, .csv as CSV with a header row, and anything else as JSONL",
     )
     check.add_argument(
         "--json", action="store_true", help="print the report as JSON instead of text"

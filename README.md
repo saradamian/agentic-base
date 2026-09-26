@@ -34,9 +34,11 @@ outcomes: 27 name a citable scorer, 4 diagnostic, 2 name none
 ```
 
 `agentic-base check` reads JSONL (one JSON object per run; `--arm`, `--item`, `--verdict`,
-`--channel` and `--scorer` name the fields) or an Inspect AI `.eval`/`.json` log, where `--arm` is
-`model`, `task` or a metadata key. A row with no verdict is counted as an exclusion, never
-silently analysed. The exit code gates a CI job: **0** sound, **1** not sound, **2** when the input
+`--channel` and `--scorer` name the fields), CSV with a header row (the same flags name the
+columns), or an Inspect AI `.eval`/`.json` log, where `--arm` is `model`, `task` or a metadata key.
+Runs kept in MLflow read through its own export: save `mlflow.search_runs(...).to_csv("runs.csv")`
+and pass `--arm params.config --item params.task --verdict metrics.resolved`. A row with no
+verdict is counted as an exclusion, never silently analysed. The exit code gates a CI job: **0** sound, **1** not sound, **2** when the input
 cannot answer either way (too little data, one arm, no exclusion anywhere, or an unreadable file).
 `--json` prints the full report.
 
