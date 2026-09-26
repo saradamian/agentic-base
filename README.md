@@ -48,7 +48,7 @@ recorded after.
 |---|---|---|
 | keep an account of what your agent did | the service, through `agentic_base.client` | records under audit, per tenant, behind bearer tokens |
 | hand a run to someone else's tooling | `agentic_base.provenance` | W3C PROV, a Process Run Crate, an OpenLineage event, each through that standard's own library |
-| know whether version B beats version A | `agentic_base.domain.validity` | a verdict, the exclusion channels behind it, and whether the check could have flagged anything |
+| know whether version B beats version A | `agentic_base.domain.validity` | a verdict with a 95% interval on it, the exclusion channels behind it — runs never attempted included — and whether the check could have flagged anything |
 | see runs in a tracker you already have | `agentic-base-mlflow` | each run as an MLflow trace with a feedback assessment |
 | ask about runs from a chat client | `agentic-base-mcp` | four read-only tools over the same database |
 | stop an agent fetching an internal URL | `agentic_base.security.netsec` | URL validation with DNS pinning |
@@ -148,7 +148,7 @@ python examples/is_this_comparison_sound.py
    with-planner  12/14 = 85.7%
 
 2. What the validity check says
-   not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline)
+   not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline), 95% interval +0.8 to +47.3 pp
    examined 40 runs, 2 arms, 1 exclusion channel(s); could have flagged: True
 
 3. The per-arm flow the verdict rests on
@@ -189,7 +189,7 @@ python examples/record_and_ask.py  # in another
    a label that names no scorer is refused: HTTP 422
 
 3. Is the comparison sound?
-   not sound: timeout: 33.3% (with-planner) vs 0.0% (baseline)
+   inconclusive: too little data — timeout: 33.3% (with-planner) vs 0.0% (baseline), 95% interval -12.3 to +70.0 pp
    baseline: assessed 6; excluded 0 (none); analysed 6
    with-planner: assessed 6; excluded 2 (2 timeout); analysed 4
 

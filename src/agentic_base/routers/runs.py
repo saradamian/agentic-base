@@ -76,8 +76,12 @@ class ChannelSpreadResponse(BaseModel):
     lowest_arm: str
     highest_arm: str
     ratio: float | None
-    """Highest rate over lowest; null when the lowest arm has none, since JSON has no infinity."""
+    """Highest rate over lowest; null when the lowest arm has none, since JSON has no infinity.
+    A diagnostic: the interval below is what decided."""
     absolute_difference: float
+    interval_low: float
+    interval_high: float
+    """95% Newcombe score interval on the rate difference between the extreme arms."""
     description: str
 
 
@@ -107,7 +111,13 @@ class ValidityResponse(BaseModel):
     observations_examined: int
     paired_items: int
     total_items: int
+    item_sets_comparable: bool
+    """False when the arms share no item keys: what one arm never attempted was not counted,
+    and the arms may not be attempting the same task set."""
     flagged: list[ChannelSpreadResponse]
+    inconclusive: list[ChannelSpreadResponse]
+    """Channels whose interval spans zero but is too wide to call: too little data, and not
+    evidence of soundness."""
     flow: list[ArmFlowResponse]
     """The per-arm accounting the verdict rests on, present whatever the verdict."""
 

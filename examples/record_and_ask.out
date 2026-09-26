@@ -5,7 +5,7 @@
    a label that names no scorer is refused: HTTP 422
 
 3. Is the comparison sound?
-   not sound: timeout: 33.3% (with-planner) vs 0.0% (baseline)
+   inconclusive: too little data — timeout: 33.3% (with-planner) vs 0.0% (baseline), 95% interval -12.3 to +70.0 pp
    baseline: assessed 6; excluded 0 (none); analysed 6
    with-planner: assessed 6; excluded 2 (2 timeout); analysed 4
 

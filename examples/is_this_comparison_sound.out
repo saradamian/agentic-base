@@ -3,7 +3,7 @@
    with-planner  12/14 = 85.7%
 
 2. What the validity check says
-   not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline)
+   not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline), 95% interval +0.8 to +47.3 pp
    examined 40 runs, 2 arms, 1 exclusion channel(s); could have flagged: True
 
 3. The per-arm flow the verdict rests on
