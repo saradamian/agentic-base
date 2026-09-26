@@ -265,11 +265,11 @@ AUTH=none just run
 - [Reuse ledger](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/reuse-ledger.md): adopt, bridge, or build, with the reason
 - [Logging, security, safety and compliance](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/cross-cutting.md): where each lives, the obligations, and what the vision should say
 - [Observability](https://github.com/saradamian/agentic-base/blob/main/docs/OBSERVABILITY.md): what the service emits and where to point it
-- [What came from agentic-env](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/from-agentic-env.md): what was extracted, what was left, what the first consumer found
 - [Compliance evidence](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/compliance.md): what the record produces for the AI Act, NIS2, the Cyber Resilience Act and the Data Act, and what is missing
 - [Redaction](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/redaction.md): what removes personal data from a transcript, and what each mode catches and costs
 - [Incident response](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/incident-response.md): the two reporting clocks, who is told, and what this repository hands you
 - [Going live on SDP](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/go-live-on-sdp.md): the deployment repository and what is left to settle
+- [Archive](https://github.com/saradamian/agentic-base/blob/main/archive/README.md): superseded pages, kept for the record
 
 ## The standard
 
