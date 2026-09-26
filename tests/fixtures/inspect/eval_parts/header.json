@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "run_id": "demo-epochs",
+    "created": "2026-09-01T12:00:00+00:00",
+    "task": "demo_task",
+    "model": "demo/epochs",
+    "dataset": {"name": "demo", "samples": 2, "sample_ids": ["s1", "s2"]},
+    "config": {"epochs": 2}
+  }
+}

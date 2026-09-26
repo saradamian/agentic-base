@@ -50,7 +50,7 @@ recorded after.
 |---|---|---|
 | keep an account of what your agent did | the service, through `agentic_base.client` | records under audit, per tenant, behind bearer tokens |
 | hand a run to someone else's tooling | `agentic_base.provenance` | W3C PROV, a Process Run Crate, an OpenLineage event, each through that standard's own library |
-| know whether version B beats version A | `agentic_base.domain.validity` | a verdict with a 95% interval on it, the exclusion channels behind it — runs never attempted included — and whether the check could have flagged anything |
+| know whether version B beats version A | `agentic-base check` over logs you already have, or `agentic_base.domain.validity` | a verdict with a 95% interval on it, the exclusion channels behind it — runs never attempted included — and whether the check could have flagged anything |
 | see runs in a tracker you already have | `agentic-base-mlflow` | each run as an MLflow trace with a feedback assessment |
 | ask about runs from a chat client | `agentic-base-mcp` | four read-only tools over the same database, only for the tenants `MCP_TENANTS` names |
 | stop an agent fetching an internal URL | `agentic_base.security.netsec` | URL validation with DNS pinning |
@@ -92,8 +92,32 @@ The import name is `agentic_base`. The distribution is named `surf-agentic-base`
 
 ## Try it
 
-Three runnable examples, each with its output committed beside it and checked by a test, so what
-you see below is what you will get.
+Everything below is runnable, with its output committed beside it and checked by a test, so what
+you see is what you will get.
+
+**Check logs you already have.** The two checks, in under a minute, over eval results that
+already exist — no server, database or token. `agentic-base check` reads JSONL (one JSON object
+per run; flags name the fields, so `--arm config` reads the arm from each row's `config`) or an
+Inspect AI `.eval`/`.json` log (there `--arm` is `model`, `task`, or a metadata key), through
+`agentic_base.adapters`. A row with no verdict is counted as an exclusion, never silently
+analysed. The exit code gates a CI job: 0 sound, 1 not sound, 2 when the input could not answer
+either way — too little data, one arm, no exclusion anywhere, or a file it could not read.
+`--json` prints the full report instead.
+
+```bash
+pip install surf-agentic-base
+agentic-base check examples/results.jsonl --arm config
+```
+
+```text
+baseline: assessed 20; excluded 1 (1 timeout); analysed 19
+with-planner: assessed 20; excluded 6 (6 timeout); analysed 14
+not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline), 95% interval +0.8 to +47.3 pp
+outcomes: 27 name a citable scorer, 4 diagnostic, 2 name none
+```
+
+No logs at hand? `python -m agentic_base.demo` generates this scenario in memory and prints the
+naive number beside the checked verdict.
 
 **An agent that works for people.** `examples/service_agent.py` records a merge-request review
 agent's runs through the client: who each review was for, the data class and tier, how the person
