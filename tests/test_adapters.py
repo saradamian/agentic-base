@@ -9,6 +9,8 @@ layout the reader targets is visible in review rather than opaque bytes in git.
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import zipfile
 from pathlib import Path
@@ -19,6 +21,7 @@ from agentic_base.adapters import (
     NO_VERDICT,
     LogObservation,
     citability,
+    from_csv,
     from_inspect_log,
     from_jsonl,
 )
@@ -26,6 +29,7 @@ from agentic_base.domain.outcomes import LabelSource
 from agentic_base.domain.validity import INCLUDED, NEVER_ATTEMPTED, check_comparison
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "inspect"
+EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
 
 
 @pytest.fixture()
@@ -304,3 +308,111 @@ def test_json_lines_under_a_json_name_is_refused_with_the_way_out(tmp_path) -> N
 
     with pytest.raises(ValueError, match="--format jsonl"):
         from_inspect_log(path)
+
+
+# ── CSV ─────────────────────────────────────────────────────────────────────────
+
+
+def _as_csv(rows: list[dict], columns: list[str]) -> str:
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=columns)
+    writer.writeheader()
+    for row in rows:
+        writer.writerow({key: row.get(key, "") for key in columns})
+    return out.getvalue()
+
+
+def test_a_csv_table_reads_exactly_as_the_same_runs_in_jsonl() -> None:
+    """One set of rules: the committed example, written as a table, is the same forty runs."""
+    lines = (EXAMPLES / "results.jsonl").read_text().splitlines()
+    rows = [json.loads(line) for line in lines]
+    table = _as_csv(rows, ["item", "config", "resolved", "channel", "label_source"])
+
+    from_table = from_csv(table.splitlines(), arm="config")
+
+    assert from_table == from_jsonl(lines, arm="config")
+    assert not check_comparison(from_table).sound
+
+
+def test_a_blank_cell_is_an_absent_field() -> None:
+    table = "item,arm,resolved,channel\nt1,a,,\nt2,a,true,\n"
+
+    blank_verdict, analysed = from_csv(table.splitlines())
+
+    assert blank_verdict.channel == NO_VERDICT
+    assert analysed.channel == INCLUDED and analysed.resolved is True
+
+
+def test_a_header_without_the_arm_column_is_an_error_naming_the_columns_it_has() -> (
+    None
+):
+    with pytest.raises(ValueError, match="no 'config' column.*item, arm, resolved"):
+        from_csv(["item,arm,resolved", "t1,a,true"], arm="config")
+
+
+def test_a_row_with_an_empty_arm_is_an_error_naming_the_row() -> None:
+    with pytest.raises(ValueError, match="row 2: no 'arm' field"):
+        from_csv(["item,arm,resolved", "t1,a,true", "t2,,false"])
+
+
+def test_a_spreadsheet_export_with_a_byte_order_mark_and_blank_rows_reads(
+    tmp_path,
+) -> None:
+    path = tmp_path / "runs.csv"
+    path.write_text(
+        "\ufeffitem,arm,resolved\r\nt1,a,1\r\n,,\r\nt2,b,0\r\n", encoding="utf-8"
+    )
+
+    observations = from_csv(path)
+
+    assert [(o.item, o.arm, o.resolved) for o in observations] == [
+        ("t1", "a", True),
+        ("t2", "b", False),
+    ]
+
+
+@pytest.fixture()
+def mlflow_store(tmp_path, monkeypatch):
+    """A throwaway tracking database, and the process-wide tracking URI put back afterwards:
+    MLflow keeps it globally, and `tests/provenance/test_mlflow_export.py` relies on its own."""
+    mlflow = pytest.importorskip("mlflow")
+    monkeypatch.setenv("MLFLOW_DISABLE_AGENT_HINT", "1")
+    previous = mlflow.get_tracking_uri()
+    mlflow.set_tracking_uri(f"sqlite:///{tmp_path / 'mlflow.db'}")
+    yield mlflow
+    mlflow.set_tracking_uri(previous)
+
+
+def test_an_mlflow_runs_export_reads_with_its_column_names(
+    tmp_path, mlflow_store
+) -> None:
+    """`mlflow.search_runs(...).to_csv()` names columns params.*, metrics.*, tags.*."""
+    mlflow = mlflow_store
+    experiment = mlflow.create_experiment("comparison")
+    for config, task, resolved in [
+        ("base", "t1", 1.0),
+        ("base", "t2", 0.0),
+        ("plan", "t1", 1.0),
+    ]:
+        with mlflow.start_run(experiment_id=experiment):
+            mlflow.log_params({"config": config, "task": task})
+            mlflow.log_metric("resolved", resolved)
+            mlflow.set_tag("label_source", "official_harness")
+    with mlflow.start_run(experiment_id=experiment):  # crashed before it was scored
+        mlflow.log_params({"config": "plan", "task": "t2"})
+    path = tmp_path / "runs.csv"
+    mlflow.search_runs(experiment_ids=[experiment]).to_csv(path, index=False)
+
+    observations = from_csv(
+        path,
+        arm="params.config",
+        item="params.task",
+        verdict="metrics.resolved",
+        scorer="tags.label_source",
+    )
+
+    by_run = {(o.arm, o.item): o for o in observations}
+    assert by_run[("base", "t1")].resolved is True
+    assert by_run[("base", "t2")].resolved is False
+    assert by_run[("plan", "t2")].channel == NO_VERDICT
+    assert by_run[("plan", "t1")].label_source is LabelSource.OFFICIAL_HARNESS

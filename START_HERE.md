@@ -18,9 +18,9 @@ emitters from here, and records the installed version of this package beside eve
 
 ## The first useful thing to do
 
-Point `agentic-base check` at results you already have. If your logs are JSONL, name the fields
-with `--arm`, `--item`, `--verdict` and `--channel`; if they are Inspect AI logs, pass the `.eval`
-file. You will find out in a minute whether your comparison lost runs unevenly, and whether your
+Point `agentic-base check` at results you already have. If your logs are JSONL or a CSV table
+(a spreadsheet, or an MLflow `search_runs` export), name the fields with `--arm`, `--item`,
+`--verdict` and `--channel`; if they are Inspect AI logs, pass the `.eval` file. You will find out in a minute whether your comparison lost runs unevenly, and whether your
 logs record who scored each outcome at all.
 
 ## The habit that matters most

@@ -7,10 +7,12 @@ that shape, so this module does the mapping: standard library only, no service, 
 new dependency, because the whole point of the front door is that it opens on the library's own
 3.10 four-dependency floor.
 
-Two readers:
+Three readers:
 
 * :func:`from_jsonl` reads one JSON object per line, with the field names as arguments because
   nobody's logs agree on them.
+* :func:`from_csv` reads a table with a header row by the same rules, for results kept in a
+  spreadsheet or exported from a tracker such as MLflow.
 * :func:`from_inspect_log` reads an Inspect AI eval log **without importing** ``inspect_ai``
   (which does not install on this library's dependency floor). It targets the log schema at
   ``version: 2``, the format inspect_ai 0.3.x documents and writes: the all-in-one ``.json``
@@ -21,14 +23,16 @@ Two readers:
   as the bare channel ``limit``, a header the zip does not carry leaves the eval spec empty —
   rather than guessing a value that would then be analysed.
 
-One rule both readers share, because it closes the gap the recording path can leave open: **a
-record whose verdict is missing, or written in a shape the reader cannot interpret, is an
-exclusion** (the channel :data:`NO_VERDICT`), never a silently analysed run. Its absence rate is
-then checked per arm like any other exclusion channel, which is where uneven missingness shows.
+One rule all three readers share, because it closes the gap the recording path can leave open:
+**a record whose verdict is missing, or written in a shape the reader cannot interpret, is an
+exclusion** (the channel :data:`NO_VERDICT`), never a silently analysed run. Its absence rate
+is then checked per arm like any other exclusion channel, which is where uneven missingness
+shows.
 """
 
 from __future__ import annotations
 
+import csv
 import json
 import zipfile
 from collections.abc import Iterable
@@ -153,6 +157,52 @@ def _as_label_source(name: str) -> LabelSource:
         return LabelSource.UNLABELLED
 
 
+def _from_row(
+    row: dict[str, Any],
+    where: str,
+    *,
+    item: str,
+    arm: str,
+    verdict: str,
+    channel: str,
+    scorer: str,
+) -> LogObservation:
+    """One record, from JSONL or CSV, as an observation; the rules are `from_jsonl`'s.
+
+    An empty string reads as absent, so a CSV cell left blank means what a missing JSON field
+    means. `where` names the record ("line 3", "row 2") in the error a missing item or arm
+    raises.
+    """
+    item_value = row.get(item)
+    arm_value = row.get(arm)
+    for field_name, value in ((item, item_value), (arm, arm_value)):
+        if value is None or str(value) == "":
+            raise ValueError(
+                f"{where}: no {field_name!r} field — every row needs an item and an "
+                "arm (the --item and --arm flags name the fields)"
+            )
+    scorer_value = row.get(scorer)
+    scorer_name = "" if scorer_value is None else str(scorer_value)
+    channel_value = row.get(channel)
+    if channel_value not in (None, "", INCLUDED):
+        return LogObservation(
+            item=str(item_value),
+            arm=str(arm_value),
+            channel=str(channel_value),
+            scorer=scorer_name,
+            label_source=_as_label_source(scorer_name),
+        )
+    resolved = _as_verdict(row.get(verdict))
+    return LogObservation(
+        item=str(item_value),
+        arm=str(arm_value),
+        channel=INCLUDED if resolved is not None else NO_VERDICT,
+        resolved=resolved,
+        scorer=scorer_name,
+        label_source=_as_label_source(scorer_name),
+    )
+
+
 def from_jsonl(
     source: str | Path | Iterable[str],
     *,
@@ -184,6 +234,13 @@ def from_jsonl(
         lines: Iterable[str] = Path(source).read_text(encoding="utf-8").splitlines()
     else:
         lines = source
+    fields = {
+        "item": item,
+        "arm": arm,
+        "verdict": verdict,
+        "channel": channel,
+        "scorer": scorer,
+    }
     observations: list[LogObservation] = []
     for number, line in enumerate(lines, start=1):
         if not line.strip():
@@ -196,40 +253,56 @@ def from_jsonl(
             raise ValueError(
                 f"line {number}: a JSON {type(row).__name__}, not an object"
             )
-        item_value = row.get(item)
-        arm_value = row.get(arm)
-        for field_name, value in ((item, item_value), (arm, arm_value)):
-            if value is None or str(value) == "":
-                raise ValueError(
-                    f"line {number}: no {field_name!r} field — every row needs an item and an "
-                    "arm (the --item and --arm flags name the fields)"
-                )
-        scorer_value = row.get(scorer)
-        scorer_name = "" if scorer_value is None else str(scorer_value)
-        channel_value = row.get(channel)
-        if channel_value not in (None, "", INCLUDED):
-            observations.append(
-                LogObservation(
-                    item=str(item_value),
-                    arm=str(arm_value),
-                    channel=str(channel_value),
-                    scorer=scorer_name,
-                    label_source=_as_label_source(scorer_name),
-                )
-            )
-            continue
-        resolved = _as_verdict(row.get(verdict))
-        observations.append(
-            LogObservation(
-                item=str(item_value),
-                arm=str(arm_value),
-                channel=INCLUDED if resolved is not None else NO_VERDICT,
-                resolved=resolved,
-                scorer=scorer_name,
-                label_source=_as_label_source(scorer_name),
-            )
-        )
+        observations.append(_from_row(row, f"line {number}", **fields))
     return observations
+
+
+def from_csv(
+    source: str | Path | Iterable[str],
+    *,
+    item: str = "item",
+    arm: str = "arm",
+    verdict: str = "resolved",
+    channel: str = "channel",
+    scorer: str = "label_source",
+) -> list[LogObservation]:
+    """Read a CSV table with a header row, one run per row, by the rules of `from_jsonl`.
+
+    For results kept in a spreadsheet or exported from a tracker. MLflow's
+    ``mlflow.search_runs(...).to_csv(path)`` names its columns ``params.<key>``,
+    ``metrics.<key>`` and ``tags.<key>``, so ``--arm params.config --verdict metrics.resolved``
+    reads it; a metric of 1.0 is a resolve, 0.0 is not. A blank cell is an absent field. A
+    header without the item or arm column raises `ValueError` before any row is read, naming
+    the columns the file has.
+    """
+    if isinstance(source, (str, Path)):
+        text = Path(source).read_text(encoding="utf-8-sig")
+        lines: Iterable[str] = text.splitlines()
+    else:
+        lines = source
+    reader = csv.DictReader(lines)
+    columns = reader.fieldnames or []
+    for field_name in (item, arm):
+        if field_name not in columns:
+            raise ValueError(
+                f"no {field_name!r} column (the --item and --arm flags name them); "
+                f"the header has: {', '.join(columns) or 'nothing'}"
+            )
+    fields = {
+        "item": item,
+        "arm": arm,
+        "verdict": verdict,
+        "channel": channel,
+        "scorer": scorer,
+    }
+    # Row 1 is the first record; the header is not counted.
+    return [
+        _from_row(row, f"row {number}", **fields)
+        for number, row in enumerate(reader, start=1)
+        if any(
+            (value or "").strip() for value in row.values() if isinstance(value, str)
+        )
+    ]
 
 
 def _read_inspect_document(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
