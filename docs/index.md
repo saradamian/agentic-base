@@ -17,14 +17,14 @@ The [readme](include-readme.md) covers the service in a page. After that:
 - [Compliance evidence](architecture/compliance.md): what the record produces for the AI Act and NIS2
 - [Incident response](architecture/incident-response.md): the two clocks, who is told, and what this repository can hand you
 - [Redaction](architecture/redaction.md): what removes personal data from a transcript, and what each mode catches and costs
-- [From agentic-env](architecture/from-agentic-env.md): what was extracted, what was left, what the first consumer found
 - [Going live on SDP](architecture/go-live-on-sdp.md): the deployment repository and the open questions
 
 The rest, in the order you are likely to want them:
 
 - [Where this sits](architecture/layering.md) and [boundaries](architecture/boundaries.md): what this layer owns, and what it must never do
 - [Operational traps](architecture/operational-traps.md): failures that are invisible in code review
-- [What Kubernetes changes](architecture/kubernetes.md): what the platform retires, and the one thing it makes worse
 - [The deployment overlay](architecture/deployment-overlay.md): how a deployment repository stays current without a fork
-- [The move plan](architecture/move-plan.md): what came from agentic-env, in what order, and on what conditions
 - [Proposals](architecture/proposals.md): the two attributes we carry as extensions and want upstream
+
+Superseded pages (the extraction from agentic-env, the move plan, what Kubernetes changes) are
+kept for the record in the repository's [archive](https://github.com/saradamian/agentic-base/tree/main/archive).
