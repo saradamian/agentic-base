@@ -7,24 +7,19 @@ edit_uri: -/edit/main/docs/
 nav:
   - Home: index.md
   - Readme: include-readme.md
-  - Decisions: decisions.md
-  - The engineering standard: ENGINEERING.md
-  - Observability: OBSERVABILITY.md
-  - Architecture:
-    - The picture: architecture/picture.md
-    - Blocks and layers: architecture/blocks.md
-    - Logging, security, safety and compliance: architecture/cross-cutting.md
-    - Layering: architecture/layering.md
-    - Boundaries: architecture/boundaries.md
-    - Reuse ledger: architecture/reuse-ledger.md
-    - Going live on SDP: architecture/go-live-on-sdp.md
+  - Concepts: concepts.md
+  - Running the service: service.md
+  - Reference:
+    - Decisions: decisions.md
+    - Observability: OBSERVABILITY.md
     - Compliance evidence: architecture/compliance.md
-    - Incident response: architecture/incident-response.md
     - Redaction: architecture/redaction.md
-    - Operational traps: architecture/operational-traps.md
+    - Incident response: architecture/incident-response.md
+    - Reuse ledger: architecture/reuse-ledger.md
+    - The engineering standard: ENGINEERING.md
     - Repository process: architecture/process.md
+    - Going live on SDP: architecture/go-live-on-sdp.md
     - The deployment overlay: architecture/deployment-overlay.md
-    - Proposals to the standards: architecture/proposals.md
 plugins:
   - techdocs-core
 theme:

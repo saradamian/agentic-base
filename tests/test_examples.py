@@ -125,13 +125,12 @@ def test_a_service_example_prints_what_its_output_file_shows(
     assert _normalised(printed, service_url) == (EXAMPLES / f"{script}.out").read_text()
 
 
-def test_the_readme_shows_the_output_the_examples_print() -> None:
-    readme = (ROOT / "README.md").read_text()
-
-    for name in (
-        "results.out",
-        "is_this_comparison_sound.out",
-        "record_and_ask.out",
-        "service_agent.out",
-    ):
-        assert (EXAMPLES / name).read_text() in readme, f"README does not show {name}"
+def test_the_pages_show_the_output_the_examples_print() -> None:
+    pages = {
+        "README.md": ("results.out", "is_this_comparison_sound.out"),
+        "docs/service.md": ("record_and_ask.out", "service_agent.out"),
+    }
+    for page, outputs in pages.items():
+        text = (ROOT / page).read_text()
+        for name in outputs:
+            assert (EXAMPLES / name).read_text() in text, f"{page} does not show {name}"

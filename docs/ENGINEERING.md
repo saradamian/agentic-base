@@ -90,9 +90,9 @@ the pre-stop sleep plus a margin, and fails if a literal appears.
 
 ## Record provenance at the moment of the write
 
-A field that can be filled in later will not be. Measured on our own corpus: 33 trace stores,
-10,920 recorded outcomes, 4,742 naming no scorer at all and not one naming the authoritative one,
-because attribution was a later step nobody ran.
+A field that can be filled in later will not be: in the corpus this came from, 43% of recorded
+outcomes named no scorer at all, because attribution was a later step nobody ran (the numbers are
+in D5 of `docs/decisions.md`).
 
 So the creation model refuses a write it cannot attribute, and requiredness is spent where the
 information is unrecoverable: a scorer cannot be reconstructed once a run is over, a tenant can.

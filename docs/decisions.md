@@ -155,8 +155,8 @@ The rule exists because the alternative was tried. Eight modules were rewritten 
 repository from agentic-env in its first week, smaller and in some cases worse, and a scheduler
 client was the next candidate. A base that contains a block cannot be imported by the block, the
 block's owner has no repository to own, and the base grows until it is a second copy of the
-thing it was meant to replace. `boundaries.md` says this repository must not submit jobs; that
-is this decision applied to the first block.
+thing it was meant to replace. The boundaries page (now archived, `archive/docs/architecture/boundaries.md`) said this repository must not
+submit jobs; that is this decision applied to the first block.
 
 ## D11: A gap without a solution still gets a field
 

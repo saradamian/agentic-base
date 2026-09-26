@@ -1,114 +1,34 @@
 # Start here
 
-A few pages, then the code. There is no larger specification behind this.
+Three pages, then the code.
 
-## What the service does
+1. `README.md`: the two checks, and `agentic-base check` over logs you already have.
+2. `docs/concepts.md`: the fifteen terms, each pointing at the field or function it names.
+3. `docs/service.md`: the service, for when you want the record and not only the check.
 
-It is a system of record for agent runs, and a referee for claims made from that record.
+Then read `src/agentic_base/domain/validity.py` and `src/agentic_base/domain/outcomes.py`. They
+are the whole of the two checks; everything else in the package is storage, transport or export
+around them.
 
-You post a run. The service stores what the model received and the environment it ran in, and
-each record says who the run acted for, what class of data it touched and on which isolation
-tier, whether the transcript was redacted and by what, whether the person was told they were
-dealing with an AI, and who approved which action. Every write goes into a hash-chained audit log
-that is verified on request, so a later edit is detectable. That account is what any agent
-working for people needs, benchmark or not.
+## Who uses it
 
-You attach an outcome later, and the service refuses it unless you name who decided; a user's
-thumbs-up or another model's score is kept and marked as diagnostic, not citable. When you
-compare, benchmark arms or two versions of an agent, it tells you whether the comparison is sound.
-A record that compares nothing leaves `item` and `arm` empty.
-
-Three things it does on the way. When redaction is configured it removes personal data and
-credentials from the transcript before writing it, and refuses the write rather than store a
-transcript it could not redact. `agentic-base-retention` erases transcripts older than a tenant's
-retention policy, on a schedule, or one on a person's request, without breaking the audit log. And
-a tenant can take its whole corpus away in one request.
-
-It serves a run in W3C PROV, OpenLineage or a Process Run Crate, exports a tenant's runs to MLflow
-with `agentic-base-mlflow`, and exposes the corpus read-only over MCP with `agentic-base-mcp`, so
-someone in a chat client can ask.
-
-Every data request needs a bearer token that lists the tenant it names. A release migrates the
-schema before it starts, with `agentic-base-migrate`, and the service refuses to run against an
-older one.
-
-That is all of it. It does not run agents, serve models, schedule jobs or train.
-
-## What the library gives a consumer
-
-Anything that imports `agentic_base` gets the rules without the storage: the outcome vocabulary
-and the citability rules over a structural protocol, the validity check, the epoch declarations,
-the retention policy and its erasure, the redaction seam with its pattern layer and its detectors,
-the job-result protocol for batch jobs, the outbound URL check, the code pre-filter, the tool
-contract, the recording seam, the span vocabulary, and the provenance emitters. It installs on
-Python 3.10 with four dependencies. The service is an optional extra, and so is every model a
-detector might use.
-
-## Who it is for
-
-agentic-env runs the experiments. It imports the job-result protocol, the span vocabulary, the
-provenance emitters and the MCP transport from here, records the installed version of this
-layer beside every run, and refuses to pool runs across an undeclared version. Each import
-deleted a copy there.
-
-Willma serves models. Anything here about inference points at Willma.
-
-AI4Science submits and orchestrates jobs on Slurm. It runs agent jobs through a template script
-on a shared filesystem. Replacing that seam with an interface is the hpc block's first job.
-
-The AI Factory is buying a machine whose functional architecture has three verbs, train,
-fine-tune and infer, with no box for an agent run and no plane for observing or evaluating one.
-`docs/architecture/blocks.md` maps its tasks onto the blocks.
-
-## Why it is shaped this way
-
-Most experiment tooling stores what a run produced. Almost none of it stores who decided the run
-was correct, or whether the thing that decided was working at the time. None of it tells you a
-comparison is invalid. That gap is why this exists, and it closes only if the refusals are in the
-write path from the first day. Provenance cannot be added to runs that did not record it.
-
-## Where this sits
-
-`docs/architecture/blocks.md` is the design: this repository is the contracts layer under twelve
-capability blocks, one per SURF system, each in its own package with the system's owner, and
-the capabilities that cut across every block: identity and delegated credentials, accounting,
-triggers, oversight, classification, a ledger, redaction, and transparency. No block lives here.
-`docs/architecture/cross-cutting.md` says where logging, security, safety and compliance live,
-what the regimes ask of an agent platform, and which field on the record each gap became.
-
-## Read these, in this order
-
-1. `docs/decisions.md`. Eleven decisions, each cheap now and expensive later. D5 says why two
-   arguments have no default. D10 says why no block is in this repository. D11 says why a gap
-   with no solution still gets a field.
-2. `docs/architecture/reuse-ledger.md`. What is adopted and from where. Most of what a platform
-   needs already exists inside SURF, and a test holds the code to the ledger.
-3. `docs/architecture/operational-traps.md`. Failures that are invisible in code review. Several
-   apply to code that is not in this repository.
-4. `tests/lessons/`. One test file, no framework. It shows how a retrieval bug makes a
-   measurement return a clean zero that reads like a finding.
-
-## What is dormant
-
-These are here because they were cheap to write while the context was fresh. They answer
-questions nobody has asked yet. Do not build on them.
-
-- The energy column. It is a real axis when you are billed for an allocation, and it will be zero
-  here for a long time. A column that is always zero teaches people to ignore columns.
-- The Snellius and LUMI profiles. Worked examples of what a cluster profile has to carry, not a
-  statement that HPC is the destination.
+agentic-env, the experiment harness this came out of, imports the outcome vocabulary, the version
+declarations, the job-result protocol for batch jobs, the span vocabulary and the provenance
+emitters from here, and records the installed version of this package beside every run.
 
 ## The first useful thing to do
 
-Instrument something you already have. `src/agentic_base/client.py` is about ten lines at the
-call site. Record twenty runs of anything, label half, and ask for the validity report. You will
-find out quickly whether the required fields are in the right places.
+Point `agentic-base check` at results you already have. If your logs are JSONL, name the fields
+with `--arm`, `--item`, `--verdict` and `--channel`; if they are Inspect AI logs, pass the `.eval`
+file. You will find out in a minute whether your comparison lost runs unevenly, and whether your
+logs record who scored each outcome at all.
 
 ## The habit that matters most
 
 A guard that cannot fail is worse than no guard, because it gets cited. In the project this came
 from, one validity check reported clean for weeks while it was keyed off a leftover variable and
-could only ever hold one entry.
+could only ever hold one entry. That is why `agentic-base check` exits 2, not 0, when it could not
+have flagged anything.
 
 When you write a check, break the thing it checks and confirm the check fails. The positive
 control in `tests/domain/test_validity.py` was verified that way.
