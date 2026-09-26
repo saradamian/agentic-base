@@ -65,9 +65,11 @@ def service_url(tmp_path_factory) -> Iterator[str]:
         "DATABASE_URL": f"sqlite:///{tmp_path_factory.mktemp('examples') / 'runs.db'}",
         "REDACTION": "patterns",
         "OTEL_SDK_DISABLED": "true",
-        # As deployed: tokens required, one covering the examples' tenants.
+        # As deployed: tokens required, one covering the examples' tenants and the citable
+        # scorers their labels name.
         "AUTH": "tokens",
-        "API_TOKENS": '{"example-token-0000001": ["example-team", "platform-team"]}',
+        "API_TOKENS": '{"example-token-0000001": {"tenants": ["example-team", '
+        '"platform-team"], "label_sources": ["official_harness", "human"]}}',
     }
     server = subprocess.Popen(
         [

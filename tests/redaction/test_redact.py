@@ -30,7 +30,7 @@ def test_the_fake_satisfies_the_protocol() -> None:
     assert isinstance(_Upper(), Redactor)
 
 
-def test_every_transcript_text_is_redacted_and_structure_is_kept() -> None:
+def test_every_transcript_string_is_redacted_and_structure_is_kept() -> None:
     record = _record(
         system_prompt="the secret prompt",
         messages=[
@@ -59,12 +59,67 @@ def test_every_transcript_text_is_redacted_and_structure_is_kept() -> None:
     assert out.messages[1]["content"] == [{"type": "text", "text": "<X> part"}]
     call = out.messages[2]["tool_calls"][0]
     assert call["id"] == "secret-id"
-    assert call["function"] == {"name": "secret_tool", "arguments": '{"q": "<X>"}'}
+    assert call["function"] == {"name": "<X>_tool", "arguments": '{"q": "<X>"}'}
     assert out.messages[3] == {
         "role": "tool",
-        "name": "secret_tool",
+        "name": "<X>_tool",
         "content": "<X> output",
     }
+
+
+def test_names_tool_inputs_nested_fields_and_extra_are_reached() -> None:
+    """A key allow-list misses structure; what decides is where a string sits, not its key."""
+    record = _record(
+        messages=[
+            {"role": "user", "name": "secret sender", "content": "hi"},
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "t1",
+                        "name": "send_mail",
+                        "input": {"to": "a secret address"},
+                    }
+                ],
+            },
+            {
+                "role": "tool",
+                "content": "ok",
+                "tool_call_id": "t1",
+                "metadata": {"stdout": "a secret line"},
+            },
+        ],
+        extra={"contact": "another secret address"},
+    )
+
+    out = redact_run(record, _Upper())
+
+    assert out.messages[0]["name"] == "<X> sender"
+    assert out.messages[1]["content"][0]["input"] == {"to": "a <X> address"}
+    assert out.messages[2]["metadata"] == {"stdout": "a <X> line"}
+    assert out.extra["contact"] == "another <X> address"
+
+
+def test_roles_part_types_and_tool_call_ids_are_left_for_the_joins() -> None:
+    """These strings tie a tool call to its result and select code paths; replacing them
+    would break the transcript they hold together."""
+    record = _record(
+        messages=[
+            {
+                "role": "assistant",
+                "content": [{"type": "tool_use", "id": "secret-1", "input": {}}],
+            },
+            {"role": "tool", "tool_call_id": "secret-1", "content": "ok"},
+        ]
+    )
+
+    out = redact_run(record, _Upper())
+
+    assert out.messages[0]["content"][0]["id"] == "secret-1"
+    assert out.messages[0]["content"][0]["type"] == "tool_use"
+    assert out.messages[1]["tool_call_id"] == "secret-1"
+    assert out.messages[1]["role"] == "tool"
 
 
 def test_the_record_names_the_instrument_and_reports_what_it_examined() -> None:
@@ -83,6 +138,7 @@ def test_the_record_names_the_instrument_and_reports_what_it_examined() -> None:
             "examined": 2,
             "found": {"SECRET": 2},
             "instruments": {"upper 1.0 (test)": 2},
+            "writer": "none",
         },
     }
 
@@ -114,11 +170,13 @@ def test_zero_findings_still_reports_how_much_was_examined() -> None:
         "examined": 1,
         "found": {},
         "instruments": {"upper 1.0 (test)": 1},
+        "writer": "none",
     }
     assert out.redaction == "upper 1.0 (test)"
 
 
-def test_a_record_the_writer_already_redacted_is_left_alone() -> None:
+def test_the_writers_claim_is_kept_and_does_not_stop_the_redactor() -> None:
+    """The claim is the writer's to make; whether the server redacts is not."""
     redactor = _Upper()
     record = _record(
         messages=[{"role": "user", "content": "secret"}], redaction="their tool 2.0"
@@ -126,5 +184,7 @@ def test_a_record_the_writer_already_redacted_is_left_alone() -> None:
 
     out = redact_run(record, redactor)
 
-    assert out is record
-    assert redactor.seen == []
+    assert out.messages[0]["content"] == "<X>"
+    assert out.redaction == "upper 1.0 (test)"
+    assert out.extra["redaction"]["writer"] == "their tool 2.0"
+    assert redactor.seen == ["secret"]

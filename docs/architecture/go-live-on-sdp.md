@@ -39,8 +39,11 @@ the request timeout, not a literal; registries are build arguments.
    pre-install and pre-upgrade hook, and the service refuses to start against an older schema.
    SQLite is for local development only.
 8. **Issue a token per writer** in `API_TOKENS`, through the same secret management, each mapped
-   to the tenants that writer records for. Without it the service refuses every data request,
-   which is the intended state of a deployment nobody has configured.
+   to the tenants that writer records for. A writer that runs an authoritative scorer or records
+   a person's decisions gets the object shape with those sources under `label_sources`; every
+   other token gets the plain list and can record diagnostic outcomes only. Without it the
+   service refuses every data request, which is the intended state of a deployment nobody has
+   configured.
 9. **Push, and let the pipeline deploy** to development first, then promote.
 
 ## What to settle before it is useful

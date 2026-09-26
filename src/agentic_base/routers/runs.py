@@ -23,7 +23,7 @@ from agentic_base.domain.run_record import (
     LabelUpdate,
     RunRecord,
     RunRecordCreate,
-    to_payload,
+    payload_or_none,
     to_record,
 )
 from agentic_base.domain.validity import check_comparison, report_as_dict
@@ -149,10 +149,12 @@ def create_run(
     """Record one agent run, transcript and provenance included.
 
     Tenant and code revision are required. An outcome may only be supplied together with the
-    scorer that produced it. When redaction is configured, the transcript is redacted before it
-    is written, unless the writer already redacted it and said with what.
+    scorer that produced it, and a citable scorer only through a token granted that scorer.
+    When redaction is configured, the transcript is redacted before it is written, whatever the
+    writer's own ``redaction`` field claims.
     """
     access.require(payload.tenant)
+    access.require_label_source(payload.label_source)
     if redactor is not None:
         payload = _redacted(payload, redactor)
     return _commit_with_entry(session, to_record(payload), "created")
@@ -193,10 +195,19 @@ def export_tenant(
             .order_by(RunRecord.created_at)
         )
     )
+    # Validate before the manifest is written: a row that no longer passes the creation rules
+    # is skipped with a warning, and the count must say what actually follows, or the file
+    # reads as a truncated download.
+    exportable = [
+        run_id
+        for run_id in ids
+        if (record := session.get(RunRecord, run_id)) is not None
+        and payload_or_none(record) is not None
+    ]
     manifest = {
         "tenant": tenant,
         "exported_at": datetime.now(timezone.utc).isoformat(),
-        "records": len(ids),
+        "records": len(exportable),
         "format": "application/x-ndjson",
         "schema": "agentic_base.domain.outcomes.RunRecordCreate",
         "note": "one run per line after this one: run_id, created_at and labelled_at, "
@@ -205,25 +216,29 @@ def export_tenant(
 
     def lines() -> Iterator[str]:
         yield json.dumps(manifest) + "\n"
-        for run_id in ids:
+        for run_id in exportable:
             record = session.get(RunRecord, run_id)
-            if record is not None:
-                yield (
-                    _ExportLine(
-                        run_id=record.run_id,
-                        created_at=record.created_at,
-                        labelled_at=record.labelled_at,
-                        record=to_payload(record),
-                    ).model_dump_json()
-                    + "\n"
-                )
+            if record is None:
+                continue
+            payload = payload_or_none(record)
+            if payload is None:
+                continue
+            yield (
+                _ExportLine(
+                    run_id=record.run_id,
+                    created_at=record.created_at,
+                    labelled_at=record.labelled_at,
+                    record=payload,
+                ).model_dump_json()
+                + "\n"
+            )
 
     return StreamingResponse(
         lines(),
         media_type="application/x-ndjson",
         headers={
             "Content-Disposition": f'attachment; filename="{tenant}-runs.ndjson"',
-            "X-Record-Count": str(len(ids)),
+            "X-Record-Count": str(len(exportable)),
         },
     )
 
@@ -308,7 +323,15 @@ def run_provenance(
     declared extension in every format; see docs/schemas.
     """
     record = _visible_run(session, run_id, access)
-    payload = to_payload(record)
+    payload = payload_or_none(record)
+    if payload is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=(
+                f"run {run_id} does not pass the rules POST /runs enforces, so no provenance "
+                "can be emitted for it. Attach a label that names its scorer, then ask again."
+            ),
+        )
     if format is ProvenanceFormat.PROV:
         body = (
             to_prov(payload, record.run_id, record.created_at).serialize(format="json")
@@ -355,9 +378,10 @@ def label_run(
 
     The source is mandatory: a label whose provenance is unknown cannot be trained on or
     cited, and a corpus that permits unattributed labels discovers this only once it is
-    expensive to fix.
+    expensive to fix. A citable source is only accepted from a token granted that scorer.
     """
     record = _visible_run(session, run_id, access)
+    access.require_label_source(update.label_source)
     record.resolved = update.resolved
     record.label_source = update.label_source
     record.instrument = update.instrument

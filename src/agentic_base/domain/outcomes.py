@@ -266,12 +266,24 @@ class Approval(BaseModel):
 
 
 class LabelUpdate(BaseModel):
-    """Back-fill an outcome. ``label_source`` is mandatory by construction."""
+    """Back-fill an outcome. The scorer is mandatory, under the same rule the create model
+    enforces: a label attached later is still a label, and one naming no scorer would poison
+    every reader that re-validates the stored row."""
 
     resolved: bool
     label_source: LabelSource
     instrument: str = ""
     degraded: bool = False
+
+    @model_validator(mode="after")
+    def an_outcome_requires_a_source(self) -> LabelUpdate:
+        """Refuse a label whose scorer is not named."""
+        if self.label_source is LabelSource.UNLABELLED:
+            raise ValueError(
+                "the label names no scorer: label_source is unlabelled. Name the scorer "
+                "that decided, or do not attach a label."
+            )
+        return self
 
 
 class RunRecordCreate(BaseModel):

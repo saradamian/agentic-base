@@ -130,6 +130,42 @@ def test_an_unknown_run_cannot_be_erased(engine) -> None:
         erase_run(session, "nope", "asked", NOW)
 
 
+def test_a_stored_scorerless_label_does_not_stop_the_rest_of_the_sweep(
+    engine, corpus, caplog
+) -> None:
+    """One row the create rules would refuse, written straight to the database, must cost
+    its own erasure and nothing else's."""
+    import logging
+
+    from agentic_base.domain.run_record import LabelSource
+
+    with Session(engine) as session:
+        bad = RunRecord(
+            tenant="team-a",
+            item="poisoned",
+            created_at=NOW - timedelta(days=400),
+            messages=[{"role": "user", "content": "private details"}],
+            resolved=True,
+            label_source=LabelSource.UNLABELLED,
+        )
+        session.add(bad)
+        session.commit()
+        bad_id = bad.run_id
+
+    with (
+        caplog.at_level(logging.WARNING, logger="agentic_base.domain.run_record"),
+        Session(engine) as session,
+    ):
+        done, _ = sweep(session, parse_policies('{"team-a": 365}'), NOW, apply=True)
+
+    (team_a,) = done
+    assert (team_a.due, team_a.erased, team_a.invalid) == (2, 1, 1)
+    assert "skipped 1" in team_a.describe(True)
+    assert _get(engine, corpus["old"]).messages == []
+    assert _get(engine, bad_id).messages != []
+    assert any(bad_id in message for message in caplog.messages)
+
+
 @pytest.mark.parametrize(
     ("raw", "message"),
     [

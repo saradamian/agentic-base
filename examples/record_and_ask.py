@@ -3,7 +3,7 @@
 Start the service first, in another terminal, with a token for the example's tenant:
 
     pip install 'surf-agentic-base[service,provenance]'
-    API_TOKENS='{"example-token-0000001": ["example-team"]}' just run
+    API_TOKENS='{"example-token-0000001": {"tenants": ["example-team"], "label_sources": ["official_harness"]}}' just run
 
 Then:
 

@@ -31,6 +31,13 @@ def redactor_from_settings(settings: Settings) -> Redactor | None:
         return None
 
     entities = _items(settings.redaction_entities) or DEFAULT_ENTITIES
+    unknown = sorted(set(entities) - set(DEFAULT_ENTITIES))
+    if unknown:
+        # A name no detector produces would keep nothing, while the configuration reads as on.
+        raise ValueError(
+            f"REDACTION_ENTITIES names entity types no detector produces: "
+            f"{', '.join(unknown)}. The redactor knows {', '.join(DEFAULT_ENTITIES)}"
+        )
     allow_list = _items(settings.redaction_allow_list)
     if mode == "patterns":
         return LayeredRedactor(entities=entities, allow_list=allow_list)

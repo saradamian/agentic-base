@@ -29,10 +29,12 @@ Two fields exist because their absence cost something real and are worth naming 
 from __future__ import annotations
 
 import enum
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy import JSON, Column, DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.types import TypeDecorator
@@ -75,8 +77,11 @@ __all__ = [
     "is_citable",
     "is_excluded",
     "mlflow_source_type",
+    "payload_or_none",
     "to_record",
 ]
+
+logger = logging.getLogger(__name__)
 
 
 def _now() -> datetime:
@@ -269,3 +274,19 @@ def to_payload(record: RunRecord) -> RunRecordCreate:
     return RunRecordCreate(
         **{k: v for k, v in record.model_dump().items() if k in fields}
     )
+
+
+def payload_or_none(record: RunRecord) -> RunRecordCreate | None:
+    """:func:`to_payload`, or None with a logged warning when the stored row no longer passes
+    the creation rules. A row written past a rule must cost its own reader, not crash every
+    consumer of the tenant's corpus."""
+    try:
+        return to_payload(record)
+    except ValidationError as exc:
+        reasons = "; ".join(str(e.get("msg", "")) for e in exc.errors()) or str(exc)
+        logger.warning(
+            "run %s does not pass the rules POST /runs enforces and was skipped: %s",
+            record.run_id,
+            reasons,
+        )
+        return None
