@@ -41,10 +41,18 @@ class Limits(BaseSettings):
     """Budget for the pre-flight completion probe."""
 
     validity_spread_ratio: float = 2.0
-    """How much an exclusion rate may differ across arms before a contrast is called unsound."""
+    """Deprecated: the old decision rule's ratio threshold. The verdict is decided by the
+    interval since the rewrite (`check_comparison` says why); the ratio is reported as a
+    diagnostic only. Kept so a deployment that sets `AP_VALIDITY_SPREAD_RATIO` keeps parsing."""
 
     validity_min_absolute_difference: float = 0.02
-    """Floor below which a ratio between two small rates is treated as noise."""
+    """Floor below which a rate difference across arms is unremarkable, however certain the
+    interval is that it is real."""
+
+    validity_interval_max_width: float = 0.20
+    """When the 95% interval on a rate difference spans zero but is wider than this, the
+    verdict is "inconclusive: too little data" rather than "sound" — an interval that wide
+    could not have told a real gap from none."""
 
     mcp_max_rows: int = 200
     """Rows one MCP call may return. A chat client pays for each of them in context."""

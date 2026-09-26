@@ -358,10 +358,12 @@ def test_the_validity_tool_serves_the_same_report_as_the_http_endpoint(
 
 
 def test_the_validity_thresholds_come_from_the_limits(session, monkeypatch) -> None:
+    """One run against two is too little data by the default width; a deployment that widens
+    `AP_VALIDITY_INTERVAL_MAX_WIDTH` accepts such an interval as a real null."""
     from agentic_base.limits import get_limits
 
-    flagged_by_default = call_tool("validity_report", {"tenant": "hpml"}, session)
-    monkeypatch.setenv("AP_VALIDITY_MIN_ABSOLUTE_DIFFERENCE", "1.01")
+    strict = call_tool("validity_report", {"tenant": "hpml"}, session)
+    monkeypatch.setenv("AP_VALIDITY_INTERVAL_MAX_WIDTH", "2.0")
     get_limits.cache_clear()
     try:
         relaxed = call_tool("validity_report", {"tenant": "hpml"}, session)
@@ -369,8 +371,9 @@ def test_the_validity_thresholds_come_from_the_limits(session, monkeypatch) -> N
         monkeypatch.undo()
         get_limits.cache_clear()
 
-    assert flagged_by_default["flagged"]
-    assert relaxed["flagged"] == []
+    assert strict["summary"].startswith("inconclusive: too little data")
+    assert not strict["could_have_flagged"]
+    assert relaxed["summary"].startswith("sound")
 
 
 def _long_run(engine, count: int = 50, size: int = 100) -> str:
