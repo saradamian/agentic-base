@@ -21,7 +21,7 @@ def test_the_demo_prints_the_naive_number_beside_the_checked_verdict(capsys) -> 
     assert "baseline: assessed 20; excluded 1 (1 timeout); analysed 19" in out
     assert "with-planner: assessed 20; excluded 6 (6 timeout); analysed 14" in out
     assert "not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline)" in out
-    assert "outcomes: 33 name a citable scorer" in out
+    assert "outcomes: 27 name a citable scorer, 4 diagnostic, 2 name none" in out
     assert "exit code 1" in out
 
 
@@ -37,6 +37,54 @@ def test_python_dash_m_runs_the_demo_as_the_readme_says() -> None:
 
     assert result.returncode == 0, result.stderr
     assert "not sound: timeout" in result.stdout
+
+
+def test_the_runs_it_prints_are_the_committed_example(capsys) -> None:
+    """One scenario, not two: the rows a pip user gets are the rows a checkout has."""
+    assert main(["--jsonl"]) == 0
+
+    assert capsys.readouterr().out == (ROOT / "examples" / "results.jsonl").read_text()
+
+
+def test_the_readme_front_door_needs_no_checkout(tmp_path) -> None:
+    """`pip install`, write the runs, check them: what the README shows, from an empty directory."""
+    env = {**os.environ, "PYTHONPATH": str(ROOT / "src")}
+    runs = subprocess.run(
+        [sys.executable, "-m", "agentic_base.demo", "--jsonl"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+        cwd=tmp_path,
+        check=True,
+    )
+    (tmp_path / "results.jsonl").write_text(runs.stdout)
+
+    checked = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "agentic_base.cli",
+            "check",
+            "results.jsonl",
+            "--arm",
+            "config",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+        cwd=tmp_path,
+        check=False,
+    )
+
+    assert checked.stdout == (ROOT / "examples" / "results.out").read_text()
+    assert checked.returncode == 1
+
+
+def test_an_argument_it_does_not_know_is_refused(capsys) -> None:
+    assert main(["--json"]) == 2
+    assert "usage" in capsys.readouterr().err
 
 
 def test_the_demo_ships_inside_the_package_not_under_examples() -> None:

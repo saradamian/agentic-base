@@ -40,9 +40,12 @@ for one person, and checks the records are intact.
 ```bash
 pip install 'surf-agentic-base[service]'
 export API_TOKENS='{"example-token-0000001": {"tenants": ["example-team", "platform-team"], "label_sources": ["official_harness", "human"]}}'
-REDACTION=patterns just run          # in one terminal
-python examples/service_agent.py     # in another
+REDACTION=patterns uvicorn agentic_base.main:get_app --factory --port 8080   # in one terminal
+python examples/service_agent.py                                            # in another
 ```
+
+The service needs only the install; the example scripts are in the repository's `examples/`
+directory, so run them from a checkout (`just run` there starts the same service with reload).
 
 ```text
 1. Three reviews, each recorded for the person who asked
@@ -81,8 +84,8 @@ intact, what was kept of a transcript, and for one run in W3C PROV.
 ```bash
 pip install 'surf-agentic-base[service,provenance]'
 export API_TOKENS='{"example-token-0000001": {"tenants": ["example-team", "platform-team"], "label_sources": ["official_harness", "human"]}}'
-REDACTION=patterns just run        # in one terminal
-python examples/record_and_ask.py  # in another
+REDACTION=patterns uvicorn agentic_base.main:get_app --factory --port 8080   # in one terminal
+python examples/record_and_ask.py                                           # in another
 ```
 
 ```text
@@ -118,6 +121,8 @@ python examples/record_and_ask.py  # in another
 
 ## Tokens and local development
 
+In a checkout:
+
 ```bash
 just run          # uvicorn with reload on :8080
 just check        # tests with coverage, ruff, mypy
@@ -133,7 +138,7 @@ tokens set the service refuses every data request and says what to set. `AUTH=no
 check off for local development and logs a warning when the service starts that way.
 
 ```bash
-AUTH=none just run
+AUTH=none uvicorn agentic_base.main:get_app --factory --port 8080
 ```
 
 A release migrates the schema before it starts, with `agentic-base-migrate`, and the service
