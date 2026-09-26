@@ -22,7 +22,8 @@ No server, database or token:
 
 ```bash
 pip install surf-agentic-base
-agentic-base check examples/results.jsonl --arm config
+python -m agentic_base.demo --jsonl > results.jsonl   # forty example runs; or use a log of your own
+agentic-base check results.jsonl --arm config
 ```
 
 ```text
@@ -39,8 +40,8 @@ silently analysed. The exit code gates a CI job: **0** sound, **1** not sound, *
 cannot answer either way (too little data, one arm, no exclusion anywhere, or an unreadable file).
 `--json` prints the full report.
 
-No logs at hand? `python -m agentic_base.demo` builds the scenario above in memory and prints the
-flattering number beside the checked verdict.
+`python -m agentic_base.demo` prints the flattering number for the same forty runs beside the
+checked verdict. In a checkout they are `examples/results.jsonl`.
 
 ## Use it from Python
 
