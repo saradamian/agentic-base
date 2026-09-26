@@ -9,14 +9,19 @@ pure dispatch in :func:`call_tool`, which takes a request and a session and is t
 transport. Everything else, the handshake, JSON-RPC, schemas derived from signatures, structured
 output, the in-memory client tests run against, is the SDK's.
 
-The surface is read-only and small. A manifest that registers everything costs the caller a tool
-schema on every turn and hands out capabilities written for a trusted in-process caller. Rows
+The surface is read-only, small, and scoped. The server opens the database itself, so the
+protocol has no caller to authenticate; what stands in for one is the tenant allow-list the
+operator sets at startup (``MCP_TENANTS``). A tool asked about a tenant outside it is refused,
+a run outside it reads as not found, and a server with no list refuses to start rather than
+serving the whole corpus to whoever runs it — the same refuse-by-default rule as the HTTP
+routes, with ``*`` as the deliberate, warned-about opt-in that ``AUTH=none`` is there. Rows
 come back capped, because a chat client pays for every row in its context window.
 """
 
 from __future__ import annotations
 
 import json
+import sys
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import replace
@@ -36,6 +41,8 @@ from agentic_base.limits import get_limits
 from agentic_base.recording import CallObserver, NullObserver, SafeObserver
 
 SERVER_NAME = "surf-agentic-base"
+
+ALL_TENANTS = "*"
 
 
 def _distribution_version() -> str:
@@ -87,10 +94,28 @@ def _transcript_page(
     return data
 
 
-def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[str, Any]:
-    """Run one tool. Returns the structured payload, or ``{"error": ...}``, which the served
-    tool turns into an MCP tool error."""
+def _out_of_scope(tenants: frozenset[str] | None, tenant: str) -> bool:
+    return tenants is not None and tenant not in tenants
+
+
+def call_tool(
+    name: str,
+    arguments: dict[str, Any],
+    session: Session,
+    tenants: frozenset[str] | None,
+) -> dict[str, Any]:
+    """Run one tool for a server allowed *tenants*, where ``None`` means every tenant.
+
+    Returns the structured payload, or ``{"error": ...}``, which the served tool turns into an
+    MCP tool error. A tenant outside the scope is refused by name; a run outside it gets the
+    same answer as one that does not exist, so the error does not confirm the run exists.
+    """
     limits = get_limits()
+
+    if name in {"list_runs", "validity_report", "corpus_stats"} and _out_of_scope(
+        tenants, arguments["tenant"]
+    ):
+        return {"error": f"this server may not use tenant {arguments['tenant']!r}"}
 
     if name == "list_runs":
         where = [RunRecord.tenant == arguments["tenant"]]
@@ -99,8 +124,10 @@ def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[st
         total = session.exec(
             select(func.count()).select_from(RunRecord).where(*where)
         ).one()
+        # Clamped into [1, cap]: SQLite reads a negative LIMIT as no limit at all.
         cap = min(
-            int(arguments.get("limit") or limits.mcp_max_rows), limits.mcp_max_rows
+            max(int(arguments.get("limit") or limits.mcp_max_rows), 1),
+            limits.mcp_max_rows,
         )
         rows = session.exec(
             select(RunRecord)
@@ -130,7 +157,7 @@ def call_tool(name: str, arguments: dict[str, Any], session: Session) -> dict[st
 
     if name == "get_run":
         record = session.get(RunRecord, arguments["run_id"])
-        if record is None:
+        if record is None or _out_of_scope(tenants, record.tenant):
             return {"error": f"run not found: {arguments['run_id']}"}
         from_message = int(arguments.get("from_message") or 0)
         max_chars = int(arguments.get("max_chars") or 0)
@@ -249,12 +276,16 @@ def _with_first_text(result: Any, text: str) -> Any:
 
 
 def build_server(
-    session_factory: Callable[[], Session], observer: CallObserver | None = None
+    session_factory: Callable[[], Session],
+    observer: CallObserver | None = None,
+    *,
+    tenants: frozenset[str] | None,
 ) -> MCPServer:
     """The four tools over a session factory. Schemas come from the signatures.
 
-    *observer* sees every served call through :class:`ObservingMiddleware`; the default keeps
-    nothing.
+    *tenants* is the allow-list every call is checked against; ``None`` serves every tenant
+    and is a decision the caller states, never a default. *observer* sees every served call
+    through :class:`ObservingMiddleware`; the default keeps nothing.
     """
     server = MCPServer(
         SERVER_NAME,
@@ -268,7 +299,7 @@ def build_server(
 
     def _call(name: str, **arguments: Any) -> dict[str, Any]:
         with session_factory() as session:
-            payload = call_tool(name, arguments, session)
+            payload = call_tool(name, arguments, session, tenants)
         if set(payload) == {"error"}:
             # Returned as a value it would read as a successful call to the model and to the
             # observer alike; raised, the SDK sends it with isError set.
@@ -311,22 +342,60 @@ def build_server(
     return server
 
 
-def serve_stdio(session_factory: Callable[[], Session]) -> None:
+def serve_stdio(
+    session_factory: Callable[[], Session], *, tenants: frozenset[str] | None
+) -> None:
     """Serve over stdio. Nothing else may write to stdout while this runs."""
-    build_server(session_factory).run("stdio")
+    build_server(session_factory, tenants=tenants).run("stdio")
+
+
+def tenants_from_setting(raw: str) -> frozenset[str] | None:
+    """``MCP_TENANTS`` into a scope: comma-separated tenant names, ``*`` for every tenant.
+
+    Empty is refused rather than read as everything, so a server nobody scoped serves nobody.
+    """
+    names = {part.strip() for part in raw.split(",") if part.strip()}
+    if not names:
+        raise ValueError(
+            "MCP_TENANTS is not set: name the tenants this server may serve, "
+            "comma-separated, or '*' to serve every tenant deliberately"
+        )
+    if ALL_TENANTS in names:
+        return None
+    return frozenset(names)
+
+
+def resolved_scope() -> frozenset[str] | None:
+    """The scope from the settings, or a refusal to start. ``*`` starts, and is warned about.
+
+    The warning goes to stderr: stdout is the protocol.
+    """
+    from agentic_base.config import get_settings
+
+    try:
+        tenants = tenants_from_setting(get_settings().mcp_tenants)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from None
+    if tenants is None:
+        print(
+            "MCP_TENANTS=*: every tenant's runs are open to whoever runs this server",
+            file=sys.stderr,
+        )
+    return tenants
 
 
 def main() -> None:
     """The ``agentic-base-mcp`` command: the corpus at ``DATABASE_URL``, over stdio.
 
     It reads the same settings as the service, so pointed at the service's database it serves
-    the records the service wrote.
+    the records the service wrote — but only for the tenants ``MCP_TENANTS`` names.
     """
     from agentic_base.db import get_engine, init_db
 
+    tenants = resolved_scope()
     init_db()
     engine = get_engine()
-    serve_stdio(lambda: Session(engine))
+    serve_stdio(lambda: Session(engine), tenants=tenants)
 
 
 if __name__ == "__main__":

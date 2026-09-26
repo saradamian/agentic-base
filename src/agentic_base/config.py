@@ -53,6 +53,11 @@ class Settings(BaseSettings):
     """JSON: ``{"tenant": days, "*": days}``, how long each tenant's transcripts are kept. Read by
     ``agentic-base-retention``; a policy under 183 days is refused. Empty means nothing is swept."""
 
+    mcp_tenants: str = ""
+    """Comma-separated tenants ``agentic-base-mcp`` may serve, ``"*"`` for every tenant, the same
+    grant shape as ``api_tokens``. Empty refuses to start, and ``*`` starts with a warning, the
+    same rule as ``auth``. See src/agentic_base/mcp/server.py."""
+
 
 @cache
 def get_settings() -> Settings:

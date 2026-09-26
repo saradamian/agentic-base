@@ -12,7 +12,9 @@ from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine
 
 from agentic_base.domain.run_record import LabelSource, RunRecord, RunStatus
-from agentic_base.mcp.server import build_server, call_tool
+from agentic_base.mcp.server import build_server, call_tool, tenants_from_setting
+
+HPML = frozenset({"hpml"})
 
 
 @pytest.fixture()
@@ -63,11 +65,11 @@ def session(engine):
 
 @pytest.fixture()
 def server(engine):
-    return build_server(lambda: Session(engine))
+    return build_server(lambda: Session(engine), tenants=HPML)
 
 
 def test_listing_runs_reports_whether_each_outcome_is_citable(session) -> None:
-    payload = call_tool("list_runs", {"tenant": "hpml"}, session)
+    payload = call_tool("list_runs", {"tenant": "hpml"}, session, HPML)
 
     citable = {r["item"]: r["citable"] for r in payload["runs"]}
     assert citable["task-1"] is True
@@ -75,21 +77,21 @@ def test_listing_runs_reports_whether_each_outcome_is_citable(session) -> None:
 
 
 def test_corpus_stats_separate_the_arms(session) -> None:
-    payload = call_tool("corpus_stats", {"tenant": "hpml"}, session)
+    payload = call_tool("corpus_stats", {"tenant": "hpml"}, session, HPML)
 
     assert payload["by_arm"]["baseline"]["runs"] == 2
     assert payload["by_arm"]["treatment"]["excluded"] == 1
 
 
 def test_the_validity_tool_reports_what_it_examined(session) -> None:
-    payload = call_tool("validity_report", {"tenant": "hpml"}, session)
+    payload = call_tool("validity_report", {"tenant": "hpml"}, session, HPML)
 
     assert payload["arms_examined"] == 2
     assert "could_have_flagged" in payload
 
 
 def test_an_unknown_run_reports_an_error_rather_than_raising(session) -> None:
-    assert "error" in call_tool("get_run", {"run_id": "nope"}, session)
+    assert "error" in call_tool("get_run", {"run_id": "nope"}, session, HPML)
 
 
 @pytest.mark.asyncio
@@ -171,7 +173,7 @@ async def test_every_served_call_reaches_the_observer_and_its_argument_rewrite_i
     engine,
 ) -> None:
     recorder = _Recorder()
-    server = build_server(lambda: Session(engine), observer=recorder)
+    server = build_server(lambda: Session(engine), observer=recorder, tenants=HPML)
 
     async with Client(server, raise_exceptions=True) as client:
         result = await client.call_tool("list_runs", {"tenant": "hpml"})
@@ -191,7 +193,7 @@ async def test_every_served_call_reaches_the_observer_and_its_argument_rewrite_i
 @pytest.mark.asyncio
 async def test_a_failed_call_is_recorded_as_a_failure_not_dropped(engine) -> None:
     recorder = _Recorder()
-    server = build_server(lambda: Session(engine), observer=recorder)
+    server = build_server(lambda: Session(engine), observer=recorder, tenants=HPML)
 
     async with Client(server) as client:
         result = await client.call_tool("list_runs", {})
@@ -206,7 +208,7 @@ async def test_a_broken_observer_cannot_break_a_call(engine) -> None:
         def record(self, *a, **k):
             raise RuntimeError("recorder down")
 
-    server = build_server(lambda: Session(engine), observer=Broken())
+    server = build_server(lambda: Session(engine), observer=Broken(), tenants=HPML)
 
     async with Client(server, raise_exceptions=True) as client:
         result = await client.call_tool("corpus_stats", {"tenant": "hpml"})
@@ -230,7 +232,7 @@ async def test_the_sdk_traces_a_served_call_into_the_configured_provider(
     monkeypatch.delenv("OTEL_SDK_DISABLED", raising=False)
     exporter = InMemorySpanExporter()
     assert configure_tracing(FastAPI(), exporter=exporter) is not None
-    server = build_server(lambda: Session(engine))
+    server = build_server(lambda: Session(engine), tenants=HPML)
 
     async with Client(server, raise_exceptions=True) as client:
         await client.call_tool("corpus_stats", {"tenant": "hpml"})
@@ -260,6 +262,7 @@ async def test_the_installed_command_serves_the_database_it_is_pointed_at(
         env={
             **os.environ,
             "DATABASE_URL": url,
+            "MCP_TENANTS": "from-disk",
             "OTEL_SDK_DISABLED": "true",
             # this tree's code, whatever copy the interpreter has installed
             "PYTHONPATH": str(Path(__file__).resolve().parents[2] / "src"),
@@ -279,7 +282,7 @@ async def test_an_unknown_run_is_a_tool_error_to_the_client_and_the_observer(
     engine,
 ) -> None:
     recorder = _Recorder()
-    server = build_server(lambda: Session(engine), observer=recorder)
+    server = build_server(lambda: Session(engine), observer=recorder, tenants=HPML)
 
     async with Client(server) as client:
         result = await client.call_tool("get_run", {"run_id": "nope"})
@@ -301,7 +304,7 @@ class _Wrapping(_Recorder):
 
 @pytest.mark.asyncio
 async def test_a_result_rewrite_reaches_the_structured_copy_too(engine) -> None:
-    server = build_server(lambda: Session(engine), observer=_Redacting())
+    server = build_server(lambda: Session(engine), observer=_Redacting(), tenants=HPML)
 
     async with Client(server, raise_exceptions=True) as client:
         result = await client.call_tool("corpus_stats", {"tenant": "hpml"})
@@ -315,7 +318,7 @@ async def test_a_result_rewrite_reaches_the_structured_copy_too(engine) -> None:
 async def test_a_rewrite_that_is_no_longer_json_still_leaves_no_original_behind(
     engine,
 ) -> None:
-    server = build_server(lambda: Session(engine), observer=_Wrapping())
+    server = build_server(lambda: Session(engine), observer=_Wrapping(), tenants=HPML)
 
     async with Client(server, raise_exceptions=True) as client:
         result = await client.call_tool("corpus_stats", {"tenant": "hpml"})
@@ -349,7 +352,9 @@ def test_the_validity_tool_serves_the_same_report_as_the_http_endpoint(
     from agentic_base.db import get_session
 
     app_session = next(test_client.app.dependency_overrides[get_session]())
-    over_mcp = call_tool("validity_report", {"tenant": "same"}, app_session)
+    over_mcp = call_tool(
+        "validity_report", {"tenant": "same"}, app_session, frozenset({"same"})
+    )
 
     assert over_mcp == over_http
     assert [f["arm"] for f in over_mcp["flow"]] == ["a", "b"]
@@ -362,11 +367,11 @@ def test_the_validity_thresholds_come_from_the_limits(session, monkeypatch) -> N
     `AP_VALIDITY_INTERVAL_MAX_WIDTH` accepts such an interval as a real null."""
     from agentic_base.limits import get_limits
 
-    strict = call_tool("validity_report", {"tenant": "hpml"}, session)
+    strict = call_tool("validity_report", {"tenant": "hpml"}, session, HPML)
     monkeypatch.setenv("AP_VALIDITY_INTERVAL_MAX_WIDTH", "2.0")
     get_limits.cache_clear()
     try:
-        relaxed = call_tool("validity_report", {"tenant": "hpml"}, session)
+        relaxed = call_tool("validity_report", {"tenant": "hpml"}, session, HPML)
     finally:
         monkeypatch.undo()
         get_limits.cache_clear()
@@ -394,7 +399,7 @@ def _long_run(engine, count: int = 50, size: int = 100) -> str:
 
 def _page(engine, run_id: str, **arguments) -> dict:
     with Session(engine) as s:
-        return call_tool("get_run", {"run_id": run_id, **arguments}, s)
+        return call_tool("get_run", {"run_id": run_id, **arguments}, s, HPML)
 
 
 @pytest.fixture()
@@ -501,7 +506,7 @@ async def test_a_client_pages_a_transcript_through_the_tool(
 ) -> None:
     run_id = _long_run(engine, count=20)
     transcript_cap(600)
-    server = build_server(lambda: Session(engine))
+    server = build_server(lambda: Session(engine), tenants=HPML)
 
     collected, cursor = [], 0
     async with Client(server, raise_exceptions=True) as client:
@@ -513,3 +518,106 @@ async def test_a_client_pages_a_transcript_through_the_tool(
             cursor = result.structured_content["transcript"]["next_message"]
 
     assert len(collected) == 20
+
+
+# --- the scope: an allow-list at startup, not a database that answers whoever asks ----------
+
+
+def _seeded_secret(engine) -> str:
+    with Session(engine) as s:
+        record = RunRecord(
+            tenant="secret-tenant",
+            item="task-1",
+            arm="baseline",
+            principal="user@example.org",
+            messages=[{"role": "user", "content": "confidential"}],
+        )
+        s.add(record)
+        s.commit()
+        return record.run_id
+
+
+def test_a_tenant_outside_the_allow_list_is_refused_by_name(session) -> None:
+    for tool in ("list_runs", "validity_report", "corpus_stats"):
+        payload = call_tool(tool, {"tenant": "secret-tenant"}, session, HPML)
+
+        assert payload == {"error": "this server may not use tenant 'secret-tenant'"}
+
+
+def test_a_run_from_another_tenant_reads_exactly_like_one_that_does_not_exist(
+    engine, session
+) -> None:
+    run_id = _seeded_secret(engine)
+
+    scoped = call_tool("get_run", {"run_id": run_id}, session, HPML)
+    missing = call_tool("get_run", {"run_id": "nope"}, session, HPML)
+
+    assert scoped == {"error": f"run not found: {run_id}"}
+    assert missing == {"error": "run not found: nope"}
+    assert "confidential" not in json.dumps(scoped)
+
+
+def test_an_unscoped_server_is_a_stated_decision_not_a_default(engine, session) -> None:
+    run_id = _seeded_secret(engine)
+
+    payload = call_tool("get_run", {"run_id": run_id}, session, None)
+
+    assert payload["tenant"] == "secret-tenant"
+
+
+def test_a_negative_limit_cannot_bypass_the_row_cap(session) -> None:
+    """SQLite reads LIMIT -1 as no limit at all, which used to hand back every row."""
+    payload = call_tool("list_runs", {"tenant": "hpml", "limit": -1}, session, HPML)
+
+    assert payload["total"] == 3
+    assert payload["returned"] == 1
+
+
+def test_a_limit_above_the_cap_is_clamped_to_the_cap(session, monkeypatch) -> None:
+    from agentic_base.limits import get_limits
+
+    monkeypatch.setenv("AP_MCP_MAX_ROWS", "2")
+    get_limits.cache_clear()
+    try:
+        payload = call_tool(
+            "list_runs", {"tenant": "hpml", "limit": 10**9}, session, HPML
+        )
+    finally:
+        get_limits.cache_clear()
+
+    assert payload["returned"] == 2
+
+
+def test_the_scope_setting_names_tenants_or_the_whole_corpus_deliberately() -> None:
+    assert tenants_from_setting("team-a, team-b") == frozenset({"team-a", "team-b"})
+    assert tenants_from_setting("*") is None
+    assert tenants_from_setting("team-a,*") is None
+
+
+def test_an_empty_scope_setting_refuses_rather_than_serving_everything() -> None:
+    with pytest.raises(ValueError, match="MCP_TENANTS"):
+        tenants_from_setting("")
+
+
+def test_the_command_refuses_to_start_unscoped(monkeypatch) -> None:
+    import agentic_base.config as config_module
+    from agentic_base.config import Settings
+    from agentic_base.mcp import server as server_module
+
+    monkeypatch.setattr(config_module, "get_settings", lambda: Settings(mcp_tenants=""))
+
+    with pytest.raises(SystemExit, match="MCP_TENANTS"):
+        server_module.main()
+
+
+def test_serving_every_tenant_starts_but_is_warned_about(monkeypatch, capsys) -> None:
+    import agentic_base.config as config_module
+    from agentic_base.config import Settings
+    from agentic_base.mcp.server import resolved_scope
+
+    monkeypatch.setattr(
+        config_module, "get_settings", lambda: Settings(mcp_tenants="*")
+    )
+
+    assert resolved_scope() is None
+    assert "every tenant's runs are open" in capsys.readouterr().err

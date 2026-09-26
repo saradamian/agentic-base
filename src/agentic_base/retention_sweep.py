@@ -2,15 +2,17 @@
 
 `agentic_base.domain.retention` decides which transcripts are due and what erasing one means. This
 is the part that touches the database: it reads each tenant's policy, finds the due runs, empties
-their transcripts, and writes each erasure into the audit log in the same transaction, so the log
-shows when and why a transcript went and still verifies afterwards, because nothing the log covers
-changed.
+their personal fields, stamps ``erased_at``, and writes each erasure into the audit log in the
+same transaction, so the log shows when and why the content went and still verifies afterwards,
+because the log holds digests of what was erased, never the content. A run is exempt from the
+sweep only when the service itself stamped it erased; a writer's claim in ``extra`` grants
+nothing here.
 
 ``agentic-base-retention sweep`` reports what is due and changes nothing unless ``--apply`` is
 given. Policies come from ``RETENTION_POLICIES``, a JSON object of tenant to days with ``"*"`` for
 every other tenant; a tenant with no policy and no ``"*"`` is skipped and named, never erased by
 default, and a policy under the AI Act's six-month floor refuses the whole run.
-``agentic-base-retention erase --run-id ... --reason ...`` erases one run's transcript on request,
+``agentic-base-retention erase --run-id ... --reason ...`` erases one run's personal fields on request,
 whatever its age: the GDPR right to erasure has no minimum period.
 """
 
@@ -24,7 +26,7 @@ from datetime import datetime, timezone
 from sqlmodel import Session, select
 
 from agentic_base.domain import audit
-from agentic_base.domain.retention import RetentionPolicy, erase, plan, was_erased
+from agentic_base.domain.retention import RetentionPolicy, erase, plan
 from agentic_base.domain.run_record import RunRecord, payload_or_none, to_payload
 
 ALL_TENANTS = "*"
@@ -82,7 +84,10 @@ def _erase_record(
     erased = erase(to_payload(record), now, reason)
     record.system_prompt = erased.system_prompt
     record.messages = erased.messages
+    record.principal = erased.principal
+    record.approvals = [approval.model_dump() for approval in erased.approvals]
     record.extra = erased.extra
+    record.erased_at = now
     session.add(record)
     audit.append(session, record, "erased")
 
@@ -110,11 +115,11 @@ def sweep_tenant(
     erased = 0
     invalid = 0
     for record in found.due:
-        payload = payload_or_none(record)
-        if payload is None:
-            invalid += 1
-        elif was_erased(payload):
+        # The exemption is the server's own stamp, never a writer's claim in `extra`.
+        if record.erased_at is not None:
             already += 1
+        elif payload_or_none(record) is None:
+            invalid += 1
         elif apply:
             _erase_record(
                 session, record, now, f"{reason}: kept {policy.keep_days} days"
@@ -154,11 +159,11 @@ def sweep(
 
 
 def erase_run(session: Session, run_id: str, reason: str, now: datetime) -> bool:
-    """Erase one run's transcript on request. False when it was already erased."""
+    """Erase one run's personal fields on request. False when it was already erased."""
     record = session.get(RunRecord, run_id)
     if record is None:
         raise LookupError(f"run not found: {run_id}")
-    if was_erased(to_payload(record)):
+    if record.erased_at is not None:
         return False
     _erase_record(session, record, now, reason)
     session.commit()
@@ -177,7 +182,9 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument(
         "--apply", action="store_true", help="erase; without it, only report"
     )
-    one = commands.add_parser("erase", help="erase one run's transcript on request")
+    one = commands.add_parser(
+        "erase", help="erase one run's personal fields on request"
+    )
     one.add_argument("--run-id", required=True)
     one.add_argument("--reason", required=True)
     args = parser.parse_args(argv)

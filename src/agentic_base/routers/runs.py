@@ -18,6 +18,7 @@ from agentic_base.auth import Access, caller_access
 from agentic_base.db import get_session
 from agentic_base.domain import audit
 from agentic_base.domain.outcomes import DataClass
+from agentic_base.domain.retention import accept_claimed_erasure, was_erased
 from agentic_base.domain.run_record import (
     Approval,
     LabelUpdate,
@@ -152,12 +153,25 @@ def create_run(
     scorer that produced it, and a citable scorer only through a token granted that scorer.
     When redaction is configured, the transcript is redacted before it is written, whatever the
     writer's own ``redaction`` field claims.
+
+    A payload claiming an erasure in ``extra`` is accepted only when it carries none of what an
+    erasure removes, which is what a replayed export of an erased run looks like; anything else
+    is a run trying to skip retention while keeping its content, and is refused.
     """
     access.require(payload.tenant)
     access.require_label_source(payload.label_source)
     if redactor is not None:
         payload = _redacted(payload, redactor)
-    return _commit_with_entry(session, to_record(payload), "created")
+    record = to_record(payload)
+    if was_erased(payload):
+        try:
+            claimed_at = accept_claimed_erasure(payload)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
+            ) from None
+        record.erased_at = claimed_at or record.created_at
+    return _commit_with_entry(session, record, "created")
 
 
 class _ExportLine(BaseModel):
@@ -244,16 +258,22 @@ def export_tenant(
 
 
 class IntegrityResponse(BaseModel):
-    """Whether a tenant's records are as the service wrote them."""
+    """Whether a tenant's records are as the service wrote them, and what was verified."""
 
     tenant: str
     intact: bool
     could_have_failed: bool
     entries_checked: int
     runs_checked: int
+    head_seq: int | None
+    """The chain position the service last recorded for this tenant; null when it never did."""
     first_broken_entry: int | None
     altered_runs: list[str]
     unchained_runs: list[str]
+    orphaned_entries: list[str]
+    """Runs the log describes whose row is gone."""
+    erased_runs: list[str]
+    """Runs whose personal fields the service erased: reported, not a failure."""
     summary: str
 
 
@@ -263,10 +283,11 @@ def integrity(
     session: Session = Depends(get_session),
     access: Access = Depends(caller_access),
 ) -> IntegrityResponse:
-    """Recompute the tenant's audit log and compare every run to its latest entry.
+    """Recompute the tenant's audit log and compare it, both ways, against the run rows.
 
     Read `could_have_failed` before believing `intact`: a tenant with no runs verifies trivially.
-    This detects an edit by anyone who does not rewrite the whole log; it is not a signature.
+    This detects an edit by anyone who does not rewrite the whole log, its head included; it is
+    not a signature.
     """
     access.require(tenant)
     verdict = audit.verify(session, tenant)
@@ -276,9 +297,12 @@ def integrity(
         could_have_failed=verdict.could_have_failed,
         entries_checked=verdict.chain.records_checked,
         runs_checked=verdict.runs_checked,
+        head_seq=verdict.head_seq,
         first_broken_entry=verdict.chain.first_broken_index,
         altered_runs=verdict.altered,
         unchained_runs=verdict.unchained,
+        orphaned_entries=verdict.orphaned,
+        erased_runs=verdict.erased,
         summary=verdict.summary(),
     )
 

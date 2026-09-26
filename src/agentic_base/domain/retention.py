@@ -7,11 +7,12 @@ erased. A platform that reads only one of them either destroys its own evidence 
 transcripts forever.
 
 They are reconcilable because they ask for different things. What an audit turns on is what ran,
-under what configuration, what was decided and who decided it: that is exactly the set the hash
-chain covers, and none of it is personal. The personal data is in the transcript, which the chain
-deliberately does not cover. So a transcript can be erased on request, or on a schedule, and the
+under what configuration, what was decided and who decided it. The personal part of that — the
+transcript, the person the run acted for, the names of the people who approved — enters the
+audit log only as digests (:data:`agentic_base.domain.integrity.DIGEST_FIELDS`), never as
+values. So a person's data can be erased on request, or a transcript on a schedule, and the
 record it belonged to stays verifiable and countable: the run still happened, its outcome still
-stands, and the chain still checks.
+stands, the chain still checks, and the verification reports the erasure instead of hiding it.
 
 Two rules follow, and both are refusals rather than defaults.
 
@@ -20,7 +21,8 @@ than the law requires would be indistinguishable from one that meant to.
 
 An erasure says so on the record. `extra["erasure"]` names when it happened, why, and which
 fields were emptied, so a reader can tell an erased transcript from a run that never had one.
-This is the same rule as the redaction instrument: a record states what was done to it.
+That statement is for readers; the sweep's exemption is the server-set ``erased_at`` column,
+because a writer-settable field that exempts a run from retention exempts it forever.
 
 Scheduling is the platform's, not this module's. What lives here is the decision of which records
 are due and what erasing one means.
@@ -43,10 +45,12 @@ six months. Six months is not a fixed number of days; 183 is the longest half-ye
 that clears this clears the requirement whichever half-year it lands in.
 """
 
-ERASABLE_FIELDS = ("system_prompt", "messages")
-"""What an erasure empties: the transcript, and only the transcript.
-
-Everything the hash chain covers is left alone, which is what lets an erased record stay evidence.
+ERASABLE_FIELDS = ("system_prompt", "messages", "principal", "approvals")
+"""What an erasure empties: the transcript, the person the run acted for, and the identities
+inside each approval. The approvals keep their action, decision and time — that a person said
+yes remains evidence; who no longer does. Everything the chain hashes as a value is left alone,
+and what it hashes as a digest survives erasure by construction, which is what lets an erased
+record stay evidence.
 """
 
 
@@ -107,20 +111,27 @@ def plan(
 
 
 def erase(payload: RunRecordCreate, at: datetime, reason: str) -> RunRecordCreate:
-    """Empty the transcript and record that it was emptied.
+    """Empty the personal fields and record that they were emptied.
 
-    The record stays countable and verifiable: everything the hash chain covers is untouched, so
-    an erasure does not break the chain and cannot be mistaken for one.
+    The record stays countable and verifiable: everything the chain hashes as a value is
+    untouched, and the erased fields live in the chain as digests, so an erasure does not
+    break it and cannot be mistaken for one.
     """
     if not reason.strip():
         raise ValueError("an erasure records why it happened")
-    already = payload.extra.get("erasure")
-    if already:
+    if was_erased(payload) and not _carries_what_erasure_removes(payload):
+        # A completed erasure keeps its first record. A marker beside content is a claim,
+        # not an erasure, and does not stop this one.
         return payload
     return payload.model_copy(
         update={
             "system_prompt": "",
             "messages": [],
+            "principal": "",
+            "approvals": [
+                approval.model_copy(update={"by": "", "note": ""})
+                for approval in payload.approvals
+            ],
             "extra": {
                 **payload.extra,
                 "erasure": {
@@ -133,6 +144,44 @@ def erase(payload: RunRecordCreate, at: datetime, reason: str) -> RunRecordCreat
     )
 
 
+def _carries_what_erasure_removes(payload: RunRecordCreate) -> bool:
+    return bool(
+        payload.system_prompt
+        or payload.messages
+        or payload.principal
+        or any(approval.by or approval.note for approval in payload.approvals)
+    )
+
+
 def was_erased(payload: RunRecordCreate) -> bool:
-    """Whether this record's transcript was erased, as opposed to never having had one."""
+    """Whether this record's payload claims an erasure, as opposed to never having had one.
+
+    A statement for readers and for replayed exports. The retention sweep does not read it —
+    its exemption is the server-set ``erased_at`` column on the stored row.
+    """
     return bool(payload.extra.get("erasure"))
+
+
+def accept_claimed_erasure(payload: RunRecordCreate) -> datetime | None:
+    """Validate a payload that arrives already claiming an erasure, as a replayed export does.
+
+    The claim is acceptable only when the record carries none of what an erasure removes;
+    a claim beside content is a run trying to keep its transcript and skip retention, and it
+    is refused. Returns the claimed time when the marker states a readable one, else None,
+    and the caller records its own.
+    """
+    if not was_erased(payload):
+        return None
+    if _carries_what_erasure_removes(payload):
+        raise ValueError(
+            "the record claims an erasure but still carries what an erasure removes; "
+            "extra['erasure'] is written by the service when it erases, not by a writer"
+        )
+    marker = payload.extra.get("erasure")
+    claimed = marker.get("at") if isinstance(marker, dict) else None
+    if isinstance(claimed, str):
+        try:
+            return datetime.fromisoformat(claimed)
+        except ValueError:
+            return None
+    return None

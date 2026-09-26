@@ -239,6 +239,14 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
 
     extra: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
+    erased_at: datetime | None = Field(default=None, sa_column=Column(UTCDateTime))
+    """When the service erased this run's personal fields, or None.
+
+    Only the service writes it. The retention sweep's exemption reads this column and nothing
+    else: a writer-supplied claim in ``extra`` grants nothing, because a field a writer can set
+    at creation would exempt a run from retention forever (and did, until it was measured).
+    """
+
     # --- derived --------------------------------------------------------------
     # Thin delegations. The rules live in `outcomes` so they apply to a consumer's own record
     # type too; these exist so callers here read naturally.

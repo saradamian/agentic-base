@@ -216,3 +216,82 @@ def test_the_command_refuses_to_sweep_with_no_policies(
 
     assert main(["sweep", "--apply"]) == 1
     assert "no RETENTION_POLICIES" in capsys.readouterr().out
+
+
+def test_a_writer_claimed_erasure_grants_no_exemption_from_the_sweep(engine) -> None:
+    """`extra["erasure"]` set at write time used to skip the sweep forever, transcript and all.
+    The exemption is the server's own stamp now, and this record never earned one."""
+    with Session(engine) as session:
+        record = RunRecord(
+            tenant="team-c",
+            item="claimer",
+            created_at=NOW - timedelta(days=400),
+            messages=[{"role": "user", "content": "private details"}],
+            extra={"erasure": True},
+        )
+        session.add(record)
+        audit.append(session, record, "created")
+        session.commit()
+        run_id = record.run_id
+
+    with Session(engine) as session:
+        (swept,), _ = sweep(session, parse_policies('{"team-c": 365}'), NOW, apply=True)
+
+    assert (swept.due, swept.erased, swept.already_erased) == (1, 1, 0)
+    record = _get(engine, run_id)
+    assert record.messages == []
+    assert record.erased_at is not None
+
+
+def test_erasure_removes_the_person_everywhere_the_database_holds_them(
+    test_client, engine
+) -> None:
+    """Erase, then read every row of every table: the person is gone — from the run, from the
+    approvals, and from the audit log, which only ever held digests — and the chain still
+    verifies, reporting the erasure rather than hiding it."""
+    planted = ("Maria Jansen", "maria@example.org", "alice@example.org", "maria asked")
+    response = test_client.post(
+        "/runs",
+        json={
+            "tenant": "team-p",
+            "code_revision": "abc1234",
+            "item": "task-1",
+            "system_prompt": "you are acting for Maria Jansen",
+            "messages": [{"role": "user", "content": "mail maria@example.org"}],
+            "principal": "Maria Jansen",
+            "approvals": [
+                {
+                    "action": "send",
+                    "decision": "approved",
+                    "by": "alice@example.org",
+                    "at": "2026-09-14",
+                    "note": "maria asked",
+                }
+            ],
+        },
+    )
+    assert response.status_code == 201, response.text
+    run_id = response.json()["run_id"]
+
+    with Session(engine) as session:
+        assert erase_run(session, run_id, "the person asked", NOW)
+        verdict = audit.verify(session, "team-p")
+
+    with engine.connect() as connection:
+        tables = [
+            row[0]
+            for row in connection.exec_driver_sql(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            )
+        ]
+        dump = " ".join(
+            str(row)
+            for table in tables
+            for row in connection.exec_driver_sql(f'SELECT * FROM "{table}"')
+        )
+    for text in planted:
+        assert text not in dump, f"{text!r} survived the erasure"
+
+    assert verdict.intact, verdict.summary()
+    assert verdict.erased == [run_id]
+    assert "1 erased" in verdict.summary()

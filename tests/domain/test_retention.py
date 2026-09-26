@@ -1,4 +1,4 @@
-"""Keeping a record long enough, and erasing no more of it than the transcript."""
+"""Keeping a record long enough, and erasing exactly the fields that name a person."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from agentic_base.domain.outcomes import RunRecordCreate
 from agentic_base.domain.retention import (
     FLOOR_DAYS,
     RetentionPolicy,
+    accept_claimed_erasure,
     erase,
     plan,
     was_erased,
@@ -32,6 +33,16 @@ def _payload(**kwargs) -> RunRecordCreate:
         "code_revision": "abc1234",
         "system_prompt": "you are an agent working for Maria Jansen",
         "messages": [{"role": "user", "content": "mail maria@example.org"}],
+        "principal": "maria.jansen@example.org",
+        "approvals": [
+            {
+                "action": "send",
+                "decision": "approved",
+                "by": "alice@example.org",
+                "at": "2026-09-13",
+                "note": "maria asked",
+            }
+        ],
     }
     body.update(kwargs)
     return RunRecordCreate(**body)
@@ -68,14 +79,17 @@ def test_a_record_with_no_timestamp_is_never_due() -> None:
     assert sweep.examined == 1 and sweep.count == 0
 
 
-def test_erasing_empties_the_transcript_and_says_so() -> None:
+def test_erasing_empties_every_field_that_names_a_person_and_says_so() -> None:
     erased = erase(_payload(), NOW, "the person asked")
 
     assert erased.system_prompt == "" and erased.messages == []
+    assert erased.principal == ""
+    assert [(a.by, a.note) for a in erased.approvals] == [("", "")]
+    assert [(a.action, a.decision) for a in erased.approvals] == [("send", "approved")]
     assert erased.extra["erasure"] == {
         "at": NOW.isoformat(),
         "reason": "the person asked",
-        "fields": ["system_prompt", "messages"],
+        "fields": ["system_prompt", "messages", "principal", "approvals"],
     }
     assert was_erased(erased) and not was_erased(_payload())
 
@@ -101,3 +115,34 @@ def test_erasing_twice_keeps_the_first_record_of_it() -> None:
 def test_an_erasure_records_why() -> None:
     with pytest.raises(ValueError, match="why"):
         erase(_payload(), NOW, "  ")
+
+
+def test_a_claimed_erasure_beside_content_is_refused() -> None:
+    """A writer that marks a run erased while keeping its transcript is a run trying to skip
+    retention forever, which is what the marker used to grant."""
+    claiming = _payload(extra={"erasure": True})
+
+    with pytest.raises(ValueError, match="carries what an erasure removes"):
+        accept_claimed_erasure(claiming)
+
+
+def test_a_claimed_erasure_without_content_is_accepted_with_its_time() -> None:
+    replayed = erase(_payload(), NOW, "the person asked")
+
+    assert accept_claimed_erasure(replayed) == NOW
+
+
+def test_a_claim_with_an_unreadable_time_is_accepted_without_one() -> None:
+    empty = _payload(
+        system_prompt="",
+        messages=[],
+        principal="",
+        approvals=[],
+        extra={"erasure": {"at": "yesterday-ish"}},
+    )
+
+    assert accept_claimed_erasure(empty) is None
+
+
+def test_a_payload_claiming_nothing_claims_nothing() -> None:
+    assert accept_claimed_erasure(_payload()) is None

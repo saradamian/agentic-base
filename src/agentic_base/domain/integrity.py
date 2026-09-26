@@ -1,8 +1,10 @@
 """Integrity of the run record chain.
 
-Not tamper-evidence, which presupposes an adversary this platform does not have. This detects
-accidental edits, partial writes and silent corruption in a corpus nobody can afford to re-run,
-which is a smaller claim and the one the mechanism actually supports.
+Not tamper-evidence against an adversary who rewrites the database wholesale, which this
+mechanism cannot resist and must never be described as resisting. It makes the corpus
+tamper-evident against everything short of that: an edited record, an edited or reordered
+entry, a removed entry, a removed run, and a truncated tail all leave the verification
+naming what is wrong.
 
 Both regimes the platform has to answer to ask for records that can be shown to be intact. The
 AI Act asks providers of high-risk systems to keep automatically generated logs; the Digital
@@ -11,12 +13,24 @@ was. The Dutch Cybersecurity Act, in force since 15 August 2026, asks in-scope e
 incident handling and logging that stands up afterwards. In both cases a record that could have
 been edited after the fact is weaker evidence than one that could not.
 
-The mechanism here is deliberately modest. Each record gets a content hash over its
-audit-relevant fields, and each hash includes the previous one for its tenant, so removing or
-altering a record breaks every hash after it. This is a hash chain, not a ledger and not a
-signature. It detects tampering by anyone who does not rewrite the whole chain, which covers
-accident and casual edits. It does not defend against an attacker with write access to the
-database and the will to recompute, and it should never be described as if it does.
+The mechanism is a hash chain, not a ledger and not a signature. Each audit entry hashes its
+complete content — its position in the tenant's chain, the run it describes, the event name,
+the moment it was written, the audit fields, and a digest of every personal or bulk field — and
+each hash includes the previous one for its tenant, so altering or removing an entry breaks
+every hash after it, and forging one entry means recomputing every hash that follows. It does
+not defend against an attacker with write access to the database and the will to recompute the
+whole chain and its head.
+
+Two fields exist for what a broken link alone cannot show:
+
+* a per-tenant sequence number in every entry, hashed, so a gap has a place and a name;
+* a head record per tenant, updated in the same transaction as every append, so cutting the
+  last entries leaves a head pointing past the end of the log.
+
+Personal data enters the chain only as SHA-256 digests (:data:`DIGEST_FIELDS`), never as
+values. That is what lets an erasure remove a person from the run row while every entry, and
+the chain over them, stays verifiable: the digests of the erased content remain, the content
+does not, and the verification reports the erasure instead of hiding it.
 
 Verification is a separate function from creation so it can be run on demand and on a schedule,
 which is what makes it evidence rather than decoration.
@@ -46,27 +60,48 @@ AUDIT_FIELDS = (
     "endpoint",
     "precision",
     "code_revision",
+    "component_versions",
     "status",
     "failure_kind",
     "resolved",
     "label_source",
+    "labelled_at",
     "degraded",
     "instrument",
-    "principal",
     "classification",
     "isolation_tier",
     "redaction",
     "disclosure",
     "content_marking",
-    "approvals",
+    "prompt_tokens",
+    "completion_tokens",
+    "joules",
+    "num_steps",
+    "total_tool_calls",
+    "elapsed_ms",
+    "erased_at",
 )
-"""Fields covered by the hash.
+"""Fields hashed as values: what ran, under what configuration, what it cost, what was decided.
 
-Deliberately excludes the transcript. A transcript can be very large and is stored alongside
-rather than inline, so hashing it here would make verification cost the whole corpus. What is
-covered is the part an audit turns on: what ran, under what configuration, what was decided, and
-who decided it, including who the run acted for, what class of data it touched, and who
-approved what.
+Deliberately excludes what :data:`DIGEST_FIELDS` covers. Those fields either carry personal
+data, which an erasure must be able to remove from everywhere it lives without breaking the
+chain, or they are bulk a snapshot per change cannot afford to copy. They are covered by the
+hash all the same, as digests.
+"""
+
+DIGEST_FIELDS = (
+    "principal",
+    "approvals",
+    "system_prompt",
+    "messages",
+    "extra",
+)
+"""Fields hashed as SHA-256 digests of their canonical value, never stored in the log.
+
+``principal`` and ``approvals`` name people, and the transcript is both personal and large;
+``extra`` is a writer's free field and has to be assumed personal. A digest makes a forged
+value detectable while keeping the log free of the content itself, so erasing the run row
+erases the only copy.
 """
 
 
@@ -97,11 +132,51 @@ def snapshot(record: Any) -> dict[str, Any]:
     return plain
 
 
+def digest_value(value: Any) -> str:
+    """The SHA-256 digest of one field's canonical value."""
+    return hashlib.sha256(_canonical({"value": _plain(value)})).hexdigest()
+
+
+def field_digests(record: Any) -> dict[str, str]:
+    """Digests of the fields the log covers without storing."""
+    return {
+        field: digest_value(getattr(record, field, None)) for field in DIGEST_FIELDS
+    }
+
+
 def hash_snapshot(values: Mapping[str, Any], previous_hash: str = GENESIS) -> str:
     """Hash of a snapshot, chained to the previous hash for its tenant."""
     return hashlib.sha256(
         _canonical({**values, "previous_hash": previous_hash})
     ).hexdigest()
+
+
+def entry_hash(
+    seq: int,
+    run_id: str,
+    event: str,
+    at: datetime,
+    fields: Mapping[str, Any],
+    digests: Mapping[str, str],
+    previous_hash: str = GENESIS,
+) -> str:
+    """Hash of an audit entry's complete content, chained to its tenant's previous entry.
+
+    Everything the entry stores is covered: its position, which run, which event, when, the
+    audit fields, and the digests of the fields the log does not store. An entry with any of
+    it rewritten no longer matches its recorded hash.
+    """
+    return hash_snapshot(
+        {
+            "seq": seq,
+            "run_id": run_id,
+            "event": event,
+            "at": _plain(at),
+            "fields": dict(fields),
+            "digests": dict(digests),
+        },
+        previous_hash,
+    )
 
 
 def content_hash(record: Any, previous_hash: str = GENESIS) -> str:
