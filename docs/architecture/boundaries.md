@@ -61,7 +61,8 @@ commercial SDK, a graph library, or a loop they wrote. What they get here:
   the standard library, names and places from a model with a fallback, and a refusal instead of a
   record that claims more redaction than ran
 - **how long to keep it**: `agentic_base.domain.retention`, which refuses a policy under the AI
-  Act's floor and erases a transcript without disturbing what the chain covers
+  Act's floor and erases the transcript and every field that names a person without disturbing
+  what the chain covers
 
 ### The service: the system of record and the referee
 
@@ -76,7 +77,7 @@ commercial SDK, a graph library, or a loop they wrote. What they get here:
 - an audit log written with every change, and a check that says whether a tenant's records are
   still as they were written
 - a read-only MCP surface on the official SDK so a chat client can ask, started with
-  `agentic-base-mcp`
+  `agentic-base-mcp`, scoped to the tenants `MCP_TENANTS` names
 - a bearer token per writer, reaching only the tenants listed for it, required on every data route
 - a versioned schema that a release migrates before it starts, with `agentic-base-migrate`
 - retention that erases due transcripts on a schedule, and one on request, with

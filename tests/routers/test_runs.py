@@ -533,3 +533,37 @@ def test_provenance_of_a_stored_scorerless_label_answers_rather_than_crashing(
 
     assert response.status_code == 422
     assert "scorer" in response.json()["detail"]
+
+
+def test_a_run_claiming_an_erasure_beside_its_content_is_refused(test_client) -> None:
+    """The claim used to exempt the run from retention forever, transcript and all."""
+    response = test_client.post(
+        "/runs",
+        json=_payload(
+            messages=[{"role": "user", "content": "kept"}],
+            extra={"erasure": True},
+        ),
+    )
+
+    assert response.status_code == 422
+    assert "erasure" in response.json()["detail"]
+
+
+def test_a_replayed_export_of_an_erased_run_is_accepted_and_stays_erased(
+    test_client,
+) -> None:
+    response = test_client.post(
+        "/runs",
+        json=_payload(
+            extra={
+                "erasure": {
+                    "at": "2026-01-02T03:04:05+00:00",
+                    "reason": "the person asked",
+                    "fields": ["system_prompt", "messages", "principal", "approvals"],
+                }
+            },
+        ),
+    )
+
+    assert response.status_code == 201, response.text
+    assert response.json()["erased_at"] == "2026-01-02T03:04:05Z"

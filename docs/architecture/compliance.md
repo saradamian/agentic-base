@@ -111,7 +111,7 @@ this service alone.
 | requirement | what serves it here |
 |---|---|
 | automatic event recording over a system's lifetime | the run record, written while the run happens, not reconstructed after |
-| evidence that a record has not been altered | an audit log the service appends to with every change, chained per tenant, and `GET /runs/integrity?tenant=...` to verify it. It detects an edit by anyone who does not rewrite the whole log; it is not a signature and not an append-only store |
+| evidence that a record has not been altered | an audit log the service appends to with every change, chained per tenant with a hashed position and an anchored head, and `GET /runs/integrity?tenant=...` to verify it: an edited entry, a forged one, a removed run, a truncated tail and a smuggled row are each named. It detects an edit by anyone who does not rewrite the whole log, head included; it is not a signature and not an append-only store |
 | who a run acted for, what class of data it touched, who approved what | `principal`, `classification`, `isolation_tier`, `approvals` on every record |
 | provenance of a performance claim | `label_source`, which refuses citability to a self-reported or convenience-scored outcome |
 | evidence that a verdict came from a working instrument | `degraded` and `instrument` |
@@ -130,15 +130,16 @@ core controls, so most of the second half of that table is inherited.
 
 - **Retention runs when a deployment turns it on, and nobody has decided the policies.**
   `agentic_base.domain.retention` decides which transcripts are older than a tenant's policy,
-  refuses a policy below the AI Act's six-month floor rather than quietly clamping it, and erases a
-  transcript by emptying it and saying so on the record. `agentic-base-retention sweep --apply`
-  does that for every tenant under `RETENTION_POLICIES`, writes each erasure into the audit log,
-  and skips and names a tenant with no policy; `agentic-base-retention erase` answers one
-  person's request. The chart runs the sweep as a CronJob, off by default. Because the audit log
-  covers what an audit turns on and not the transcript, an erasure leaves it verifiable, which is
-  what makes the GDPR's erasure right and the AI Act's log-keeping duty compatible rather than
-  opposed. What is missing is organisational: the policy per tenant, and who is told what was
-  erased.
+  refuses a policy below the AI Act's six-month floor rather than quietly clamping it, and erases
+  by emptying the transcript, the principal and the approver identities, saying so on the record,
+  and stamping the row; the stamp is the sweep's only exemption, never a writer's claim.
+  `agentic-base-retention sweep --apply` does that for every tenant under `RETENTION_POLICIES`,
+  writes each erasure into the audit log, and skips and names a tenant with no policy;
+  `agentic-base-retention erase` answers one person's request. The chart runs the sweep as a
+  CronJob, off by default. Because the audit log holds the personal fields only as digests, an
+  erasure leaves it verifiable and the verification reports the erasure, which is what makes the
+  GDPR's erasure right and the AI Act's log-keeping duty compatible rather than opposed. What is
+  missing is organisational: the policy per tenant, and who is told what was erased.
 - **The incident path has been walked once, on paper.** `incident-response.md` says which clock
   is which, who is told, and where each thing a report asks for lives. A tabletop against v0.3.4
   found that PyPI served a rebuilt wheel no attestation covered and that no release carried an

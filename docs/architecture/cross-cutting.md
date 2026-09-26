@@ -59,7 +59,7 @@ from outside the EU, what the operator can see.
 | asks for | what it means for agents | lands in |
 |---|---|---|
 | purpose limitation and data minimisation | a run records what it needs to replay and audit, and nothing else; transcripts are the hard case | runs; redaction on write, off unless configured |
-| a record of processing, and the right to erasure | a run can be found by the person whose data it touched, and its transcript erased, with the record saying when and why | runs, through `agentic_base.domain.retention`: the erasure empties the transcript and leaves what the chain covers, so the record stays evidence. Finding a run by the person is `principal`; `agentic-base-retention` runs it on a schedule or for one request |
+| a record of processing, and the right to erasure | a run can be found by the person whose data it touched, and every field that names them erased, with the record saying when and why | runs, through `agentic_base.domain.retention`: the erasure empties the transcript, the principal and the approver identities, and the audit log only ever held their digests, so the chain still verifies and reports the erasure. Finding a run by the person is `principal`; `agentic-base-retention` runs it on a schedule or for one request |
 | pseudonymisation where appropriate | personal data is replaced before it reaches a record | the service. It replaces each finding with its entity type, which is redaction, not pseudonymisation: the same person is not given the same token across a run. Before it reaches a model is the agent's side and is not built |
 | what the operator can see | the platform's own staff are a party the design has to name | identity; platform |
 

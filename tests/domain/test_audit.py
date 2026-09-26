@@ -1,12 +1,19 @@
 """The audit log the service writes, and what verifying it catches."""
 
+from datetime import timedelta
+
 import pytest
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from agentic_base.domain import audit
-from agentic_base.domain.audit import AuditEntry
-from agentic_base.domain.integrity import GENESIS, hash_snapshot, snapshot
+from agentic_base.domain.audit import AuditEntry, ChainHead
+from agentic_base.domain.integrity import (
+    GENESIS,
+    entry_hash,
+    field_digests,
+    snapshot,
+)
 from agentic_base.domain.run_record import LabelSource, RunRecord
 
 
@@ -110,23 +117,28 @@ def test_a_tenant_with_no_runs_is_inconclusive_rather_than_intact(test_client) -
     assert verdict["summary"].startswith("inconclusive")
 
 
+def _forged_entry(record: RunRecord, event: str, chain_seq: int = 1) -> AuditEntry:
+    """An entry a stale writer would build: chained to GENESIS, whatever came before."""
+    values, digests = snapshot(record), field_digests(record)
+    return AuditEntry(
+        tenant=record.tenant,
+        run_id=record.run_id,
+        event=event,
+        chain_seq=chain_seq,
+        audit_fields=values,
+        digests=digests,
+        previous_hash=GENESIS,
+        hash="0" * 64,
+    )
+
+
 def test_two_entries_cannot_chain_to_the_same_predecessor(engine) -> None:
     record = RunRecord(tenant="hpml", item="a", arm="baseline")
-    values = snapshot(record)
     with Session(engine) as session:
         session.add(record)
         audit.append(session, record, "created")
         session.commit()
-        session.add(
-            AuditEntry(
-                tenant="hpml",
-                run_id=record.run_id,
-                event="forged",
-                audit_fields=values,
-                previous_hash=GENESIS,
-                hash=hash_snapshot(values),
-            )
-        )
+        session.add(_forged_entry(record, "forged", chain_seq=2))
         with pytest.raises(IntegrityError):
             session.commit()
 
@@ -137,15 +149,7 @@ def test_a_write_that_loses_the_race_is_refused_not_written(
     _post(test_client, item="first")
 
     def stale(session, record, event):
-        values = snapshot(record)
-        entry = AuditEntry(
-            tenant=record.tenant,
-            run_id=record.run_id,
-            event=event,
-            audit_fields=values,
-            previous_hash=GENESIS,
-            hash=hash_snapshot(values),
-        )
+        entry = _forged_entry(record, event)
         session.add(entry)
         return entry
 
@@ -158,3 +162,177 @@ def test_a_write_that_loses_the_race_is_refused_not_written(
     assert response.headers["Retry-After"] == "1"
     monkeypatch.undo()
     assert _integrity(test_client)["runs_checked"] == 1
+
+
+# --- what an edit short of a whole-chain rewrite looks like, and that each one is named ------
+
+
+def test_deleting_the_last_run_and_its_entry_is_reported_as_a_truncated_tail(
+    test_client, engine
+) -> None:
+    """The head anchor is what makes the cut visible: without it, a shorter chain that still
+    recomputes reads as intact, which is exactly how an unflattering run used to vanish."""
+    run_ids = [_post(test_client, item=item) for item in ("a", "b", "c")]
+    with Session(engine) as session:
+        session.delete(session.get(RunRecord, run_ids[-1]))
+        last = session.exec(
+            select(AuditEntry).order_by(col(AuditEntry.seq).desc()).limit(1)
+        ).one()
+        session.delete(last)
+        session.commit()
+
+    verdict = _integrity(test_client)
+
+    assert not verdict["intact"]
+    assert verdict["head_seq"] == 3
+    assert "head" in verdict["summary"]
+
+
+def test_removing_a_label_by_deleting_its_entry_and_reverting_the_row_is_detected(
+    test_client, engine
+) -> None:
+    run_id = _post(test_client)
+    test_client.post(
+        f"/runs/{run_id}/label",
+        json={"resolved": False, "label_source": LabelSource.OFFICIAL_HARNESS.value},
+    )
+    with Session(engine) as session:
+        last = session.exec(
+            select(AuditEntry).order_by(col(AuditEntry.seq).desc()).limit(1)
+        ).one()
+        session.delete(last)
+        record = session.get(RunRecord, run_id)
+        record.resolved = None
+        record.label_source = LabelSource.UNLABELLED
+        record.labelled_at = None
+        session.add(record)
+        session.commit()
+
+    verdict = _integrity(test_client)
+
+    assert not verdict["intact"]
+    assert verdict["head_seq"] == 2
+
+
+def test_rewriting_an_entrys_event_breaks_the_chain(test_client, engine) -> None:
+    _post(test_client, item="a")
+    _post(test_client, item="b")
+    with Session(engine) as session:
+        entry = session.exec(select(AuditEntry).where(AuditEntry.seq == 1)).one()
+        entry.event = "approved"
+        session.add(entry)
+        session.commit()
+
+    verdict = _integrity(test_client)
+
+    assert not verdict["intact"]
+    assert verdict["first_broken_entry"] == 0
+
+
+def test_rewriting_an_entrys_timestamp_breaks_the_chain(test_client, engine) -> None:
+    _post(test_client, item="a")
+    _post(test_client, item="b")
+    with Session(engine) as session:
+        entry = session.exec(select(AuditEntry).where(AuditEntry.seq == 1)).one()
+        entry.at = entry.at - timedelta(days=30)
+        session.add(entry)
+        session.commit()
+
+    assert not _integrity(test_client)["intact"]
+
+
+def test_forging_the_fields_the_old_scheme_never_hashed_is_detected(
+    test_client, engine
+) -> None:
+    """component_versions is what the epoch pooling turns on, the transcript is what a run is,
+    and the token counts are what a cost claim cites. None of them was covered before."""
+    run_id = _post(test_client)
+    with Session(engine) as session:
+        record = session.get(RunRecord, run_id)
+        record.component_versions = {"vllm": "9.9"}
+        record.prompt_tokens = 10**6
+        record.messages = [{"role": "user", "content": "forged"}]
+        record.extra = {"x": 1}
+        session.add(record)
+        session.commit()
+
+    verdict = _integrity(test_client)
+
+    assert not verdict["intact"]
+    assert verdict["altered_runs"] == [run_id]
+
+
+def test_forging_a_mid_chain_entry_takes_more_than_one_recomputed_hash(
+    test_client, engine
+) -> None:
+    """The forger recomputes the entry's own hash, which used to be the whole cost of a forgery.
+    Every later entry's hash covers this one, so the chain still breaks — one step later."""
+    for item in ("a", "b", "c"):
+        _post(test_client, item=item)
+    with Session(engine) as session:
+        first, middle = (
+            session.exec(select(AuditEntry).where(AuditEntry.seq == n)).one()
+            for n in (1, 2)
+        )
+        middle.audit_fields = {**middle.audit_fields, "resolved": True}
+        middle.hash = entry_hash(
+            middle.chain_seq,
+            middle.run_id,
+            middle.event,
+            middle.at,
+            middle.audit_fields,
+            middle.digests,
+            first.hash,
+        )
+        session.add(middle)
+        session.commit()
+
+    verdict = _integrity(test_client)
+
+    assert not verdict["intact"]
+    assert verdict["first_broken_entry"] == 2
+
+
+def test_a_deleted_run_row_whose_entries_remain_is_reported_as_orphaned(
+    test_client, engine
+) -> None:
+    run_id = _post(test_client)
+    _post(test_client, item="stays")
+    with Session(engine) as session:
+        session.delete(session.get(RunRecord, run_id))
+        session.commit()
+
+    verdict = _integrity(test_client)
+
+    assert not verdict["intact"]
+    assert verdict["orphaned_entries"] == [run_id]
+    assert "no longer have a row" in verdict["summary"]
+
+
+def test_the_endpoint_reports_what_it_verified(test_client) -> None:
+    run_id = _post(test_client)
+    test_client.post(
+        f"/runs/{run_id}/label",
+        json={"resolved": True, "label_source": LabelSource.OFFICIAL_HARNESS.value},
+    )
+
+    verdict = _integrity(test_client)
+
+    assert verdict["intact"]
+    assert (verdict["entries_checked"], verdict["runs_checked"]) == (2, 1)
+    assert verdict["head_seq"] == 2
+    assert verdict["erased_runs"] == []
+
+
+def test_a_deleted_head_reads_as_truncation_not_as_intact(test_client, engine) -> None:
+    """Removing the anchor with the tail is the next move an editor would try."""
+    _post(test_client)
+    with Session(engine) as session:
+        session.delete(session.get(ChainHead, "hpml"))
+        session.commit()
+
+    verdict = _integrity(test_client)
+
+    assert not verdict["intact"]
+    assert verdict["head_seq"] is None
+    assert "no recorded head" in verdict["summary"]

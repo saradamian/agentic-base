@@ -34,9 +34,11 @@ them.
 Each record says who the run acted for, what class of data it touched and on which tier, whether
 personal data was removed from the transcript and by what, who approved which action, and
 whether the person was told they were dealing with an AI. Every create, label and approval joins
-a hash chain per tenant, and `GET /runs/integrity` checks it. A transcript can be redacted on the
-way in and erased on a retention schedule without breaking that chain. A tenant takes its whole
-corpus away in one request, in the shape the write path accepts.
+a hash chain per tenant — position-numbered, head-anchored, holding personal fields only as
+digests — and `GET /runs/integrity` reports what it verified. A transcript can be redacted on the
+way in, and a person erased on request or on a schedule, with the chain still verifying and the
+verification reporting the erasure. A tenant takes its whole corpus away in one request, in the
+shape the write path accepts.
 
 Only two fields are required: the tenant and the code revision. A writer that does not know the
 rest yet still writes, and the corpus can tell a run recorded before an answer existed from one
@@ -50,7 +52,7 @@ recorded after.
 | hand a run to someone else's tooling | `agentic_base.provenance` | W3C PROV, a Process Run Crate, an OpenLineage event, each through that standard's own library |
 | know whether version B beats version A | `agentic_base.domain.validity` | a verdict with a 95% interval on it, the exclusion channels behind it — runs never attempted included — and whether the check could have flagged anything |
 | see runs in a tracker you already have | `agentic-base-mlflow` | each run as an MLflow trace with a feedback assessment |
-| ask about runs from a chat client | `agentic-base-mcp` | four read-only tools over the same database |
+| ask about runs from a chat client | `agentic-base-mcp` | four read-only tools over the same database, only for the tenants `MCP_TENANTS` names |
 | stop an agent fetching an internal URL | `agentic_base.security.netsec` | URL validation with DNS pinning |
 | remove personal data before it is stored | `agentic_base.redaction` | patterns always, names from a model with a fallback, refusing to write when neither can answer |
 
@@ -216,14 +218,19 @@ python examples/record_and_ask.py  # in another
 tools: `list_runs`, `get_run`, `validity_report` and `corpus_stats`. Point it at the database the
 service writes, in the `mcpServers` block of Claude Desktop or a project's `.mcp.json`. It opens
 that database itself, so it runs where its user may already read the database and is never
-published as a network service:
+published as a network service. `MCP_TENANTS` names the tenants it may serve: without it the
+server refuses to start, and `*` serves every tenant deliberately, with a warning — the same rule
+as `AUTH=none`:
 
 ```json
 {
   "mcpServers": {
     "agentic-base": {
       "command": "agentic-base-mcp",
-      "env": { "DATABASE_URL": "sqlite:////absolute/path/to/agentic-base.db" }
+      "env": {
+        "DATABASE_URL": "sqlite:////absolute/path/to/agentic-base.db",
+        "MCP_TENANTS": "example-team"
+      }
     }
   }
 }
