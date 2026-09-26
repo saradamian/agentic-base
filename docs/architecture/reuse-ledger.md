@@ -34,7 +34,7 @@ already supported, and already have an owner.
 | secrets | SDP secret management, per its guide | ADOPT. It is the fix for secrets-in-job-scripts |
 | identity and collaboration groups | SURFconext, SRAM | ADOPT |
 | shared model inference | Willma, the AI Hub back office | ADOPT where it serves the model needed |
-| Slurm access from services | slurmrestd, the scheduler's own REST API with a published OpenAPI specification, plus a thin site wrapper. Surveyed 2026-09-13: three hand-written REST clients exist at SURF (willma2, the AI4Science prototype, an internal stub) and one SSH backend (agentic-env) | ADOPT the REST API and generate the client from its specification; the wrapper is one package in the **hpc block**, not this repository (`blocks.md`) |
+| Slurm access from services | slurmrestd, the scheduler's own REST API with a published OpenAPI specification, plus a thin site wrapper. Surveyed 2026-09-13: three hand-written REST clients exist at SURF (willma2, the AI4Science prototype, an internal stub) and one SSH backend (agentic-env) | ADOPT the REST API and generate the client from its specification; the wrapper is one package in the **hpc block**, not this repository (`archive/docs/architecture/blocks.md`) |
 | software environments on HPC | EasyBuild, SURF's easyconfigs, EESSI | ADOPT |
 
 ## External, where SURF has no internal equivalent
@@ -142,8 +142,9 @@ judgements by *modality*, so a convenience checker and a benchmark's authoritati
 both `CODE` to it, and on our own corpus those two disagreed in both directions with roughly a
 quarter of the disagreements running in the flattering direction. Modality cannot tell you whether
 a number may be cited. The field is also optional, and optional provenance is not supplied, which
-is an argument by analogy rather than a measurement of MLflow: the corpus where 4,742 of 10,920
-outcomes named no scorer was produced by *our* optional field, not theirs. So `LabelAuthority` is a **BRIDGE**, not a **BUILD**,
+is an argument by analogy rather than a measurement of MLflow: the corpus in D5 of
+`docs/decisions.md`, where 43% of outcomes named no scorer, was produced by *our* optional field,
+not theirs. So `LabelAuthority` is a **BRIDGE**, not a **BUILD**,
 and `mlflow_source_type` exists so a record exports into their schema instead of a private one.
 
 **HAL is the complement, not the competitor.** It went to ICLR 2026 on 21,730 rollouts and
@@ -161,7 +162,7 @@ that throughput is non-monotonic in concurrency so utilisation scores the collap
 
 **One thing to carry to the AI Factory's requirements.** Evaluation is being discussed as a
 compute bottleneck in its own right. The acceptance suite has no agentic workload and no
-evaluation workload either; `cross-cutting.md` says so as its sixth sentence.
+evaluation workload either; `archive/docs/architecture/cross-cutting.md` says so as its sixth sentence.
 
 **MCP moved under us.** The SDK went to 2.x for the 2026-07-28 protocol, with OpenTelemetry
 tracing on by default and an in-memory client for tests. This repository serves on it, in the
@@ -190,7 +191,7 @@ attribute is marked stable. Read as a reason to wait, that is wrong; it is the w
 proposals land. Both vocabulary packages are pinned in the service extra, so the
 literal fallbacks are not what runs in the suite, and a test holds every fallback literal to the
 installed value. The two attributes this repository keeps carrying as extensions, scaffold
-identity and label authority, are written up in `proposals.md`, ready to file. The venue is the
+identity and label authority, are written up in `archive/docs/architecture/proposals.md`, ready to file. The venue is the
 Linux Foundation's Agentic AI Foundation, where MCP and the conventions now live, not a private
 schema.
 

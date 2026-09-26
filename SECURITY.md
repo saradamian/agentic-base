@@ -34,6 +34,8 @@ The library half fetches URLs on behalf of agents and filters generated code bef
 Both are documented as bounding accidental damage, not as boundaries against an adversary; see
 the module docstrings in `src/agentic_base/security` and `src/agentic_base/code_policy`. A report
 that one of them is escapable by a determined attacker is welcome and will be handled, but it is not a surprise.
+Where an agent is untrusted, enforce outbound access in the network as well: an egress proxy, or
+a network policy that allows only the destinations you intend.
 
 ## What checks run
 

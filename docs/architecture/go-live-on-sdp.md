@@ -52,7 +52,7 @@ the request timeout, not a literal; registries are build arguments.
 service: the API, the record store, the validity checks. Agent runs execute on batch-scheduled
 HPC. So the service needs an authenticated path from a platform namespace to a Slurm cluster.
 Four clients for that exist at SURF today and none is shared; the survey and the proposal are in
-`blocks.md` under the hpc block. This is a conversation with the platform team and the cluster
+`archive/docs/architecture/blocks.md` under the hpc block. This is a conversation with the platform team and the cluster
 owners, not a decision to make here.
 
 **Secrets never reach a job script.** A user's model credential or object-store key must not be
@@ -60,7 +60,7 @@ interpolated into a submitted script or exported into a job environment on a sha
 The platform has a secret-management guide; the execution plane has to honour it. Settle it
 before there is a service on top. The larger form of the same question is delegated credentials:
 an agent acting for a person needs a token minted for that person and that session, and
-`blocks.md` puts that design with SRAM before any SURF-run agent goes live.
+`archive/docs/architecture/blocks.md` puts that design with SRAM before any SURF-run agent goes live.
 
 **Redaction.** Set `REDACTION=names` before the tenant sees personal data. The primary
 detector is a model on Willma: `REDACTION_LLM_URL`, `REDACTION_LLM_MODEL`, and the key through
