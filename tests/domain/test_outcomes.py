@@ -144,6 +144,23 @@ def test_recording_an_outcome_without_naming_its_scorer_is_refused() -> None:
         RunRecordCreate(tenant="hpml", code_revision="abc123", resolved=True)
 
 
+def test_a_label_update_naming_no_scorer_is_refused() -> None:
+    """The same rule the create model enforces; a back-filled label is still a label."""
+    from agentic_base.domain.outcomes import LabelUpdate
+
+    with pytest.raises(ValueError, match="scorer"):
+        LabelUpdate(resolved=True, label_source=LabelSource.UNLABELLED)
+
+
+def test_a_label_update_naming_its_scorer_is_accepted() -> None:
+    from agentic_base.domain.outcomes import LabelUpdate
+
+    update = LabelUpdate(resolved=False, label_source=LabelSource.HUMAN)
+
+    assert update.label_source is LabelSource.HUMAN
+    assert update.degraded is False
+
+
 def test_a_run_may_be_recorded_with_no_outcome_at_all() -> None:
     """Labelling later is legitimate. Labelling anonymously is not."""
     payload = RunRecordCreate(tenant="hpml", code_revision="abc123")

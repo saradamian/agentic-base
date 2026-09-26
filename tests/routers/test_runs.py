@@ -53,6 +53,21 @@ def test_a_label_without_a_source_is_rejected(test_client) -> None:
     assert response.status_code == 422
 
 
+def test_a_label_whose_source_is_unlabelled_is_rejected_like_a_create(
+    test_client,
+) -> None:
+    """The create route refuses this pair; a label attached later must not slip it past."""
+    created = test_client.post("/runs", json=_payload(item="task-3b")).json()
+
+    response = test_client.post(
+        f"/runs/{created['run_id']}/label",
+        json={"resolved": True, "label_source": "unlabelled"},
+    )
+
+    assert response.status_code == 422
+    assert "scorer" in response.text
+
+
 def test_the_validity_report_flags_an_arm_correlated_exclusion(test_client) -> None:
     tenant = "skewed"
     for n in range(20):
@@ -230,6 +245,31 @@ def test_a_configured_redactor_runs_before_the_transcript_is_written(
     stored = test_client.get(f"/runs/{created['run_id']}").json()
     assert stored["messages"] == [{"role": "user", "content": "hi <PERSON>"}]
     assert stored["redaction"] == "marker 1.0"
+
+
+def test_the_writers_redaction_field_does_not_disable_the_servers(
+    app, test_client
+) -> None:
+    """Any writer can set `redaction`; only the server's configuration decides what runs."""
+    from agentic_base.redaction.configured import get_redactor
+
+    app.dependency_overrides[get_redactor] = _Marker
+    try:
+        for claim in ("", "None", "patterns-v1"):
+            created = test_client.post(
+                "/runs",
+                json=_payload(
+                    item=f"redact-claim-{claim or 'empty'}",
+                    redaction=claim,
+                    messages=[{"role": "user", "content": "hi Maria"}],
+                ),
+            ).json()
+            stored = test_client.get(f"/runs/{created['run_id']}").json()
+            assert stored["messages"][0]["content"] == "hi <PERSON>", claim
+            assert stored["redaction"] == "marker 1.0", claim
+            assert stored["extra"]["redaction"]["writer"] == claim
+    finally:
+        app.dependency_overrides.pop(get_redactor)
 
 
 def test_without_a_redactor_the_transcript_is_written_as_sent(test_client) -> None:
@@ -439,3 +479,57 @@ def test_a_tenant_with_nothing_recorded_exports_an_empty_corpus(test_client) -> 
 
     assert response.status_code == 200
     assert manifest["records"] == 0 and records == []
+
+
+def _insert_scorerless_labelled_row(engine, tenant: str) -> str:
+    """A stored row the create route would refuse: an outcome with no scorer named.
+
+    Written straight to the database, as the old /label route could before it applied the
+    create rule, so the consumers' tolerance is tested against the row itself and not
+    against any route.
+    """
+    from sqlmodel import Session
+
+    from agentic_base.domain.run_record import LabelSource, RunRecord
+
+    record = RunRecord(
+        tenant=tenant,
+        code_revision="abc1234",
+        item="poisoned",
+        resolved=True,
+        label_source=LabelSource.UNLABELLED,
+        messages=[{"role": "user", "content": "kept"}],
+    )
+    with Session(engine) as session:
+        session.add(record)
+        session.commit()
+        session.refresh(record)
+    return record.run_id
+
+
+def test_an_export_skips_a_stored_scorerless_label_with_a_warning(
+    engine, test_client, caplog
+) -> None:
+    import logging
+
+    test_client.post("/runs", json=_payload(tenant="poisoned-export", item="good"))
+    bad = _insert_scorerless_labelled_row(engine, "poisoned-export")
+
+    with caplog.at_level(logging.WARNING, logger="agentic_base.domain.run_record"):
+        response, manifest, records = _export(test_client, "poisoned-export")
+
+    assert response.status_code == 200
+    assert manifest["records"] == 1 == len(records)
+    assert [r["record"]["item"] for r in records] == ["good"]
+    assert any(bad in message for message in caplog.messages)
+
+
+def test_provenance_of_a_stored_scorerless_label_answers_rather_than_crashing(
+    engine, test_client
+) -> None:
+    bad = _insert_scorerless_labelled_row(engine, "poisoned-prov")
+
+    response = test_client.get(f"/runs/{bad}/provenance")
+
+    assert response.status_code == 422
+    assert "scorer" in response.json()["detail"]

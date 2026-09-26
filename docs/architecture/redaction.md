@@ -22,12 +22,22 @@ what happens when part of it cannot run.
 Every finding becomes its entity type: `Forward it to <PERSON>`. Every record says what ran:
 `redaction` names the patterns and the name detector with its model, marked `(fallback)` when
 GLiNER stood in, and `extra.redaction` counts the strings examined, the findings per type, and
-how many strings each instrument handled. A writer that redacted its own transcript says so in
-`redaction`, and the service leaves that record alone.
+how many strings each instrument handled. What the writer claimed in its own `redaction` field
+is kept under `extra.redaction.writer` and decides nothing: the server's configuration governs,
+whatever the field says, because a field any writer can set must not be the switch that turns
+redaction off.
+
+What is walked: the system prompt, every string in the messages however deeply it nests —
+content and text parts, participant and tool names, tool-call arguments and inputs, metadata —
+and every string in `extra`. What is not: identifiers used for joining. The tenant, item, arm,
+run id and principal stay as written, because they are how runs are paired, exported and looked
+up, and inside a transcript the roles, part types and the ids that tie a tool call to its
+result stay for the same reason.
 
 Settings: `REDACTION` is `none`, `patterns` or `names`; the `REDACTION_LLM_*` and
 `REDACTION_GLINER_*` settings configure the two detectors; `REDACTION_ALLOW_LIST` exempts the
-site's own vocabulary; `REDACTION_ENTITIES` narrows what is removed.
+site's own vocabulary; `REDACTION_ENTITIES` narrows what is removed, and a name in it that no
+detector produces fails the start rather than silently keeping nothing.
 
 ## Guards on the model
 

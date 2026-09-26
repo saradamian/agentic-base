@@ -2,6 +2,10 @@
 
 Three rules.
 
+The server's configuration decides what runs. The writer's ``redaction`` field is kept as the
+writer's claim, under ``extra["redaction"]["writer"]``, and gates nothing: a field any writer
+can set must not be the thing that turns the server's redaction off.
+
 The instrument names itself on the record. ``redaction`` carries what actually ran on this
 record: which detectors, which model and version, and whether a fallback was used. A transcript
 redacted by patterns alone cannot be read as one from which names were removed.
@@ -9,9 +13,6 @@ redacted by patterns alone cannot be read as one from which names were removed.
 The record says how much was examined. ``extra["redaction"]`` holds the number of strings
 passed to the redactor, the findings per entity type, and how often each instrument was the one
 that ran, so zero findings reads as zero findings and not as an instrument that saw nothing.
-
-A record already redacted is left alone. The writer that redacted knows what it ran; a second
-pass would overwrite that with a claim about a transcript it did not see in its original form.
 """
 
 from __future__ import annotations
@@ -22,8 +23,6 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 from agentic_base.domain.outcomes import RunRecordCreate
-
-NOT_REDACTED = "none"
 
 
 class RedactionUnavailable(RuntimeError):
@@ -90,16 +89,15 @@ def replace_spans(text: str, spans: Sequence[Span], instrument: str = "") -> Red
 
 
 def redact_run(record: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
-    """Redact the system prompt and every text in the messages, and say so on the record.
+    """Redact every string in the transcript and in ``extra``, and say so on the record.
 
-    Message content may be a string or a list of parts; tool-call arguments are strings too.
-    Every string reached is passed to the redactor; keys and structure are kept. A record whose
-    ``redaction`` is not ``none`` is returned unchanged. ``RedactionUnavailable`` propagates: a
-    record is either redacted as declared or not written.
+    The system prompt, the messages and ``extra`` are walked recursively; every string value is
+    passed to the redactor, wherever it nests, except values under the structural keys that
+    join parts of a transcript together (roles, part types, and the ids that tie a tool call
+    to its result). Keys and structure are kept. The writer's ``redaction`` claim is stored
+    under ``extra["redaction"]["writer"]`` and does not decide whether the redactor runs.
+    ``RedactionUnavailable`` propagates: a record is either redacted as declared or not written.
     """
-    if record.redaction != NOT_REDACTED:
-        return record
-
     found: Counter[str] = Counter()
     instruments: Counter[str] = Counter()
     examined = 0
@@ -114,7 +112,7 @@ def redact_run(record: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
 
     def _walk(value: Any, key: str = "") -> Any:
         if isinstance(value, str):
-            return _text(value) if key in _TEXT_KEYS else value
+            return value if key in _STRUCTURAL_KEYS else _text(value)
         if isinstance(value, dict):
             return {k: _walk(v, k) for k, v in value.items()}
         if isinstance(value, list):
@@ -123,13 +121,15 @@ def redact_run(record: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
 
     system_prompt = _text(record.system_prompt) if record.system_prompt else ""
     messages = [_walk(message) for message in record.messages]
+    walked_extra = _walk(record.extra)
     ran = sorted(instruments) or [redactor.instrument]
     extra = {
-        **record.extra,
+        **walked_extra,
         "redaction": {
             "examined": examined,
             "found": dict(sorted(found.items())),
             "instruments": dict(sorted(instruments.items())),
+            "writer": record.redaction,
         },
     }
     return record.model_copy(
@@ -142,7 +142,7 @@ def redact_run(record: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
     )
 
 
-#: Keys whose string values are transcript text. Roles, ids, tool names and types are not.
-_TEXT_KEYS = frozenset(
-    {"content", "text", "arguments", "output", "reasoning", "reasoning_content"}
-)
+#: Keys whose string values hold a transcript together rather than carry its text: the role and
+#: part type that select a code path, and the ids that join a tool call to its result. Redacting
+#: these would break the joins; everything else, names included, is treated as text.
+_STRUCTURAL_KEYS = frozenset({"role", "type", "id", "tool_call_id", "tool_use_id"})

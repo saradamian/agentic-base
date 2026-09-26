@@ -9,7 +9,7 @@ anything.
 Start the service first, in another terminal:
 
     pip install 'surf-agentic-base[service]'
-    API_TOKENS='{"example-token-0000001": ["platform-team"]}' REDACTION=patterns just run
+    API_TOKENS='{"example-token-0000001": {"tenants": ["platform-team"], "label_sources": ["human"]}}' REDACTION=patterns just run
 
 Then:
 

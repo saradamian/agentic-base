@@ -100,7 +100,7 @@ reads back everything the agent did for one person, and checks the records are i
 
 ```bash
 pip install 'surf-agentic-base[service]'
-export API_TOKENS='{"example-token-0000001": ["example-team", "platform-team"]}'
+export API_TOKENS='{"example-token-0000001": {"tenants": ["example-team", "platform-team"], "label_sources": ["official_harness", "human"]}}'
 REDACTION=patterns just run          # in one terminal
 python examples/service_agent.py     # in another
 ```
@@ -176,7 +176,7 @@ sound, whether the records are intact, what was kept of a transcript, and for on
 
 ```bash
 pip install 'surf-agentic-base[service,provenance]'
-export API_TOKENS='{"example-token-0000001": ["example-team", "platform-team"]}'
+export API_TOKENS='{"example-token-0000001": {"tenants": ["example-team", "platform-team"], "label_sources": ["official_harness", "human"]}}'
 REDACTION=patterns just run        # in one terminal
 python examples/record_and_ask.py  # in another
 ```
@@ -250,9 +250,12 @@ SQLite by default so it runs with no infrastructure. PostgreSQL, provided as a p
 resource, in every deployed environment.
 
 Every data route requires a bearer token. `API_TOKENS` maps each token to the tenants it may use,
-`["*"]` for all of them, and comes from the platform's secret management. With no tokens set the
-service refuses every data request and says what to set; `AUTH=none` turns the check off for local
-development, and the service logs a warning when it starts that way.
+`["*"]` for all of them, and comes from the platform's secret management. A token may instead map
+to `{"tenants": [...], "label_sources": [...]}`; only the citable sources named there — the
+benchmark's own harness or grader, or a person — may be asserted through it, and the plain list
+shape grants none, so a writer token records diagnostic outcomes and cannot mint citable results.
+With no tokens set the service refuses every data request and says what to set; `AUTH=none` turns
+the check off for local development, and the service logs a warning when it starts that way.
 
 ```bash
 AUTH=none just run

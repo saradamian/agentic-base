@@ -21,8 +21,10 @@ class Settings(BaseSettings):
     """``tokens`` requires a bearer token from ``api_tokens`` on every data route; ``none`` turns the
     check off, for local development only. See src/agentic_base/auth.py."""
     api_tokens: SecretStr = SecretStr("")
-    """JSON: ``{"<token>": ["tenant", ...]}``, ``"*"`` for every tenant. From the platform's secret
-    management, never a file in the image. With ``auth=tokens`` and none set, data routes refuse."""
+    """JSON: ``{"<token>": ["tenant", ...]}``, ``"*"`` for every tenant; or ``{"<token>":
+    {"tenants": [...], "label_sources": ["official_harness", ...]}}`` for a token that may also
+    assert citable outcomes — the list shape grants none. From the platform's secret management,
+    never a file in the image. With ``auth=tokens`` and none set, data routes refuse."""
 
     redaction: str = "none"
     """``none``; ``patterns`` for credentials, contact details, bank numbers and identifiers only;

@@ -19,6 +19,24 @@ def test_a_misspelled_mode_is_refused_rather_than_read_as_off() -> None:
         redactor_from_settings(Settings(redaction="name"))
 
 
+def test_an_entity_type_no_detector_produces_fails_the_start() -> None:
+    """`EMAIL` is a plausible spelling of `EMAIL_ADDRESS`; accepted, it would keep nothing
+    while the configuration read as on."""
+    with pytest.raises(ValueError, match="EMAIL, IBAN, PHONE"):
+        redactor_from_settings(
+            Settings(redaction="patterns", redaction_entities="EMAIL,PHONE,IBAN")
+        )
+
+
+def test_a_known_entity_type_narrows_what_is_removed() -> None:
+    redactor = redactor_from_settings(
+        Settings(redaction="patterns", redaction_entities="EMAIL_ADDRESS")
+    )
+
+    assert isinstance(redactor, LayeredRedactor)
+    assert redactor.entities == frozenset({"EMAIL_ADDRESS"})
+
+
 def test_patterns_mode_runs_no_name_detector() -> None:
     redactor = redactor_from_settings(
         Settings(redaction="patterns", redaction_allow_list="Snellius, LUMI")

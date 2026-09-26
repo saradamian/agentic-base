@@ -26,7 +26,9 @@ and a credit in the advisory unless you ask otherwise.
 The service refuses by default. Every data route needs a bearer token from `API_TOKENS`, and a
 token reaches only the tenants listed for it; another tenant's run looked up by id is not found
 rather than forbidden. `AUTH=none` exists for local development and logs a warning. A way to read
-or write a tenant's runs without a token that lists it is a vulnerability.
+or write a tenant's runs without a token that lists it is a vulnerability, and so is a way to
+record a citable outcome through a token whose entry does not grant that scorer under
+`label_sources`.
 
 The library half fetches URLs on behalf of agents and filters generated code before it runs.
 Both are documented as bounding accidental damage, not as boundaries against an adversary; see

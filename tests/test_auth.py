@@ -7,18 +7,29 @@ from fastapi.routing import APIRoute
 
 from agentic_base.auth import (
     AccessPolicy,
+    Grant,
     caller_access,
     get_access_policy,
     parse_tokens,
 )
 from agentic_base.config import Settings, get_settings
+from agentic_base.domain.outcomes import LabelSource
 from agentic_base.routers.health import router as health_router
 from agentic_base.routers.runs import router as runs_router
 
 TEAM_A = "token-for-team-a-000001"
 OPERATOR = "operator-token-00000001"
+SCORER = "token-for-harness-00001"
 POLICY = AccessPolicy(
-    enabled=True, tokens={TEAM_A: frozenset({"team-a"}), OPERATOR: None}
+    enabled=True,
+    tokens={
+        TEAM_A: Grant(tenants=frozenset({"team-a"})),
+        OPERATOR: Grant(tenants=None),
+        SCORER: Grant(
+            tenants=frozenset({"team-a"}),
+            label_sources=frozenset({LabelSource.OFFICIAL_HARNESS}),
+        ),
+    },
 )
 
 
@@ -123,6 +134,74 @@ def test_an_operator_token_reaches_every_tenant(secured) -> None:
         assert response.status_code == 200
 
 
+def test_a_citable_outcome_from_a_token_without_the_grant_is_refused(secured) -> None:
+    """The scorer's standing must come from the deployment, not from the writer's own claim."""
+    response = secured.post(
+        "/runs",
+        json={**_run("team-a"), "resolved": True, "label_source": "official_harness"},
+        headers=_bearer(TEAM_A),
+    )
+
+    assert response.status_code == 403
+    assert "official_harness" in response.json()["detail"]
+    assert "label_sources" in response.json()["detail"]
+
+
+def test_a_token_granted_a_citable_source_may_assert_it(secured) -> None:
+    response = secured.post(
+        "/runs",
+        json={**_run("team-a"), "resolved": True, "label_source": "official_harness"},
+        headers=_bearer(SCORER),
+    )
+
+    assert response.status_code == 201
+    assert response.json()["label_source"] == "official_harness"
+
+
+def test_a_grant_covers_only_the_sources_it_names(secured) -> None:
+    response = secured.post(
+        "/runs",
+        json={**_run("team-a"), "resolved": True, "label_source": "human"},
+        headers=_bearer(SCORER),
+    )
+
+    assert response.status_code == 403
+    assert "human" in response.json()["detail"]
+
+
+def test_labelling_needs_the_same_grant_as_creating(secured) -> None:
+    run_id = secured.post("/runs", json=_run("team-a"), headers=_bearer(TEAM_A)).json()[
+        "run_id"
+    ]
+    label = {"resolved": True, "label_source": "official_harness"}
+
+    ungranted = secured.post(
+        f"/runs/{run_id}/label", json=label, headers=_bearer(TEAM_A)
+    )
+    granted = secured.post(f"/runs/{run_id}/label", json=label, headers=_bearer(SCORER))
+
+    assert ungranted.status_code == 403
+    assert "official_harness" in ungranted.json()["detail"]
+    assert granted.status_code == 200
+
+
+def test_a_diagnostic_outcome_needs_no_grant(secured) -> None:
+    """The grant guards what may be cited, not what may be observed."""
+    created = secured.post(
+        "/runs",
+        json={**_run("team-a"), "resolved": False, "label_source": "self_reported"},
+        headers=_bearer(TEAM_A),
+    )
+    labelled = secured.post(
+        f"/runs/{created.json()['run_id']}/label",
+        json={"resolved": True, "label_source": "model_judge"},
+        headers=_bearer(TEAM_A),
+    )
+
+    assert created.status_code == 201
+    assert labelled.status_code == 200
+
+
 def test_health_needs_no_token(secured) -> None:
     paths = [r.path for r in health_router.routes if isinstance(r, APIRoute)]
 
@@ -188,6 +267,15 @@ def test_a_wrong_auth_mode_fails_the_start(monkeypatch) -> None:
         ('["a"]', "JSON object"),
         ('{"short": ["team-a"]}', "at least 16 characters"),
         ('{"long-enough-token-1": "team-a"}', "list of tenant names"),
+        ('{"long-enough-token-1": {"tenants": "team-a"}}', "list of tenant names"),
+        (
+            '{"long-enough-token-1": {"tenants": ["team-a"], "label_sources": "human"}}',
+            "list of label source names",
+        ),
+        (
+            '{"long-enough-token-1": {"tenants": ["team-a"], "scorers": ["human"]}}',
+            "knows 'tenants' and 'label_sources'",
+        ),
     ],
 )
 def test_a_malformed_token_setting_is_refused(raw, message) -> None:
@@ -195,15 +283,46 @@ def test_a_malformed_token_setting_is_refused(raw, message) -> None:
         parse_tokens(raw)
 
 
-def test_a_star_grants_every_tenant_and_a_list_grants_those() -> None:
+def test_a_star_grants_every_tenant_and_a_list_grants_those_and_no_scorer() -> None:
     grants = parse_tokens(
         '{"operator-token-000001": ["*"], "token-for-team-a-01": ["team-a"]}'
     )
 
     assert grants == {
-        "operator-token-000001": None,
-        "token-for-team-a-01": frozenset({"team-a"}),
+        "operator-token-000001": Grant(tenants=None),
+        "token-for-team-a-01": Grant(tenants=frozenset({"team-a"})),
     }
+    assert grants["operator-token-000001"].label_sources == frozenset()
+
+
+def test_the_object_shape_grants_the_citable_sources_it_names() -> None:
+    grants = parse_tokens(
+        '{"token-for-harness-01": {"tenants": ["team-a"], '
+        '"label_sources": ["official_harness", "human"]}}'
+    )
+
+    assert grants == {
+        "token-for-harness-01": Grant(
+            tenants=frozenset({"team-a"}),
+            label_sources=frozenset({LabelSource.OFFICIAL_HARNESS, LabelSource.HUMAN}),
+        )
+    }
+
+
+def test_a_grant_naming_an_unknown_source_is_refused() -> None:
+    with pytest.raises(ValueError, match="names no known source"):
+        parse_tokens(
+            '{"token-for-harness-01": {"tenants": ["a"], "label_sources": ["harness"]}}'
+        )
+
+
+def test_a_grant_naming_a_diagnostic_source_is_refused() -> None:
+    """Granting a source that needs no grant would only read as if it did something."""
+    with pytest.raises(ValueError, match="only grant citable sources"):
+        parse_tokens(
+            '{"token-for-agent-0001": {"tenants": ["a"], '
+            '"label_sources": ["self_reported"]}}'
+        )
 
 
 def test_the_tokens_never_appear_in_the_settings_dump(monkeypatch) -> None:

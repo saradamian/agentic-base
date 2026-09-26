@@ -122,7 +122,7 @@ def test_the_recorder_sends_its_token_and_is_refused_without_one(
     app, test_client, monkeypatch
 ) -> None:
     import agentic_base.client as client_module
-    from agentic_base.auth import AccessPolicy, get_access_policy
+    from agentic_base.auth import AccessPolicy, Grant, get_access_policy
 
     monkeypatch.setattr(
         client_module.httpx,
@@ -133,7 +133,7 @@ def test_the_recorder_sends_its_token_and_is_refused_without_one(
     )
     token = "token-for-svc-00000001"
     app.dependency_overrides[get_access_policy] = lambda: AccessPolicy(
-        enabled=True, tokens={token: frozenset({"svc"})}
+        enabled=True, tokens={token: Grant(tenants=frozenset({"svc"}))}
     )
     try:
         with_token = RunRecorder(

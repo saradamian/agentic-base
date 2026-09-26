@@ -25,7 +25,7 @@ from sqlmodel import Session, select
 
 from agentic_base.domain import audit
 from agentic_base.domain.retention import RetentionPolicy, erase, plan, was_erased
-from agentic_base.domain.run_record import RunRecord, to_payload
+from agentic_base.domain.run_record import RunRecord, payload_or_none, to_payload
 
 ALL_TENANTS = "*"
 
@@ -56,17 +56,24 @@ class TenantSweep:
     erased: int
     already_erased: int
     cutoff: datetime
+    invalid: int = 0
+    """Due rows that no longer pass the creation rules; skipped, warned about, not erased."""
 
     def describe(self, applied: bool) -> str:
         action = (
             f"erased {self.erased}"
             if applied
-            else f"would erase {self.due - self.already_erased}"
+            else f"would erase {self.due - self.already_erased - self.invalid}"
         )
-        return (
+        described = (
             f"{self.tenant}: examined {self.examined}, due {self.due} (created before "
             f"{self.cutoff.date().isoformat()}), {action}, already erased {self.already_erased}"
         )
+        if self.invalid:
+            described += (
+                f", skipped {self.invalid} that no longer pass the creation rules"
+            )
+        return described
 
 
 def _erase_record(
@@ -89,23 +96,40 @@ def sweep_tenant(
     apply: bool,
     reason: str = "retention policy",
 ) -> TenantSweep:
-    """Find a tenant's due transcripts and, when *apply*, erase them in one transaction."""
+    """Find a tenant's due transcripts and, when *apply*, erase them in one transaction.
+
+    A due row that no longer passes the creation rules is skipped with a warning and counted
+    as ``invalid``, so one such row cannot stop every other transcript in the tenant from
+    being erased.
+    """
     records = list(
         session.exec(select(RunRecord).where(RunRecord.tenant == tenant)).all()
     )
     found = plan(records, now, policy)
-    already = sum(1 for r in found.due if was_erased(to_payload(r)))
+    already = 0
     erased = 0
+    invalid = 0
+    for record in found.due:
+        payload = payload_or_none(record)
+        if payload is None:
+            invalid += 1
+        elif was_erased(payload):
+            already += 1
+        elif apply:
+            _erase_record(
+                session, record, now, f"{reason}: kept {policy.keep_days} days"
+            )
+            erased += 1
     if apply:
-        for record in found.due:
-            if not was_erased(to_payload(record)):
-                _erase_record(
-                    session, record, now, f"{reason}: kept {policy.keep_days} days"
-                )
-                erased += 1
         session.commit()
     return TenantSweep(
-        tenant, found.examined, found.count, erased, already, found.cutoff
+        tenant,
+        found.examined,
+        found.count,
+        erased,
+        already,
+        found.cutoff,
+        invalid=invalid,
     )
 
 
