@@ -62,9 +62,9 @@ service = [
   "prometheus-fastapi-instrumentator==8.1.0",
   "uvicorn==0.53.0",
   # Tracing: the vocabulary in observability/conventions.py is worthless if no span is opened.
-  "opentelemetry-sdk==1.44.0",
+  "opentelemetry-sdk==1.45.0",
   "opentelemetry-instrumentation-fastapi==0.65b0",
-  "opentelemetry-exporter-otlp-proto-http==1.44.0",
+  "opentelemetry-exporter-otlp-proto-http==1.45.0",
   # The two span vocabularies, pinned: the GenAI one has no stable schema URL to pin instead.
   "opentelemetry-semantic-conventions==0.65b0",
   "openinference-semantic-conventions==0.1.38",
