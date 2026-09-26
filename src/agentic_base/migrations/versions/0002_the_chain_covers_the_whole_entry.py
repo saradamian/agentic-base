@@ -10,10 +10,25 @@ entry gains its position and the digests of the personal fields, its personal sn
 per run records the row as it stands, and the tenant's head is anchored. The rewrite is the
 service's own, done once, under a migration the version table names; it is not undone by the
 downgrade, so a downgraded log does not verify under the old scheme.
+
+A rewrite recomputes every hash, so it would turn a log that had been tampered with into one
+that verifies. Before anything changes, each tenant's log is therefore verified under the 0001
+scheme it was written in: the chain must recompute, and every chained run must equal its latest
+entry. A tenant that fails stops the upgrade before any schema change, naming what failed. An
+operator who has examined the damage can let the upgrade proceed by naming the tenant in
+``MIGRATE_ACCEPT_UNVERIFIED`` (comma-separated, or ``*``); that tenant's ``migrated`` entries are
+then written as ``migrated_unverified``, so the rewritten chain records that its history was
+re-anchored over a log that did not verify.
 """
 
+import enum
+import hashlib
+import json
+import logging
+import os
 from collections.abc import Sequence
 from datetime import datetime, timezone
+from typing import Any
 
 import sqlalchemy as sa
 import sqlmodel
@@ -36,8 +51,161 @@ down_revision: str | Sequence[str] | None = "0001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+_log = logging.getLogger(__name__)
+
+ACCEPT_UNVERIFIED = "MIGRATE_ACCEPT_UNVERIFIED"
+
+# The 0001 scheme, frozen. The log is judged by the rules it was written under, not by whatever
+# `domain.integrity` says today, so these copies must never follow later changes to that module.
+_AUDIT_FIELDS_0001 = (
+    "run_id",
+    "created_at",
+    "tenant",
+    "item",
+    "arm",
+    "arm_fingerprint",
+    "model",
+    "endpoint",
+    "precision",
+    "code_revision",
+    "status",
+    "failure_kind",
+    "resolved",
+    "label_source",
+    "degraded",
+    "instrument",
+    "principal",
+    "classification",
+    "isolation_tier",
+    "redaction",
+    "disclosure",
+    "content_marking",
+    "approvals",
+)
+_GENESIS_0001 = "0" * 64
+
+
+def _canonical_0001(values: dict[str, Any]) -> bytes:
+    return json.dumps(
+        values, sort_keys=True, separators=(",", ":"), default=str
+    ).encode("utf-8")
+
+
+def _plain_0001(value: Any) -> Any:
+    if isinstance(value, datetime):
+        aware = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return aware.astimezone(timezone.utc).isoformat()
+    if isinstance(value, enum.Enum):
+        return value.value
+    return value
+
+
+def _snapshot_0001(values: Any) -> dict[str, Any]:
+    """The 0001 snapshot of anything that maps field names to values."""
+    plain = {field: _plain_0001(values.get(field)) for field in _AUDIT_FIELDS_0001}
+    snapshot: dict[str, Any] = json.loads(_canonical_0001(plain))
+    return snapshot
+
+
+def _hash_0001(snapshot: dict[str, Any], previous: str) -> str:
+    return hashlib.sha256(
+        _canonical_0001({**snapshot, "previous_hash": previous})
+    ).hexdigest()
+
+
+def _failures_under_0001(connection: sa.Connection) -> dict[str, str]:
+    """Each tenant whose log does not verify under the 0001 scheme, and why.
+
+    Reads the 0001 tables through their 0001 columns only: the ORM models already carry the
+    columns this migration adds, and a select through them fails before the schema changes.
+    """
+    entries = sa.table(
+        "audit_entry",
+        sa.column("seq", sa.Integer()),
+        sa.column("tenant", sa.String()),
+        sa.column("run_id", sa.String()),
+        sa.column("audit_fields", sa.JSON()),
+        sa.column("hash", sa.String()),
+    )
+    types: dict[str, Any] = {
+        "created_at": agentic_base.domain.run_record.UTCDateTime(timezone=True),
+        "resolved": sa.Boolean(),
+        "degraded": sa.Boolean(),
+        "approvals": sa.JSON(),
+    }
+    runs = sa.table(
+        "run_record",
+        *(sa.column(name, types.get(name, sa.String())) for name in _AUDIT_FIELDS_0001),
+    )
+
+    failures: dict[str, str] = {}
+    log: dict[str, list[Any]] = {}
+    for row in connection.execute(sa.select(entries).order_by(entries.c.seq)):
+        log.setdefault(row.tenant, []).append(row)
+    for tenant, tenant_entries in log.items():
+        previous = _GENESIS_0001
+        for index, entry in enumerate(tenant_entries):
+            recomputed = _hash_0001(_snapshot_0001(entry.audit_fields or {}), previous)
+            if recomputed != entry.hash:
+                failures[tenant] = (
+                    f"entry {index} (run {entry.run_id}, seq {entry.seq}) does not match "
+                    "its recorded hash"
+                )
+                break
+            previous = recomputed
+    latest = {
+        (entry.tenant, entry.run_id): entry.audit_fields or {}
+        for tenant_entries in log.values()
+        for entry in tenant_entries
+    }
+    altered: dict[str, list[str]] = {}
+    for row in connection.execute(sa.select(runs)):
+        fields = latest.get((row.tenant, row.run_id))
+        if fields is not None and _snapshot_0001(row._mapping) != _snapshot_0001(
+            fields
+        ):
+            altered.setdefault(row.tenant, []).append(row.run_id)
+    for tenant, run_ids in altered.items():
+        reason = f"run(s) {', '.join(sorted(run_ids))} differ from their latest entry"
+        failures[tenant] = (
+            f"{failures[tenant]}; {reason}" if tenant in failures else reason
+        )
+    return failures
+
+
+def _accepted_unverified() -> set[str]:
+    return {
+        name.strip()
+        for name in os.environ.get(ACCEPT_UNVERIFIED, "").split(",")
+        if name.strip()
+    }
+
 
 def upgrade() -> None:
+    failures = _failures_under_0001(op.get_bind())
+    accepted = _accepted_unverified()
+    refused = {
+        tenant: why
+        for tenant, why in failures.items()
+        if tenant not in accepted and "*" not in accepted
+    }
+    if refused:
+        lines = "\n".join(
+            f"  {tenant}: {why}" for tenant, why in sorted(refused.items())
+        )
+        raise RuntimeError(
+            "the audit log does not verify under the scheme it was written in, and rewriting "
+            "it would make the damage verify:\n"
+            f"{lines}\n"
+            "Nothing was changed. Examine the log with 0.7.x's GET /runs/integrity. To proceed "
+            f"anyway, name the tenants in {ACCEPT_UNVERIFIED}; their rewritten chains will say "
+            "so in every migrated entry."
+        )
+    for tenant, why in sorted(failures.items()):
+        _log.warning(
+            "rewriting an unverified log for tenant %s, as accepted: %s", tenant, why
+        )
+
     op.create_table(
         "audit_head",
         sa.Column("tenant", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
@@ -59,7 +227,7 @@ def upgrade() -> None:
             )
         )
 
-    _rewrite_chains(Session(bind=op.get_bind()))
+    _rewrite_chains(Session(bind=op.get_bind()), unverified=set(failures))
 
     with op.batch_alter_table("audit_entry", schema=None) as batch_op:
         batch_op.alter_column("chain_seq", existing_type=sa.Integer(), nullable=False)
@@ -97,7 +265,7 @@ def _claimed_at(record: RunRecord) -> datetime:
     return record.created_at
 
 
-def _rewrite_chains(session: Session) -> None:
+def _rewrite_chains(session: Session, *, unverified: set[str]) -> None:
     tenants = set(session.exec(select(AuditEntry.tenant).distinct()).all()) | set(
         session.exec(select(RunRecord.tenant).distinct()).all()
     )
@@ -145,6 +313,7 @@ def _rewrite_chains(session: Session) -> None:
         # scheme now covers. A row that never had an entry stays unchained and stays flagged.
         chained = {entry.run_id for entry in entries}
         at = datetime.now(timezone.utc)
+        event = "migrated_unverified" if tenant in unverified else "migrated"
         for run in runs:
             if run.run_id not in chained:
                 continue
@@ -153,14 +322,14 @@ def _rewrite_chains(session: Session) -> None:
             entry = AuditEntry(
                 tenant=tenant,
                 run_id=run.run_id,
-                event="migrated",
+                event=event,
                 at=at,
                 chain_seq=position,
                 audit_fields=fields,
                 digests=digests,
                 previous_hash=previous,
                 hash=entry_hash(
-                    position, run.run_id, "migrated", at, fields, digests, previous
+                    position, run.run_id, event, at, fields, digests, previous
                 ),
             )
             previous = entry.hash
