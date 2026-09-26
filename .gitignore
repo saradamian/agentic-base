@@ -12,6 +12,9 @@ test-results.xml
 gl-code-quality-report.json
 gl-code-quality-report-ruff.json
 *.egg-info
+# `uv build` / `python -m build` output; a `git add -A` after a local build committed all of src/.
+build/
+dist/
 
 # OS generated files
 .DS_Store

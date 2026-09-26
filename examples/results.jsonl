@@ -1,0 +1,40 @@
+{"item": "task-01", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-01", "config": "with-planner", "resolved": true, "label_source": "official_harness"}
+{"item": "task-02", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-02", "config": "with-planner", "resolved": true, "label_source": "official_harness"}
+{"item": "task-03", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-03", "config": "with-planner", "resolved": true, "label_source": "official_harness"}
+{"item": "task-04", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-04", "config": "with-planner", "resolved": true, "label_source": "official_harness"}
+{"item": "task-05", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-05", "config": "with-planner", "resolved": true, "label_source": "official_harness"}
+{"item": "task-06", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-06", "config": "with-planner", "resolved": true, "label_source": "official_harness"}
+{"item": "task-07", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-07", "config": "with-planner", "resolved": true, "label_source": "official_harness"}
+{"item": "task-08", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-08", "config": "with-planner", "resolved": true, "label_source": "official_harness"}
+{"item": "task-09", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-09", "config": "with-planner", "resolved": true, "label_source": "self_reported"}
+{"item": "task-10", "config": "baseline", "resolved": true, "label_source": "official_harness"}
+{"item": "task-10", "config": "with-planner", "resolved": true, "label_source": "self_reported"}
+{"item": "task-11", "config": "baseline", "resolved": false, "label_source": "official_harness"}
+{"item": "task-11", "config": "with-planner", "resolved": true, "label_source": "self_reported"}
+{"item": "task-12", "config": "baseline", "resolved": false, "label_source": "official_harness"}
+{"item": "task-12", "config": "with-planner", "resolved": true, "label_source": "self_reported"}
+{"item": "task-13", "config": "baseline", "resolved": false, "label_source": "official_harness"}
+{"item": "task-13", "config": "with-planner", "resolved": false}
+{"item": "task-14", "config": "baseline", "resolved": false, "label_source": "official_harness"}
+{"item": "task-14", "config": "with-planner", "resolved": false}
+{"item": "task-15", "config": "baseline", "resolved": false, "label_source": "official_harness"}
+{"item": "task-15", "config": "with-planner", "channel": "timeout"}
+{"item": "task-16", "config": "baseline", "resolved": false, "label_source": "official_harness"}
+{"item": "task-16", "config": "with-planner", "channel": "timeout"}
+{"item": "task-17", "config": "baseline", "resolved": false, "label_source": "official_harness"}
+{"item": "task-17", "config": "with-planner", "channel": "timeout"}
+{"item": "task-18", "config": "baseline", "resolved": false, "label_source": "official_harness"}
+{"item": "task-18", "config": "with-planner", "channel": "timeout"}
+{"item": "task-19", "config": "baseline", "resolved": false, "label_source": "official_harness"}
+{"item": "task-19", "config": "with-planner", "channel": "timeout"}
+{"item": "task-20", "config": "baseline", "channel": "timeout"}
+{"item": "task-20", "config": "with-planner", "channel": "timeout"}

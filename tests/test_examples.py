@@ -55,6 +55,18 @@ def test_the_library_example_prints_what_its_output_file_shows() -> None:
     assert _run("is_this_comparison_sound.py") == expected
 
 
+def test_the_check_cli_prints_what_its_output_file_shows(capsys) -> None:
+    """The README's front-door command, run as a reader would run it."""
+    from agentic_base.cli import main
+
+    code = main(["check", str(EXAMPLES / "results.jsonl"), "--arm", "config"])
+
+    assert capsys.readouterr().out == (EXAMPLES / "results.out").read_text()
+    assert code == 1, (
+        "the committed example is the not-sound case, and 1 is its exit code"
+    )
+
+
 @pytest.fixture(scope="module")
 def service_url(tmp_path_factory) -> Iterator[str]:
     """A real service on a free port, as a reader would start it."""
@@ -117,6 +129,7 @@ def test_the_readme_shows_the_output_the_examples_print() -> None:
     readme = (ROOT / "README.md").read_text()
 
     for name in (
+        "results.out",
         "is_this_comparison_sound.out",
         "record_and_ask.out",
         "service_agent.out",

@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "status": "success",
+  "eval": {
+    "run_id": "demo-planner",
+    "created": "2026-09-01T11:00:00+00:00",
+    "task": "demo_task",
+    "model": "demo/planner",
+    "dataset": {"name": "demo", "samples": 6, "sample_ids": ["s1", "s2", "s3", "s4", "s5", "s6"]},
+    "config": {"epochs": 1},
+    "metadata": {"variant": "planner"}
+  },
+  "samples": [
+    {"id": "s1", "epoch": 1, "input": "question one", "target": "answer one", "scores": {"match": {"value": "C"}}},
+    {"id": "s2", "epoch": 1, "input": "question two", "target": "answer two", "scores": {"match": {"value": "I"}}},
+    {"id": "s3", "epoch": 1, "input": "question three", "target": "answer three", "error": {"message": "RuntimeError: tool crashed"}},
+    {"id": "s4", "epoch": 1, "input": "question four", "target": "answer four", "limit": {"type": "token", "limit": 100000}},
+    {"id": "s5", "epoch": 1, "input": "question five", "target": "answer five", "scores": {}}
+  ]
+}

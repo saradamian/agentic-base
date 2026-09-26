@@ -1,0 +1,4 @@
+baseline: assessed 20; excluded 1 (1 timeout); analysed 19
+with-planner: assessed 20; excluded 6 (6 timeout); analysed 14
+not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline), 95% interval +0.8 to +47.3 pp
+outcomes: 27 name a citable scorer, 4 diagnostic, 2 name none

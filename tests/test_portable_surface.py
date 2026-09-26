@@ -30,8 +30,11 @@ import pytest
 SRC = Path(__file__).resolve().parent.parent / "src"
 
 PORTABLE_MODULES = (
+    "agentic_base.adapters",
+    "agentic_base.cli",
     "agentic_base.client",
     "agentic_base.code_policy.policy",
+    "agentic_base.demo",
     "agentic_base.domain.epochs",
     "agentic_base.domain.integrity",
     "agentic_base.domain.outcomes",
