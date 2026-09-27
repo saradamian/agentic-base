@@ -38,12 +38,28 @@ outcomes: 27 name a citable scorer, 4 diagnostic, 2 name none
 columns), or an Inspect AI `.eval`/`.json` log, where `--arm` is `model`, `task` or a metadata key.
 Runs kept in MLflow read through its own export: save `mlflow.search_runs(...).to_csv("runs.csv")`
 and pass `--arm params.config --item params.task --verdict metrics.resolved`. A row with no
-verdict is counted as an exclusion, never silently analysed. The exit code gates a CI job: **0** sound, **1** not sound, **2** when the input
-cannot answer either way (too little data, one arm, no exclusion anywhere, or an unreadable file).
-`--json` prints the full report.
+verdict is counted as an exclusion, never silently analysed. The exit code gates a CI job: **0**
+sound, **1** not sound, **2** when the input cannot answer either way (too little data, one arm, no
+exclusion anywhere, or an unreadable file). `--json` prints the full report.
 
 `python -m agentic_base.demo` prints the flattering number for the same forty runs beside the
 checked verdict. In a checkout they are `examples/results.jsonl`.
+
+In CI, after the job that writes the results (GitLab shown; in GitHub Actions the same two
+commands go in `run:` steps):
+
+```yaml
+comparison-is-sound:
+  image: python:3.12
+  script:
+    - pip install surf-agentic-base
+    - agentic-base check results.jsonl --arm config
+  allow_failure:
+    exit_codes: [2]   # too little data yet: say so, do not block
+```
+
+Exit 1 fails the job: the comparison lost runs unevenly, and a number reported from it would
+mislead. Drop the `allow_failure` once there is enough data for 2 to mean a broken input.
 
 ## Use it from Python
 
