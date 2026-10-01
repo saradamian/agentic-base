@@ -58,7 +58,7 @@ service = [
   "asgi-correlation-id==5.0.1",
   # The protocol belongs to the SDK; docs/architecture/reuse-ledger.md, mcp/server.py row.
   "mcp>=2.2,<3",
-  "fastapi[standard]==0.141.1",
+  "fastapi[standard]==0.142.2",
   "prometheus-fastapi-instrumentator==8.1.0",
   "uvicorn==0.53.0",
   # Tracing: the vocabulary in observability/conventions.py is worthless if no span is opened.
