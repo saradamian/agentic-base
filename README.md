@@ -124,12 +124,58 @@ read-only MCP server.
 | see runs in a tracker you already have | `agentic-base-mlflow` |
 | ask about runs from a chat client | `agentic-base-mcp`, read-only |
 | remove personal data before it is stored | `agentic_base.redaction` |
-| pre-check a URL an agent wants to fetch | `agentic_base.security.netsec` |
+| pre-check a URL an agent wants to fetch, or stream a file from it | `agentic_base.security.netsec` |
+| declare a tool a model can call | `agentic_base.tools` |
+| record the calls a served tool receives | `agentic_base.recording` |
 
 `netsec` validates a URL and pins the address it resolved to. It bounds accidental damage; it is
 not a network boundary, and address forms or paths it does not know about get through. Where an
 agent is untrusted, enforce egress in the network as well, with an egress proxy or a network
 policy that allows only the destinations you intend.
+
+## Build a tool server on it
+
+A server that gives an agent tools needs four things this library has: a way to declare a tool,
+a result type, a fetch that refuses internal addresses on every hop, and a record of each call.
+They are in the library half, which installs on Python 3.10 with four dependencies and no
+database.
+
+```python
+import hashlib
+
+import httpx
+
+from agentic_base.recording import observer_from_environment
+from agentic_base.security.netsec import URLSafetyError, open_checked
+from agentic_base.tools.decorator import tool
+from agentic_base.tools.types import ToolResult
+
+
+@tool(description="The sha256 of the file at a URL.")
+def checksum(url: str) -> ToolResult:
+    try:
+        with httpx.Client(follow_redirects=False) as client, open_checked(url, client=client) as response:
+            digest = hashlib.sha256(response.read()).hexdigest()
+    except URLSafetyError as exc:
+        return ToolResult.fail(f"URL rejected: {exc}")
+    return ToolResult.ok(digest)
+
+
+observer = observer_from_environment(server="example")
+observer.record("checksum", {"url": "https://example.org/x"}, "...", True, 12.0)
+```
+
+- `tool` turns the function into a `Tool` with a name, a description and typed parameters; the
+  MCP SDK and an in-process registry both read that one object.
+- `open_checked` validates the URL and every redirect target, connects to the address it
+  validated, and yields the response before the body is read. `safe_fetch_text` does the same for
+  a text.
+- `observer_from_environment` returns a recorder that appends one JSON line per call to the file
+  named by `CALL_LOG_VARIABLE`, failed calls included, and a no-op when that variable is not set.
+  A host with its own journal implements `CallObserver` instead.
+
+What is deliberately not here: the server loop itself. The MCP SDK has it, and a server of a few
+tools is about a hundred lines on the SDK's low-level `Server`.
 
 ## What it is not
 

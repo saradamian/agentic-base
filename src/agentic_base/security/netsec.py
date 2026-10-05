@@ -19,11 +19,16 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 from agentic_base.limits import get_limits
+
+if TYPE_CHECKING:
+    import httpx
 
 ALLOWED_SCHEMES = frozenset({"http", "https"})
 DEFAULT_ALLOWED_PORTS = frozenset({80, 443})
@@ -176,6 +181,70 @@ def pin_target(url: str, address: str) -> PinnedTarget:
     )
 
 
+@contextmanager
+def open_checked(
+    url: str,
+    *,
+    client: Any,
+    max_redirects: int | None = None,
+    allowed_ports: frozenset[int] = DEFAULT_ALLOWED_PORTS,
+    headers: dict[str, str] | None = None,
+) -> Iterator[httpx.Response]:
+    """Open a URL for reading as a stream, with every hop checked and pinned.
+
+    The response is yielded before its body is read, so a caller can refuse an oversized file
+    from its headers and read a large one in chunks. Every redirect target is validated and pinned
+    in turn, because a permitted first hop that redirects to an internal address is the same
+    attack with one more step. The response is closed when the block ends. Its
+    `extensions["checked_url"]` is the URL of the final hop, with the hostname rather than the
+    pinned address.
+
+    Raises `URLSafetyError` when any hop fails validation. *client* is an `httpx.Client` that does
+    not follow redirects on its own; the caller owns it, so one client can serve many fetches.
+    """
+    import httpx
+
+    hops = (
+        max_redirects if max_redirects is not None else get_limits().fetch_max_redirects
+    )
+    validate_url(url, allowed_ports=allowed_ports)
+    current = url
+    for _ in range(hops + 1):
+        validate_url(current, allowed_ports=allowed_ports)
+        addresses = [
+            ip for ip in resolve(_hostname(current)) if not is_disallowed_ip(ip)
+        ]
+        if addresses:
+            target = pin_target(current, str(addresses[0]))
+            request_url = target.connect_url
+            request_headers = {**(headers or {}), "Host": target.host_header}
+            extensions = {"sni_hostname": target.sni_hostname}
+        else:
+            # An address literal: validate_url already checked it, nothing to pin.
+            request_url, request_headers, extensions = current, dict(headers or {}), {}
+
+        request = client.build_request(
+            "GET", request_url, headers=request_headers, extensions=extensions
+        )
+        response = client.send(request, stream=True)
+        if response.is_redirect:
+            location = response.headers.get("location", "")
+            response.close()
+            if not location:
+                raise URLSafetyError("redirect without a location")
+            current = str(httpx.URL(current).join(location))
+            continue
+        # The URL this hop was fetched under, with the hostname, not the pinned address.
+        response.extensions["checked_url"] = current
+        try:
+            yield response
+        finally:
+            response.close()
+        return
+
+    raise URLSafetyError(f"more than {hops} redirects")
+
+
 def safe_fetch_text(
     url: str,
     *,
@@ -186,13 +255,10 @@ def safe_fetch_text(
     headers: dict[str, str] | None = None,
     client: Any = None,
 ) -> FetchResult:
-    """Fetch a URL with the address pinned to the one that was validated.
+    """Fetch a URL as text with the address pinned to the one that was validated.
 
-    Every redirect target is validated and pinned in turn, because a permitted first hop that
-    redirects to an internal address is the same attack with one more step.
-
-    Raises `URLSafetyError` when any hop fails validation, and `httpx.HTTPStatusError` on a
-    non-success response.
+    The checks are those of `open_checked`. Raises `URLSafetyError` when any hop fails
+    validation, and `httpx.HTTPStatusError` on a non-success response.
 
     `client` exists so a caller can supply a transport. Nothing is opened before the first URL has
     been validated, so a refused URL never reaches the network layer at all.
@@ -202,56 +268,30 @@ def safe_fetch_text(
     limits = get_limits()
     timeout = timeout_s if timeout_s is not None else limits.fetch_timeout_s
     cap = max_bytes if max_bytes is not None else limits.fetch_max_bytes
-    hops = max_redirects if max_redirects is not None else limits.fetch_max_redirects
 
     validate_url(url, allowed_ports=allowed_ports)
 
     owned = client is None
     if owned:
         client = httpx.Client(follow_redirects=False, timeout=timeout)
-    current = url
     try:
-        for _ in range(hops + 1):
-            validate_url(current, allowed_ports=allowed_ports)
-            addresses = [
-                ip for ip in resolve(_hostname(current)) if not is_disallowed_ip(ip)
-            ]
-            if addresses:
-                target = pin_target(current, str(addresses[0]))
-                request_url = target.connect_url
-                request_headers = {**(headers or {}), "Host": target.host_header}
-                extensions = {"sni_hostname": target.sni_hostname}
-            else:
-                # An address literal: validate_url already checked it, nothing to pin.
-                request_url, request_headers, extensions = (
-                    current,
-                    dict(headers or {}),
-                    {},
-                )
-
-            response = client.get(
-                request_url, headers=request_headers, extensions=extensions
-            )
-            if response.is_redirect:
-                location = response.headers.get("location", "")
-                if not location:
-                    raise URLSafetyError("redirect without a location")
-                current = str(httpx.URL(current).join(location))
-                continue
-
+        with open_checked(
+            url,
+            client=client,
+            max_redirects=max_redirects,
+            allowed_ports=allowed_ports,
+            headers=headers,
+        ) as response:
             response.raise_for_status()
-            body = response.content[:cap]
+            body = response.read()[:cap]
             return FetchResult(
-                url=current,
+                url=response.extensions["checked_url"],
                 content_type=response.headers.get("content-type", ""),
                 content=body.decode(response.encoding or "utf-8", errors="replace"),
             )
-
     finally:
         if owned:
             client.close()
-
-    raise URLSafetyError(f"more than {hops} redirects")
 
 
 def _hostname(url: str) -> str:
