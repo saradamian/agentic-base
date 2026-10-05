@@ -5,11 +5,12 @@ each rule cost to learn and, for every rule, which test fails when it stops bein
 
 The reason for the split is the standard's own first principle. Prose has no positive control: a
 paragraph asserting a property stays comfortable while the property rots. So every section below
-names its guard, and where there is none it says so rather than implying one.
+names its guard. Where there is none, the section says so.
 
 ## Where it comes from
 
-Two repositories in the same group, mature on opposite axes. The numbers were counted, not recalled:
+Two repositories in the same group, mature on opposite axes. The numbers below were counted in
+the repositories:
 
 | | willma2 | agentic-env |
 |---|---|---|
@@ -22,7 +23,7 @@ Two repositories in the same group, mature on opposite axes. The numbers were co
 Neither is the model on its own. willma2 has the process and not the rigor; agentic-env has the
 rigor and not the process. This repository takes both, and it could because it had no history to
 migrate when the choice was made. That window closes once a repository has contributors and a
-release, so the settings go in on the first day, not after the first incident.
+release. So the settings go in on the first day.
 
 ## A guard that cannot fail is worse than none
 
@@ -37,9 +38,8 @@ is part of adding one. The failures that taught it:
 - A calibration reported a flawless result from a scorer that had never run, because the client was
   built without a model and every verdict was the fail-open default. It was caught only because the
   verdict type carried an explicit `degraded` flag.
-- A boundary test's first repair was a skip on shallow clones, which fires on every run in
-  continuous integration by construction, so the property would never have been checked where it
-  mattered.
+- A boundary test's first repair was a skip on shallow clones. Continuous integration always
+  runs on a shallow clone, so the property would never have been checked where it mattered.
 
 **Guard:** `tests/test_overlay_contract.py`, `tests/test_portable_surface.py` and
 `tests/test_chart.py` each assert a rule and each was verified to fail when the rule is broken.
@@ -78,9 +78,10 @@ cannot read the list.
 ## Derive a lead time, never write it as a literal
 
 *A cleanup whose lead time is shorter than the work it must outlive destroys results silently.*
-One invariant, three incidents, twice on batch infrastructure: a 180-second drain against
-7,200-second work; a reaper with a stale 50-minute literal killing roughly a third of all cells for
-66 hours with no log line; a 30-second container grace period against requests that run to 1,800.
+That one invariant has three incidents behind it, two of them on batch infrastructure. A
+180-second drain ran against 7,200-second work. A reaper with a stale 50-minute literal killed
+roughly a third of all cells for 66 hours with no log line. A 30-second container grace period
+ran against requests that take up to 1,800 seconds.
 
 The literal is not wrong when written. It drifts when the thing it was derived from changes, and
 nothing connects them.
@@ -94,8 +95,9 @@ A field that can be filled in later will not be: in the corpus this came from, 4
 outcomes named no scorer at all, because attribution was a later step nobody ran (the numbers are
 in D5 of `docs/decisions.md`).
 
-So the creation model refuses a write it cannot attribute, and requiredness is spent where the
-information is unrecoverable: a scorer cannot be reconstructed once a run is over, a tenant can.
+So the creation model refuses a write it cannot attribute. A field is required where its
+information cannot be recovered later: a scorer cannot be reconstructed once a run is over, a
+tenant can.
 `docs/decisions.md` D9 states the rule and the table of which side each field falls on.
 
 **Guard:** `tests/domain/test_outcomes.py` asserts that recording an outcome without naming its
@@ -109,16 +111,16 @@ that an ADOPT verdict implemented by hand is a defect. For its first week nothin
 that happened, and it happened: the MCP surface hand-rolled the protocol while the ledger said
 ADOPT.
 
-**Guard:** `tests/test_reuse_ledger.py` parses every table in the ledger, reports how many rows
-each check read, and fails when a module has no verdict, a BUILD row has no revisit condition, an
-ADOPT module still carries the signature of doing the thing by hand, or an adopted vocabulary is
-restated instead of imported. It was verified red on the hand-rolled server before that server
-was replaced.
+**Guard:** `tests/test_reuse_ledger.py` parses every table in the ledger and reports how many
+rows each check read. It fails in four cases: a module has no verdict, a BUILD row has no revisit
+condition, an ADOPT module still carries the signature of doing the thing by hand, or an adopted
+vocabulary is restated where it should be imported. It was seen red on the hand-rolled server
+before that server was replaced.
 
 ## Site facts live in escaped configuration
 
-Anything that describes *where* software runs rather than *what* it does belongs outside the
-artifact: a registry, a hostname, a pull secret, an environment name, a catalogue entry. A chart
+A fact about *where* software runs belongs outside the artifact. That covers a registry, a
+hostname, a pull secret, an environment name and a catalogue entry. A chart
 that names one site's registry as its default is a chart that discloses a deployment topology and
 cannot be reused.
 
@@ -131,37 +133,37 @@ refuses a change here that creates one. The registries in the Dockerfile are bui
 ## The library half must be importable by the people who will delete their copy
 
 This layer exists so other projects can delete their copies and import instead. That only works if
-they can import it. On the day this was checked they could not: the package declared Python 3.14
-against a consumer whose floor is 3.10, and its core dependencies were a web framework, a migration
+they can import it. On the day this was checked they could not. The package declared Python 3.14
+against a consumer whose floor is 3.10. Its core dependencies were a web framework, a migration
 tool and a database driver, so importing a URL-safety helper would have pulled all three into a
 container on a compute node.
 
 Rules travel, storage does not. The outcome rules are functions over a structural protocol, so a
 consumer keeps its own record type and still gets them.
 
-**Guard:** `tests/test_portable_surface.py` lists the portable modules and checks that each parses
-under the consumer's grammar, uses no runtime name newer than its floor, and loads no service
-dependency when imported, the last in a fresh interpreter, because in-process it would pass
-whenever an earlier test had already imported the database layer. It also checks the linter's
-target version, which had been set to demand exactly the syntax the consumer cannot run.
+**Guard:** `tests/test_portable_surface.py` lists the portable modules. For each it checks that
+the module parses under the consumer's grammar, uses no runtime name newer than its floor, and
+loads no service dependency when imported. The last check runs in a fresh interpreter: in-process
+it would pass whenever an earlier test had already imported the database layer. The test also
+checks the linter's target version, which had been set to the syntax the consumer cannot run.
 
 ## Run the suite under the policy the repository declares
 
-This one has no guard, and that is a gap rather than an omission.
+This one has no guard. That is a known gap.
 
 `pyproject.toml` makes warnings errors. Every local run on one day suppressed them and reported 271
 passing; under the declared policy the suite could not collect at all. Two real defects were found
 by the public gate instead, and six red pushes followed. A check run under a weaker regime than the
 one declared cannot fail on the class of defect that regime exists for.
 
-Continuous integration runs the suite on both ends of the supported range precisely because a
-developer machine usually has one of them.
+Continuous integration runs the suite on both ends of the supported range, because a developer
+machine usually has one of them.
 
 ## A test that writes to a real file tests yesterday's schema
 
 A suite that writes to a database file in the working directory keeps that file between runs. Add
-a column, run the suite, and the table on disk is the old one: every write fails with a missing
-column, and the failure reads as a bug in the change rather than as a stale file. Two people hit
+a column, run the suite, and the table on disk is the old one. Every write fails with a missing
+column, and the failure looks like a bug in the change. It is a stale file. Two people hit
 it on the same day, one of them reviewing the repository from outside.
 
 So every test gets its own database in a temporary directory, the service's session dependency is
@@ -174,9 +176,9 @@ file in the working directory.
 
 Auto-merge fires the moment the required checks pass. A commit pushed to the branch after that,
 an amend, a fix-up, a wording change, reaches the branch and never reaches `main`: the squash
-already happened and the pull request is closed. It has happened three times on this repository,
-and each time a consumer's tests, not ours, found the missing commit. Push everything, then arm;
-or after a late push, read the pull request's state back before believing anything landed.
+already happened and the pull request is closed. It has happened three times on this repository.
+Each time a consumer's tests found the missing commit; ours could not. Push everything, then arm.
+After a late push, read the pull request's state back before believing anything landed.
 
 There is no guard for this, because the thing that would fail is a check that did not run.
 
@@ -190,9 +192,9 @@ verified commit.
 So the guarantee lives in the repository settings: rebase was removed from the allowed merge
 methods. A rule that can be bypassed by choosing the other button is not a rule.
 
-One caveat, because the green tick invites a stronger reading than it earns: a squash-merged
-commit is signed by the forge, not by the author. It attests that the forge performed the merge,
-not who wrote the content.
+One caveat, because the green tick invites a stronger reading than it earns. A squash-merged
+commit is signed by the forge. The signature attests that the forge performed the merge. It says
+nothing about who wrote the content.
 
 **Guard:** the branch ruleset permits squash only, with no bypass actors.
 
@@ -201,15 +203,15 @@ not who wrote the content.
 The repository is public. A hostname, an internal address, a home path, a colleague's address or
 a reference to a document a reader cannot open is a disclosure the moment it is pushed, and a
 word list of things to avoid only catches what its author already thought of. So the check works
-by shape: any link to a host outside a short public list, any `host:port` with no scheme, which is
-what a registry image line looks like, any email other than the forge's noreply identity, any
-absolute home path, any address outside the documentation ranges, any bank account, card or
-citizen service number that passes its checksum, and any attribution to an internal source. The
-site's own identifiers are checked on the deployment side against a list kept in the overlay,
-because a list of what a site hides describes the site.
+by shape. It flags a link to a host outside a short public list. It flags a `host:port` with no
+scheme, which is what a registry image line looks like. It flags an email other than the forge's
+noreply identity, an absolute home path, an address outside the documentation ranges, a bank
+account, card or citizen service number that passes its checksum, and an attribution to an
+internal source. The site's own identifiers are checked on the deployment side against a list
+kept in the overlay, because a list of what a site hides describes the site.
 
-Three instruments overlap here and the division between them is deliberate, because two verdicts
-on one question drift and the weaker one is the one people quote. **Credentials are gitleaks'**,
+Three instruments overlap here. The division between them is deliberate: two verdicts on one
+question drift, and the weaker one is the one people quote. **Credentials are gitleaks'**,
 over the history as well as the tree; this check does not look for them, for the same reason
 `tests/test_secret_scan.py` holds one rule in one place. **The checksummed money and identity
 shapes are the redaction layer's**, so this check calls its detector rather than carrying a second

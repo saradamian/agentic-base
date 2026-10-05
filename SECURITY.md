@@ -60,7 +60,7 @@ a network policy that allows only the destinations you intend.
 - Workflow actions are pinned by commit hash with the version in a trailing comment.
 - `tests/test_public_hygiene.py` on every change: no page or file may carry a link to a host
   outside the public list, an email address, a home path, a private address or a reference to an
-  internal source. It works by shape, not by a list of the things it is meant to hide.
+  internal source. It works by shape. A list of the things to hide would describe them.
 
 The image is built and started on every change, to prove it runs and carries no development
 tools, but not published or scanned here: the deployment pipeline on the SURF Developer Platform
