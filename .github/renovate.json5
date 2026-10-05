@@ -5,6 +5,9 @@
   "enabledManagers": ["pep621", "pip_requirements"],
   "labels": ["dependencies"],
   "packageRules": [
-    { "matchUpdateTypes": ["patch"], "automerge": false }
+    { "matchUpdateTypes": ["patch"], "automerge": false },
+    // The SDK pins the semantic conventions of its own release, and the instrumentation pins both.
+    // Updated one at a time the lock cannot resolve, so they move together.
+    { "matchPackageNames": ["/^opentelemetry-/"], "groupName": "opentelemetry" }
   ]
 }
