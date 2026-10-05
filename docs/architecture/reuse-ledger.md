@@ -122,6 +122,7 @@ something maintained already do this? `tests/test_reuse_ledger.py` fails when a 
 | `redaction/gliner.py` | the fallback: a GLiNER PII model in process, GPU when present | ADOPT GLiNER. The capitalisation filter on person spans is ours, because the model tags role nouns as people |
 | `redaction/layered.py` | patterns always, masking before a model sees the text, primary then fallback, closed when neither answers | BUILD. The fail-closed rule is a property of the record, not of any detector. Revisit when the platform offers a redaction service with the same guarantee |
 | `redaction/configured.py` | the service's redactor built from `pydantic-settings`, once | ADOPT `pydantic-settings` |
+| `tools/decorator.py` | declaring a tool from the function that implements it | BRIDGE. The `mcp` SDK derives a wire schema from a signature for its own server. This derives the in-process `Tool` of `tools/types.py`, which a consumer's registry and a server both take |
 | `tools/types.py` | the in-process tool contract | BRIDGE. `mcp.types.Tool` is the wire schema; this is the in-process one it is derived from, and the names must match across backends (D1) |
 
 ## The rule this file encodes
