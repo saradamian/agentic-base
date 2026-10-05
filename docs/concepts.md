@@ -20,7 +20,7 @@ allow, so a resolve rate computed over the survivors compares different populati
 means there is too little data for the interval to decide. *Sound* means neither.
 
 **Could have flagged.** Whether the check was able to fail on this input. With one arm, or with no
-exclusion anywhere, a clean result means nothing, and `agentic-base check` exits 2 rather than 0.
+exclusion anywhere, a clean result means nothing. `agentic-base check` then exits 2 instead of 0.
 
 **Scorer.** Who decided a run's outcome: the benchmark's own harness, a person, the agent itself,
 another model, the user's thumbs-up. Stored as `label_source` (`agentic_base.domain.outcomes.LabelSource`).
