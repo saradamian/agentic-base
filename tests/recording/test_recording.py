@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
-from agentic_base.recording import CallObserver, NullObserver, SafeObserver
+import pytest
+
+from agentic_base.recording import (
+    CALL_LOG_VARIABLE,
+    CallObserver,
+    JsonLinesObserver,
+    NullObserver,
+    SafeObserver,
+    observer_from_environment,
+)
 
 
 class _Recording:
@@ -89,3 +100,76 @@ def test_a_working_observer_never_increments_the_failure_count() -> None:
     safe.record("t", {}, "out", True, 1.0)
 
     assert safe.failures == 0
+
+
+def _lines(path: Path) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in path.read_text().splitlines()]
+
+
+def test_the_call_log_gets_one_line_per_call_and_a_failed_call_is_one_of_them(
+    tmp_path: Path,
+) -> None:
+    log = tmp_path / "calls.jsonl"
+    observer = JsonLinesObserver(log, server="easybuild")
+
+    observer.record("search", {"name": "zlib"}, "nine hits", True, 12.34)
+    observer.record("fetch", {"path": "missing.eb"}, "not found", False, 3.0)
+
+    first, second = _lines(log)
+    assert (first["server"], first["tool"], first["arguments"], first["success"]) == (
+        "easybuild",
+        "search",
+        {"name": "zlib"},
+        True,
+    )
+    assert first["elapsed_ms"] == 12.3 and first["result_chars"] == len("nine hits")
+    assert (second["tool"], second["success"]) == ("fetch", False)
+
+
+def test_the_call_log_leaves_the_result_text_out(tmp_path: Path) -> None:
+    log = tmp_path / "calls.jsonl"
+
+    JsonLinesObserver(log).record("fetch", {}, "the whole document", True, 1.0)
+
+    assert "the whole document" not in log.read_text()
+
+
+def test_two_servers_can_write_to_the_same_call_log(tmp_path: Path) -> None:
+    log = tmp_path / "shared" / "calls.jsonl"
+
+    JsonLinesObserver(log, server="easybuild").record("a", {}, "", True, 1.0)
+    JsonLinesObserver(log, server="slurm").record("b", {}, "", True, 1.0)
+
+    assert [entry["server"] for entry in _lines(log)] == ["easybuild", "slurm"]
+
+
+def test_without_the_variable_nothing_is_recorded(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(CALL_LOG_VARIABLE, raising=False)
+
+    assert isinstance(observer_from_environment("easybuild"), NullObserver)
+
+
+def test_the_variable_names_the_file_calls_are_written_to(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log = tmp_path / "calls.jsonl"
+    monkeypatch.setenv(CALL_LOG_VARIABLE, str(log))
+
+    observer_from_environment("easybuild").record("search", {}, "", True, 1.0)
+
+    assert _lines(log)[0]["server"] == "easybuild"
+
+
+def test_a_call_log_that_cannot_be_written_does_not_raise(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    blocker = tmp_path / "a-file"
+    blocker.write_text("")
+    monkeypatch.setenv(CALL_LOG_VARIABLE, str(blocker / "calls.jsonl"))
+    observer = observer_from_environment("easybuild")
+
+    observer.record("search", {}, "", True, 1.0)
+
+    assert isinstance(observer, SafeObserver) and observer.failures == 1
