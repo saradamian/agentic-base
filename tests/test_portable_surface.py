@@ -52,6 +52,7 @@ PORTABLE_MODULES = (
     "agentic_base.redaction.patterns",
     "agentic_base.redaction.redact",
     "agentic_base.security.netsec",
+    "agentic_base.tools.decorator",
     "agentic_base.tools.types",
 )
 """What a consumer may import. Anything outside this list is the service's own business."""
