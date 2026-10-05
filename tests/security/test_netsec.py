@@ -118,6 +118,7 @@ import httpx  # noqa: E402
 
 from agentic_base.security.netsec import (  # noqa: E402
     FetchResult,
+    open_checked,
     pin_target,
     safe_fetch_text,
 )
@@ -262,3 +263,109 @@ def test_a_non_success_response_raises(monkeypatch) -> None:
         safe_fetch_text(
             "https://example.com/", client=_client(lambda r: httpx.Response(404))
         )
+
+
+# --- the streamed fetch ---------------------------------------------------------------------
+
+
+def test_a_streamed_fetch_yields_the_response_before_its_body_is_read(
+    monkeypatch,
+) -> None:
+    """A caller can refuse a file from its headers and read a large one in chunks."""
+    _public(monkeypatch)
+    megabyte = b"x" * (1024 * 1024)
+    client = _client(
+        lambda r: httpx.Response(
+            200,
+            headers={"content-length": str(2 * 1024 * 1024)},
+            content=iter([megabyte, megabyte]),
+        )
+    )
+
+    with open_checked("https://example.com/big.tar.gz", client=client) as response:
+        declared = int(response.headers["content-length"])
+        chunks = [len(c) for c in response.iter_bytes(chunk_size=1024 * 1024)]
+
+    assert declared == 2 * 1024 * 1024
+    assert chunks == [1024 * 1024, 1024 * 1024]
+
+
+def test_a_streamed_fetch_connects_to_the_checked_address_and_keeps_the_host(
+    monkeypatch,
+) -> None:
+    _public(monkeypatch)
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, content=b"ok")
+
+    with open_checked("https://example.com/p", client=_client(handler)) as response:
+        response.read()
+
+    (request,) = seen
+    assert request.url.host == "93.184.216.34"
+    assert request.headers["host"] == "example.com"
+    assert request.extensions["sni_hostname"] == "example.com"
+
+
+def test_a_streamed_fetch_refuses_a_redirect_to_an_internal_address_without_requesting_it(
+    monkeypatch,
+) -> None:
+    _public(monkeypatch)
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers.get("host", ""))
+        return httpx.Response(
+            302, headers={"location": "http://169.254.169.254/latest/meta-data"}
+        )
+
+    with (
+        pytest.raises(netsec.URLSafetyError),
+        open_checked("https://example.com/src.tar.gz", client=_client(handler)),
+    ):
+        pass
+
+    assert seen == ["example.com"]
+
+
+def test_a_streamed_fetch_reports_the_url_of_the_final_hop_with_its_hostname(
+    monkeypatch,
+) -> None:
+    _public(monkeypatch)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/first":
+            return httpx.Response(
+                302, headers={"location": "https://cdn.example.net/second"}
+            )
+        return httpx.Response(200, content=b"ok")
+
+    with open_checked("https://example.com/first", client=_client(handler)) as response:
+        final = response.extensions["checked_url"]
+
+    assert final == "https://cdn.example.net/second"
+
+
+def test_a_streamed_fetch_stops_at_the_hop_limit(monkeypatch) -> None:
+    _public(monkeypatch)
+    client = _client(
+        lambda r: httpx.Response(302, headers={"location": "https://example.com/loop"})
+    )
+
+    with (
+        pytest.raises(netsec.URLSafetyError, match="redirects"),
+        open_checked("https://example.com/loop", client=client, max_redirects=3),
+    ):
+        pass
+
+
+def test_a_streamed_fetch_closes_the_response_when_the_block_ends(monkeypatch) -> None:
+    _public(monkeypatch)
+    client = _client(lambda r: httpx.Response(200, content=iter([b"a", b"b"])))
+
+    with open_checked("https://example.com/", client=client) as response:
+        assert not response.is_closed
+
+    assert response.is_closed
