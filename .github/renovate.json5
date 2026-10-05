@@ -7,7 +7,8 @@
   "packageRules": [
     { "matchUpdateTypes": ["patch"], "automerge": false },
     // The SDK pins the semantic conventions of its own release, and the instrumentation pins both.
-    // Updated one at a time the lock cannot resolve, so they move together.
-    { "matchPackageNames": ["/^opentelemetry-/"], "groupName": "opentelemetry" }
+    // Updated one at a time the lock cannot resolve, so they move together. Two of the four are
+    // released as 0.NNb0, which Renovate reads as unstable and leaves out unless told otherwise.
+    { "matchPackageNames": ["/^opentelemetry-/"], "groupName": "opentelemetry", "ignoreUnstable": false }
   ]
 }

@@ -40,7 +40,7 @@ def test_the_langfuse_recipe_posts_to_langfuse_with_basic_auth(monkeypatch) -> N
 
     assert exporter._endpoint == "https://cloud.langfuse.com/api/public/otel/v1/traces"  # noqa: SLF001
     assert (
-        exporter._headers["authorization"] == f"Basic {creds}"
+        exporter._client._headers["authorization"] == f"Basic {creds}"
     )  # the SDK lowercases keys  # noqa: SLF001
 
 
@@ -52,7 +52,7 @@ def test_the_phoenix_recipe_posts_to_phoenix_with_its_api_key(monkeypatch) -> No
     )
 
     assert exporter._endpoint == "http://phoenix:6006/v1/traces"  # noqa: SLF001
-    assert exporter._headers["api_key"] == "abc"  # noqa: SLF001
+    assert exporter._client._headers["api_key"] == "abc"  # noqa: SLF001
 
 
 def test_every_recipe_in_the_document_is_one_the_tests_cover() -> None:
