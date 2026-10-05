@@ -27,7 +27,14 @@ call is the work and the record is the account of it.
 
 from __future__ import annotations
 
+import json
+import os
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
+
+CALL_LOG_VARIABLE = "AP_CALL_LOG"
+"""Names the file that `observer_from_environment` writes calls to."""
 
 
 @runtime_checkable
@@ -131,3 +138,59 @@ class SafeObserver:
             self._inner.record(tool, arguments, result, success, elapsed_ms, **extra)
         except Exception:
             self.failures += 1
+
+
+class JsonLinesObserver:
+    """Appends one JSON object per call to a file.
+
+    The recorder for a server with nowhere else to put its calls. Several servers can name the
+    same file, and the `server` field says which one wrote a line. It keeps the arguments and the
+    length of the result, and leaves the result itself out: a result can be a whole document, and
+    the arguments are what says what an agent asked for. A host that handles personal data wraps
+    this in its own observer and redacts first.
+    """
+
+    def __init__(self, path: str | Path, *, server: str = "") -> None:
+        self._path = Path(path)
+        self._server = server
+
+    def inspect_arguments(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        return arguments
+
+    def inspect_result(self, tool: str, result: str, success: bool) -> str:
+        return result
+
+    def record(
+        self,
+        tool: str,
+        arguments: dict[str, Any],
+        result: str,
+        success: bool,
+        elapsed_ms: float,
+        **extra: Any,
+    ) -> None:
+        entry = {
+            "time": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+            "server": self._server,
+            "tool": tool,
+            "arguments": arguments,
+            "success": success,
+            "elapsed_ms": round(elapsed_ms, 1),
+            "result_chars": len(result),
+            **extra,
+        }
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        with self._path.open("a", encoding="utf-8") as log:
+            log.write(json.dumps(entry, default=str) + "\n")
+
+
+def observer_from_environment(server: str = "") -> CallObserver:
+    """The observer the environment asks for: a call log when `AP_CALL_LOG` names a file.
+
+    Read when called, never at import, so a variable set after import still counts. Wrapped in
+    `SafeObserver`: a log that cannot be written must not fail the call it describes.
+    """
+    path = os.environ.get(CALL_LOG_VARIABLE, "").strip()
+    if not path:
+        return NullObserver()
+    return SafeObserver(JsonLinesObserver(path, server=server))
