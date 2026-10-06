@@ -5,8 +5,9 @@
 [![python](https://img.shields.io/badge/python-3.10%20to%203.14-blue.svg)](https://github.com/saradamian/agentic-base/blob/main/pyproject.toml)
 [![cite](https://img.shields.io/badge/cite-CITATION.cff-green.svg)](https://github.com/saradamian/agentic-base/blob/main/CITATION.cff)
 
-Two checks for claims about AI agents, and a service that records agent runs so the checks can be
-made later.
+Three things for people who build and evaluate AI agents: two checks for claims about them, a
+service that records agent runs so the checks can be made later, and the small library a tool
+server needs.
 
 - **Did the comparison lose runs unevenly?** One agent resolves 85.7% and another 52.6%. The first
   also timed out on six hard tasks, the second on one, and a timeout has no verdict. Count every

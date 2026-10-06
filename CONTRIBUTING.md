@@ -14,16 +14,14 @@ correct; that goes in the commit message and, when it is a decision, in `docs/de
 ## Two halves, one repository
 
 The **library half** is what other projects import. It installs on Python 3.10 with pydantic,
-pydantic-settings, httpx and PyYAML, and nothing else. Which modules are portable is a list in
-`tests/test_portable_surface.py`, not a paragraph, and its guards fail when the list stops being
-true. The **service half** is an optional extra. If your change makes a portable module import a
+pydantic-settings, httpx and PyYAML, and nothing else. The portable modules are listed in
+`tests/test_portable_surface.py`, and its guards fail when the list stops being true. The **service half** is an optional extra. If your change makes a portable module import a
 service dependency, the suite tells you.
 
 ## Values that belong somewhere else
 
-Anything that is a fact about *where* this runs rather than *what* it does, a registry, a
-hostname, a pull secret, an environment name, does not go in code, chart defaults or the
-Dockerfile. It goes in a deployment overlay outside this repository, and the overlay may only
+A fact about *where* this software runs, such as a registry, a hostname, a pull secret or an
+environment name, does not go in code, chart defaults or the Dockerfile. It goes in a deployment overlay outside this repository, and the overlay may only
 add files, never modify ours; `overlay.cfg` declares which paths it owns and a guard refuses a
 change here that creates one. The Dockerfile takes registries as build arguments for this reason.
 The pattern and its tool are in `docs/architecture/deployment-overlay.md`.
@@ -72,7 +70,8 @@ store their values as strings, so adding a member to an enum needs no migration.
 ## Tests
 
 One test per behaviour, at the highest seam that can actually fail. Name the behaviour and the
-condition: `test_a_verdict_from_a_degraded_instrument_is_not_citable`, not `test_citable`. A test
+condition, as in `test_a_verdict_from_a_degraded_instrument_is_not_citable`. A name like
+`test_citable` says neither. A test
 that no plausible bug would fail should be deleted. A new module needs a test module of the same
 name in the same change; a guard checks.
 
@@ -91,7 +90,8 @@ deliberately left for later. It must not claim more than the diff delivers.
 `main` accepts pull requests only, with the gate green on both interpreters, every review thread
 resolved, and a linear history. Push everything before arming auto-merge: a commit pushed after
 the checks pass reaches the branch and never reaches `main`. There is no required reviewer count
-while the repository has one maintainer; the gate is the reviewer. That changes the day there is a second.
+while the repository has one maintainer; the gate is the reviewer. With a second maintainer, a
+review becomes required.
 
 ## Versioning and releases
 
