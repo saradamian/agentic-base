@@ -1,7 +1,7 @@
 # Observability: what the service emits, and where to point it
 
-Three signals, three standard channels, nothing private. An operator configures this service
-the way they configure every other OpenTelemetry service.
+Three signals go out over three standard channels, and there is nothing private in the setup.
+An operator configures this service the way they configure every other OpenTelemetry service.
 
 | signal | mechanism | configured by |
 |---|---|---|
@@ -9,9 +9,10 @@ the way they configure every other OpenTelemetry service.
 | metrics | Prometheus, via the FastAPI instrumentator | `METRICS_PORT`, or scrape the app |
 | traces | OpenTelemetry SDK: HTTP server spans, and every MCP call the SDK traces | the standard `OTEL_*` variables below |
 
-The service opens no agent or LLM spans: it is the record, not the agent. Its one model call is
-the redaction detector when `REDACTION` is `names`, an outbound request whose outcome lands on the
-record itself, in `redaction` and `extra.redaction`, rather than in a span. The span vocabulary in `agentic_base.observability.conventions` is for a consumer
+The service opens no agent or LLM spans, because it keeps the record and runs no agent. Its one
+model call is the redaction detector when `REDACTION` is `names`, an outbound request whose
+outcome lands on the record itself, in `redaction` and `extra.redaction`. No span is opened for
+it. The span vocabulary in `agentic_base.observability.conventions` is for a consumer
 that runs an agent and wants its spans labelled the way Phoenix, Langfuse and LangSmith read
 them.
 
@@ -27,11 +28,11 @@ OTEL_EXPORTER_OTLP_HEADERS=key=value,key2=value2
 
 With no exporter and no endpoint, spans are recorded and dropped. That is the one silent
 configuration, and `configure_tracing` returns the provider so a caller can see which it got.
-An unknown exporter name is refused rather than treated as none.
+An unknown exporter name is refused. It is never read as none.
 
 ## Recipes
 
-Each block below is held by a test (`tests/observability/test_recipes.py`) that sets exactly
+Each block below is held by a test (`tests/observability/test_recipes.py`) that sets
 these variables and checks the exporter the SDK builds from them: the endpoint it will post to
 and the headers it will send. That tests our side of the contract. It does not test the
 backend, which is theirs.
@@ -54,9 +55,9 @@ OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=https://cloud.langfuse.com/api/public/otel/v1
 OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic $(printf '%s:%s' "$LANGFUSE_PUBLIC_KEY" "$LANGFUSE_SECRET_KEY" | base64 -w0)"
 ```
 
-The traces-specific variable is used exactly as given. The generic
+The traces-specific variable is used as given. The generic
 `OTEL_EXPORTER_OTLP_ENDPOINT=https://cloud.langfuse.com/api/public/otel` reaches the same path,
-because the exporter appends `/v1/traces` to it; set one of the two, not both. For a self-hosted
+because the exporter appends `/v1/traces` to it. Set one of the two. For a self-hosted
 Langfuse replace the host.
 
 ### Arize Phoenix
@@ -69,7 +70,7 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://phoenix:6006
 
 A hosted Phoenix wants an API key: `OTEL_EXPORTER_OTLP_HEADERS="api_key=$PHOENIX_API_KEY"`.
 
-## Provenance is not telemetry
+## Provenance is a separate export
 
 A run's provenance in W3C PROV, OpenLineage or a Process Run Crate comes from
 `GET /runs/{run_id}/provenance?format=...`, and an export into MLflow from `agentic-base-mlflow`

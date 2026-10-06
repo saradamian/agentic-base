@@ -23,7 +23,7 @@ It refuses three things at the write path:
 - **Personal data on the shared tier.** A run classified `personal` or `health` that names the
   `community` isolation tier is rejected.
 - **A transcript it could not redact.** With redaction configured, a write that redaction cannot
-  process is refused rather than stored as received.
+  process is refused. Nothing is stored as received.
 
 Every create, label and approval joins a per-tenant hash chain, and `GET /runs/integrity` reports
 what it verified. A person can be erased on request or on a schedule with the chain still
