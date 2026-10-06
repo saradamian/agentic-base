@@ -35,8 +35,8 @@ logs record who scored each outcome at all.
 
 A guard that cannot fail is worse than no guard, because it gets cited. In the project this came
 from, one validity check reported clean for weeks while it was keyed off a leftover variable and
-could only ever hold one entry. That is why `agentic-base check` exits 2, not 0, when it could not
-have flagged anything.
+could only ever hold one entry. That is why `agentic-base check` exits 2 when it could not have
+flagged anything, and a clean 0 only when it could.
 
 When you write a check, break the thing it checks and confirm the check fails. The positive
 control in `tests/domain/test_validity.py` was verified that way.
