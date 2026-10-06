@@ -3,10 +3,11 @@ message: "If you use this software, please cite it using the metadata from this 
 type: software
 title: "surf-agentic-base"
 abstract: >-
-  A base layer for agentic work on research infrastructure. It records what actually ran with the
-  provenance needed to replay and audit it, adjudicates whether a comparison between two agent
-  configurations is sound enough to publish, and carries the primitives every consumer would
-  otherwise write separately and differently.
+  A record of what an AI agent did on research infrastructure: what the model received, who the
+  run acted for, what class of data it touched, who approved which action, how the person was
+  told, and who scored the outcome. A service keeps the record per tenant under a hash chain and
+  exports it as W3C PROV, OpenLineage and RO-Crate. Two checks on claims about agents come out of
+  the record, and the library half carries the primitives a tool server needs.
 authors:
   - family-names: Podareanu
     given-names: Damian

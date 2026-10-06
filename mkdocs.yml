@@ -9,6 +9,7 @@ nav:
   - Readme: include-readme.md
   - Concepts: concepts.md
   - Running the service: service.md
+  - Check a comparison: checks.md
   - Reference:
     - Decisions: decisions.md
     - Observability: OBSERVABILITY.md

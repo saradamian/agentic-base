@@ -1,13 +1,15 @@
 # surf-agentic-base
 
-Two checks for claims about AI agents (did the comparison lose runs unevenly, and who scored each
-outcome), and a service that records agent runs so the checks can be made later.
+The record of what an AI agent did: who it acted for, on what data, with whose approval, how the
+person was told, and who scored the outcome. A service keeps it per tenant under audit and exports
+it in the provenance standards. Two checks on claims about agents come out of the same record.
 
 Read these first:
 
-- [The readme](include-readme.md): the two checks, and `agentic-base check` over logs you already have
+- [The readme](include-readme.md): the record, the service, the tool-server library, and the two checks
 - [Concepts](concepts.md): the fifteen terms, each pointing at its code
 - [Running the service](service.md): worked examples, tokens, MCP, export
+- [Check a comparison](checks.md): the two checks, over the record or over logs you already have
 
 Reference, when you need it:
 

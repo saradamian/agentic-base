@@ -1,7 +1,7 @@
 [project]
 name = "surf-agentic-base"
 authors = [{ name = "SURF" }]
-description = "Agentic base layer: run provenance, comparison validity, and shared safety primitives."
+description = "The record of what an AI agent did, for whom and with whose approval; plus the library a tool server needs."
 requires-python = ">=3.10"
 license = "EUPL-1.2"
 license-files = ["LICENSE"]
