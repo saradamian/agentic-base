@@ -127,7 +127,8 @@ def test_a_service_example_prints_what_its_output_file_shows(
 
 def test_the_pages_show_the_output_the_examples_print() -> None:
     pages = {
-        "README.md": ("results.out", "is_this_comparison_sound.out"),
+        "README.md": ("results.out",),
+        "docs/checks.md": ("results.out", "is_this_comparison_sound.out"),
         "docs/service.md": ("record_and_ask.out", "service_agent.out"),
     }
     for page, outputs in pages.items():

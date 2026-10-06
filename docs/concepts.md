@@ -3,34 +3,6 @@
 The fifteen terms the code and the rest of these pages use. Each names the field or function it
 refers to, so you can look it up.
 
-## The two checks
-
-**Arm and item.** An *arm* is one configuration being compared: a model, a prompt, a version of an
-agent. An *item* is one unit of work that every arm attempts: a task, a question, an issue. A
-record that compares nothing leaves both empty.
-
-**Exclusion channel.** Every way a run can leave the denominator before it gets a verdict: a
-timeout, a crash, an error, a limit, a record with no verdict (`no_verdict`), a task an arm never
-started (`never_attempted`, see `agentic_base.domain.validity`). The check counts each channel per
-arm. A run that is counted is `included`.
-
-**Sound, not sound, inconclusive.** What `check_comparison` returns. *Not sound* means some
-exclusion channel's rate differs between arms by more than a 95% interval and an absolute floor
-allow, so a resolve rate computed over the survivors compares different populations. *Inconclusive*
-means there is too little data for the interval to decide. *Sound* means neither.
-
-**Could have flagged.** Whether the check was able to fail on this input. With one arm, or with no
-exclusion anywhere, a clean result means nothing. `agentic-base check` then exits 2 instead of 0.
-
-**Scorer.** Who decided a run's outcome: the benchmark's own harness, a person, the agent itself,
-another model, the user's thumbs-up. Stored as `label_source` (`agentic_base.domain.outcomes.LabelSource`).
-An outcome with no scorer is refused by the service.
-
-**Citable and diagnostic.** A scorer's standing (`LabelAuthority`). Only the benchmark's own
-harness or grader and a person are *citable*; everything else is *diagnostic*. A diagnostic
-verdict is recorded and is never reported as a result. A citable scorer that failed open is marked *degraded* and loses
-its standing for that run.
-
 ## The record
 
 **Run record.** One agent run as the service stores it: what the model received, the environment
@@ -60,3 +32,31 @@ nothing is stored unredacted.
 
 **Erasure.** Emptying a person's transcript and names on request or after a tenant's retention
 period, while the audit chain still verifies and reports that the erasure happened.
+
+## The two checks
+
+**Arm and item.** An *arm* is one configuration being compared: a model, a prompt, a version of an
+agent. An *item* is one unit of work that every arm attempts: a task, a question, an issue. A
+record that compares nothing leaves both empty.
+
+**Exclusion channel.** Every way a run can leave the denominator before it gets a verdict: a
+timeout, a crash, an error, a limit, a record with no verdict (`no_verdict`), a task an arm never
+started (`never_attempted`, see `agentic_base.domain.validity`). The check counts each channel per
+arm. A run that is counted is `included`.
+
+**Sound, not sound, inconclusive.** What `check_comparison` returns. *Not sound* means some
+exclusion channel's rate differs between arms by more than a 95% interval and an absolute floor
+allow, so a resolve rate computed over the survivors compares different populations. *Inconclusive*
+means there is too little data for the interval to decide. *Sound* means neither.
+
+**Could have flagged.** Whether the check was able to fail on this input. With one arm, or with no
+exclusion anywhere, a clean result means nothing. `agentic-base check` then exits 2 instead of 0.
+
+**Scorer.** Who decided a run's outcome: the benchmark's own harness, a person, the agent itself,
+another model, the user's thumbs-up. Stored as `label_source` (`agentic_base.domain.outcomes.LabelSource`).
+An outcome with no scorer is refused by the service.
+
+**Citable and diagnostic.** A scorer's standing (`LabelAuthority`). Only the benchmark's own
+harness or grader and a person are *citable*; everything else is *diagnostic*. A diagnostic
+verdict is recorded and is never reported as a result. A citable scorer that failed open is marked *degraded* and loses
+its standing for that run.
