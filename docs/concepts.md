@@ -27,8 +27,8 @@ another model, the user's thumbs-up. Stored as `label_source` (`agentic_base.dom
 An outcome with no scorer is refused by the service.
 
 **Citable and diagnostic.** A scorer's standing (`LabelAuthority`). Only the benchmark's own
-harness or grader and a person are *citable*; everything else is *diagnostic*: worth recording,
-not worth reporting as a result. A citable scorer that failed open is marked *degraded* and loses
+harness or grader and a person are *citable*; everything else is *diagnostic*. A diagnostic
+verdict is recorded and is never reported as a result. A citable scorer that failed open is marked *degraded* and loses
 its standing for that run.
 
 ## The record
@@ -55,8 +55,8 @@ when, kept beside the run.
 `GET /runs/integrity` verifies it and names a changed, cut or missing entry.
 
 **Redaction.** Removing personal data and credentials from a transcript before it is written
-(`agentic_base.redaction`). When redaction is configured and cannot run, the write is refused
-rather than stored unredacted.
+(`agentic_base.redaction`). When redaction is configured and cannot run, the write is refused, so
+nothing is stored unredacted.
 
 **Erasure.** Emptying a person's transcript and names on request or after a tenant's retention
 period, while the audit chain still verifies and reports that the erasure happened.

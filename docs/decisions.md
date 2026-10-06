@@ -6,14 +6,15 @@ because getting it wrong in a previous project cost something specific.
 ## D1: Identical capability, identical tool name
 
 When two backends implement the same capability, they register the same tool name. A filesystem
-on a host and a filesystem inside a container both expose `read_file`, not `read_file` and
+on a host and a filesystem inside a container both expose `read_file`. There is no
 `docker_read_file`.
 
 The reason is telemetry. Aggregating by tool name across backends only works if the names match,
 and once two names exist for one capability every downstream count needs a translation table that
 nobody maintains. There is no agent in this repository yet, so there is nothing to enforce and no
 test to write. A test with one backend would be a guard that cannot fail, which is the first
-thing this project is supposed to avoid. The sentence is the artifact.
+thing this project is supposed to avoid. Until there is code to hold it, this written rule is
+the artifact.
 
 ## D2: Pass resolved configuration, never a name to resolve again
 
@@ -22,8 +23,8 @@ differently from the caller, and nothing will look inconsistent anywhere you can
 
 In the predecessor project an experimental arm labelled as having a behaviour disabled ran with it
 enabled for an entire era, because the caller passed a preset's name and the component below
-re-resolved that name to the stock preset. One published contrast was invalidated. Pass the
-resolved object.
+re-resolved that name to the stock preset. One published contrast was invalidated. Since then
+every component receives the resolved object and never a name.
 
 This matters more on a platform with layered environment variables, mounted configuration and a
 template someone else wrote, because there the same name resolves differently by design.
@@ -50,8 +51,8 @@ how many records it examined; `extra.redaction` counts the strings each detector
 
 ## D5: Provenance is required at the point of recording
 
-Optional provenance is never supplied. Not from laziness, but through the honest path of least
-resistance when someone is trying to get one thing working.
+Optional provenance is never supplied. People leave it out while they get one thing working,
+with no bad intent, and it stays out.
 
 So `tenant` and `code_revision` have no default, and an outcome cannot be recorded without naming
 the scorer that produced it. In the project this came from, 33 trace stores held 10,920 recorded
@@ -66,7 +67,8 @@ the system's own documentation of itself.
 A detector for whether guidance had been injected into a prompt matched every prompt in both arms,
 because the prompt teaches the model about the injected section and quotes its header inline. The
 verdict was implausible enough to be investigated. A less surprising false positive would have
-stood. This is a property of self-documenting systems, not a quirk of one prompt.
+stood. Every system that documents itself has this property, so the rule reaches beyond that
+one prompt.
 
 ## D7: No memory, skill or experience subsystem
 
@@ -99,18 +101,18 @@ inside a task container with no route to a database. Neither problem was visible
 repository, because everything here is the service.
 
 So the split is explicit. The library half takes pydantic, pydantic-settings, httpx and PyYAML,
-and nothing else. The service half is an optional extra. The declared floor is the consumer's
-floor, not ours.
+and nothing else. The service half is an optional extra. The declared Python floor is the
+consumer's floor.
 
 Two consequences worth stating, because they are the parts that get undone later.
 
-The rules are functions over a structural protocol, not methods on our table. A consumer keeps its
-own record type and still gets `is_citable`, `is_excluded` and `exclusion_channel`. If applying the
+The rules are functions over a structural protocol, so they run on any record with the right
+fields. A consumer keeps its own record type and still gets `is_citable`, `is_excluded` and `exclusion_channel`. If applying the
 discipline required adopting the storage, the discipline would not travel, and a base layer whose
 contribution does not travel is a second copy of the thing it meant to replace.
 
-And the portable surface is a list in `tests/test_portable_surface.py` rather than a paragraph in
-a document. It checks that every portable module parses under the consumer's grammar, uses no
+And the portable surface is a list in `tests/test_portable_surface.py`, where a test reads it.
+The test checks that every portable module parses under the consumer's grammar, uses no
 runtime name newer than the floor, and loads no service dependency when imported, that the
 declared floor still admits the consumer, and that the linter targets that floor.
 The import check runs in a fresh interpreter on purpose: in-process it would pass whenever an
@@ -138,9 +140,8 @@ The parallel is fair and the conclusion is still wrong, because the cost of bein
 tenant is a backfill and the cost of being wrong about a scorer is a corpus nobody may cite.
 
 A second argument was available and is deliberately not used: the declared destination is a
-multitenant facility, so the constant string is expected to stop being constant. Arguments from a
-future deployment are exactly the kind this repository is supposed to distrust. It is the
-asymmetry above that carries the decision.
+multitenant facility, so the constant string is expected to stop being constant. This repository
+distrusts arguments from a future deployment. The asymmetry above carries the decision.
 
 What this buys is that the next field does not need a debate. Ask whether the information can be
 reconstructed from what will still exist. If it cannot, refuse the write without it.
@@ -149,7 +150,8 @@ reconstructed from what will still exist. If it cannot, refuse the write without
 
 This repository is the contracts layer. The capability blocks an agent calls, hpc, inference,
 knowledge, data, stacks, artifacts, forge, execution, web, channels, workspace, are each their
-own package with the owner of the system behind them. They import this; nothing here imports them.
+own package with the owner of the system behind them. They import this repository. Nothing here
+imports them.
 
 The rule exists because the alternative was tried. Eight modules were rewritten into this
 repository from agentic-env in its first week, smaller and in some cases worse, and a scheduler
