@@ -110,6 +110,9 @@ Semantic versioning. The version is the git tag; nothing is edited to cut a rele
   token is stored anywhere.
 - One version per merge a consumer is waiting on. A local tag is never re-pointed after it has
   been announced; three releases in one day crossed with a push that way.
+- A merge a consumer waits on gets its tag the same day. Nothing fails on its own when that is
+  forgotten, so `release-drift` runs daily and keeps one issue open while `main` has carried
+  unreleased commits for more than a week. It cannot tag; a release tag is signed by a person.
 - `CITATION.cff` carries the version and the release date, and `charts/app/Chart.yaml` carries the
   version as `appVersion`, which is the image tag a deployment gets by default; update all three
   in the same change that tags.

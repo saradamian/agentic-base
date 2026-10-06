@@ -1,0 +1,64 @@
+# Unreleased changes on main are a debt to every consumer, and the tag that pays it is a person's
+# action, so nothing fails on its own when the person forgets. Measured here: 0.8.0 was prepared
+# on 26 September and tagged on 6 October, while a consumer pinned a commit to get on with its
+# work. This job fails, and keeps one issue current, when main has carried unreleased commits for
+# longer than `max_days`. It cannot cut the release: a tag has to be signed by a listed signer.
+name: release-drift
+
+on:
+  schedule:
+    - cron: "23 7 * * *"
+  workflow_dispatch:
+    inputs:
+      max_days:
+        description: Days main may carry unreleased commits before this fails
+        default: "7"
+
+permissions: {}
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - name: how long main has been ahead of the newest release
+        id: drift
+        env:
+          MAX_DAYS: ${{ inputs.max_days || '7' }}
+        run: |
+          set -euo pipefail
+          tag=$(git describe --tags --abbrev=0 --match 'v*.*.*' origin/main)
+          commits=$(git rev-list --count "$tag..origin/main")
+          if [ "$commits" = "0" ]; then
+            echo "main is $tag; nothing unreleased"; echo "unreleased=0" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          first=$(git log --reverse --format=%ct "$tag..origin/main" | head -1)
+          days=$(( ( $(date +%s) - first ) / 86400 ))
+          echo "main is $commits commit(s) ahead of $tag; the oldest is $days day(s) old (limit $MAX_DAYS)"
+          {
+            echo "unreleased=$commits"; echo "tag=$tag"; echo "days=$days"
+          } >> "$GITHUB_OUTPUT"
+          test "$days" -le "$MAX_DAYS"
+      - name: keep one issue current
+        if: failure() && steps.drift.outputs.unreleased != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.drift.outputs.tag }}
+          DAYS: ${{ steps.drift.outputs.days }}
+          COMMITS: ${{ steps.drift.outputs.unreleased }}
+        run: |
+          set -euo pipefail
+          title="main has unreleased changes"
+          body="main is $COMMITS commit(s) ahead of $TAG, and the oldest has waited $DAYS day(s). A consumer pins a commit until there is a tag. Tag the release, or close this if the wait is intended. Opened by the release-drift workflow."
+          number=$(gh issue list --state open --search "in:title \"$title\"" --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body" --label "release"
+          fi
