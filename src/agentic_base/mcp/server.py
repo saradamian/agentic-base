@@ -22,23 +22,19 @@ from __future__ import annotations
 
 import json
 import sys
-import time
-from collections.abc import Awaitable, Callable
-from dataclasses import replace
+from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from mcp.server import MCPServer
-from mcp.server.context import ServerRequestContext
 from mcp.server.mcpserver.exceptions import ToolError
-from mcp.types import CallToolResult, TextContent
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
 from agentic_base.domain.run_record import RunRecord
 from agentic_base.domain.validity import check_comparison, report_as_dict
 from agentic_base.limits import get_limits
-from agentic_base.recording import CallObserver, NullObserver, SafeObserver
+from agentic_base.recording import CallObserver, NullObserver, ObservingMiddleware
 
 SERVER_NAME = "surf-agentic-base"
 
@@ -187,94 +183,6 @@ def call_tool(
     return {"error": f"unknown tool: {name}"}
 
 
-class ObservingMiddleware:
-    """The recording seam, as the SDK's own middleware.
-
-    Every ``tools/call`` passes the observer's three hooks: arguments before dispatch, the
-    result after, and one record per call whether it succeeded or not. A failure that reaches
-    the middleware as an exception is recorded and re-raised. Wrapped in ``SafeObserver`` so
-    a host's recorder cannot break a call.
-    """
-
-    def __init__(self, observer: CallObserver) -> None:
-        self.observer = SafeObserver(observer)
-
-    async def __call__(
-        self,
-        ctx: ServerRequestContext[Any, Any],
-        call_next: Callable[[ServerRequestContext[Any, Any]], Awaitable[Any]],
-    ) -> Any:
-        if ctx.method != "tools/call":
-            return await call_next(ctx)
-        params = dict(ctx.params or {})
-        tool = str(params.get("name", ""))
-        arguments = self.observer.inspect_arguments(
-            tool, dict(params.get("arguments") or {})
-        )
-        started = time.perf_counter()
-        try:
-            result = await call_next(
-                replace(ctx, params={**params, "arguments": arguments})
-            )
-        except Exception as exc:
-            self.observer.record(
-                tool, arguments, str(exc), False, (time.perf_counter() - started) * 1000
-            )
-            raise
-        elapsed_ms = (time.perf_counter() - started) * 1000
-        success = not _is_error(result)
-        text = _first_text(result)
-        seen = self.observer.inspect_result(tool, text, success)
-        if seen != text:
-            # A client may read the structured copy instead of the text, so a rewrite that
-            # reached only the text would hand the original to exactly those clients.
-            result = _with_structured(_with_first_text(result, seen), seen)
-        self.observer.record(
-            tool, arguments, seen, success, elapsed_ms, method=ctx.method
-        )
-        return result
-
-
-# At the middleware tier a result is the wire form, a dict with camelCase keys, not the model.
-# Both shapes are handled so a future SDK that hands the model through changes nothing here.
-
-
-def _is_error(result: Any) -> bool:
-    if isinstance(result, CallToolResult):
-        return bool(result.is_error)
-    return bool(isinstance(result, dict) and result.get("isError"))
-
-
-def _first_text(result: Any) -> str:
-    if isinstance(result, CallToolResult):
-        return next((b.text for b in result.content if isinstance(b, TextContent)), "")
-    if isinstance(result, dict):
-        for block in result.get("content") or []:
-            if isinstance(block, dict) and block.get("type") == "text":
-                return str(block.get("text", ""))
-    return ""
-
-
-def _with_first_text(result: Any, text: str) -> Any:
-    if isinstance(result, CallToolResult):
-        content = list(result.content)
-        for i, block in enumerate(content):
-            if isinstance(block, TextContent):
-                content[i] = TextContent(type="text", text=text)
-                break
-        return result.model_copy(update={"content": content})
-    if isinstance(result, dict):
-        content = [
-            dict(b) if isinstance(b, dict) else b for b in result.get("content") or []
-        ]
-        for block in content:
-            if isinstance(block, dict) and block.get("type") == "text":
-                block["text"] = text
-                break
-        return {**result, "content": content}
-    return result
-
-
 def build_server(
     session_factory: Callable[[], Session],
     observer: CallObserver | None = None,
@@ -400,22 +308,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-def _with_structured(result: Any, text: str) -> Any:
-    """Replace the structured copy with the rewritten text: parsed when it is still a JSON
-    object, otherwise wrapped as ``{"result": text}``. Dropping it is not an option, because a
-    client refuses a result without structured content when the tool declares an output schema.
-    """
-    try:
-        parsed = json.loads(text)
-    except ValueError:
-        parsed = None
-    structured = parsed if isinstance(parsed, dict) else {"result": text}
-    if isinstance(result, CallToolResult):
-        if result.structured_content is None:
-            return result
-        return result.model_copy(update={"structured_content": structured})
-    if isinstance(result, dict) and result.get("structuredContent") is not None:
-        return {**result, "structuredContent": structured}
-    return result
