@@ -147,15 +147,21 @@ class JsonLinesObserver:
     """Appends one JSON object per call to a file.
 
     The recorder for a server with nowhere else to put its calls. Several servers can name the
-    same file, and the `server` field says which one wrote a line. It keeps the arguments and the
-    length of the result, and leaves the result itself out: a result can be a whole document, and
-    the arguments are what says what an agent asked for. A host that handles personal data wraps
-    this in its own observer and redacts first.
+    same file, and the `server` field (with `server_version` when given) says which one wrote a
+    line. It keeps the arguments and the length of the result, and leaves the result itself out: a
+    result can be a whole document, and the arguments are what says what an agent asked for. What
+    `ObservingMiddleware` adds lands here too: the request id, the protocol version, the client's
+    name and version, the caller's `_meta` keys (an agent's run id among them), the trace and span
+    ids, and, for a failed call, the error text the client got, cut at `call_log_error_chars`. A
+    host that handles personal data wraps this in its own observer and redacts first.
     """
 
-    def __init__(self, path: str | Path, *, server: str = "") -> None:
+    def __init__(
+        self, path: str | Path, *, server: str = "", version: str = ""
+    ) -> None:
         self._path = Path(path)
         self._server = server
+        self._version = version
 
     def inspect_arguments(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return arguments
@@ -175,6 +181,7 @@ class JsonLinesObserver:
         entry = {
             "time": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
             "server": self._server,
+            **({"server_version": self._version} if self._version else {}),
             "tool": tool,
             "arguments": arguments,
             "success": success,
@@ -187,8 +194,11 @@ class JsonLinesObserver:
             log.write(json.dumps(entry, default=str) + "\n")
 
 
-def observer_from_environment(server: str = "") -> CallObserver:
+def observer_from_environment(server: str = "", version: str = "") -> CallObserver:
     """The observer the environment asks for: a call log when `AP_CALL_LOG` names a file.
+
+    *server* and *version* name the server in every line, so a log several servers share still says
+    which build answered.
 
     Read when called, never at import, so a variable set after import still counts. Wrapped in
     `SafeObserver`: a log that cannot be written must not fail the call it describes.
@@ -196,7 +206,7 @@ def observer_from_environment(server: str = "") -> CallObserver:
     path = os.environ.get(CALL_LOG_VARIABLE, "").strip()
     if not path:
         return NullObserver()
-    return SafeObserver(JsonLinesObserver(path, server=server))
+    return SafeObserver(JsonLinesObserver(path, server=server, version=version))
 
 
 class ObservingMiddleware:
@@ -225,6 +235,7 @@ class ObservingMiddleware:
         arguments = self.observer.inspect_arguments(
             tool, dict(params.get("arguments") or {})
         )
+        context = _call_context(ctx, params)
         started = time.perf_counter()
         try:
             result = await call_next(
@@ -232,7 +243,14 @@ class ObservingMiddleware:
             )
         except Exception as exc:
             self.observer.record(
-                tool, arguments, str(exc), False, (time.perf_counter() - started) * 1000
+                tool,
+                arguments,
+                str(exc),
+                False,
+                (time.perf_counter() - started) * 1000,
+                method=ctx.method,
+                error=_capped(str(exc)),
+                **context,
             )
             raise
         elapsed_ms = (time.perf_counter() - started) * 1000
@@ -243,10 +261,82 @@ class ObservingMiddleware:
             # A client may read the structured copy instead of the text, so a rewrite that reached
             # only the text would hand the original to exactly those clients.
             result = _with_structured(_with_first_text(result, seen), seen)
+        if not success:
+            context["error"] = _capped(seen)
         self.observer.record(
-            tool, arguments, seen, success, elapsed_ms, method=ctx.method
+            tool, arguments, seen, success, elapsed_ms, method=ctx.method, **context
         )
         return result
+
+
+#: Keys the protocol itself puts in a request's ``_meta``; the session already says what they say.
+_PROTOCOL_META_PREFIX = "io.modelcontextprotocol/"
+
+
+def _call_context(ctx: Any, params: dict[str, Any]) -> dict[str, Any]:
+    """What joins a call to the rest of the story: who called, which request, which trace, which run.
+
+    The request id and protocol version from the request; the client's name and version from the
+    handshake; the caller's own ``_meta`` keys, where an agent can pass its run id (base names it
+    ``agentic_base.run_id``, the tag its MLflow export uses); and the ids of the current
+    OpenTelemetry span, which is the SDK's span for this call. A field that is unknown is left out.
+    """
+    context: dict[str, Any] = {}
+    request_id = getattr(ctx, "request_id", None)
+    if request_id is not None:
+        context["request_id"] = request_id
+    protocol = getattr(ctx, "protocol_version", None)
+    if protocol:
+        context["protocol_version"] = protocol
+    client = _client(ctx)
+    if client:
+        context["client"] = client
+    meta = params.get("_meta") or getattr(ctx, "meta", None) or {}
+    caller_meta = {
+        k: v
+        for k, v in dict(meta).items()
+        if not str(k).startswith(_PROTOCOL_META_PREFIX)
+    }
+    if caller_meta:
+        context["meta"] = caller_meta
+    context.update(_trace_ids())
+    return context
+
+
+def _client(ctx: Any) -> dict[str, str]:
+    session = getattr(ctx, "session", None)
+    info = getattr(getattr(session, "client_params", None), "client_info", None)
+    pairs = (
+        ("name", getattr(info, "name", None)),
+        ("version", getattr(info, "version", None)),
+    )
+    return {key: str(value) for key, value in pairs if value}
+
+
+def _trace_ids() -> dict[str, str]:
+    """The current span's ids, when OpenTelemetry is installed and a span is recording.
+
+    The MCP SDK depends on OpenTelemetry and opens a span for every request, so on a server this is
+    that span. The import is here so the library half does not need OpenTelemetry to be imported.
+    """
+    try:
+        from opentelemetry import trace
+    except ImportError:
+        return {}
+    span = trace.get_current_span().get_span_context()
+    if not span.is_valid:
+        return {}
+    return {
+        "trace_id": format(span.trace_id, "032x"),
+        "span_id": format(span.span_id, "016x"),
+    }
+
+
+def _capped(text: str) -> str:
+    from agentic_base.limits import get_limits
+
+    limit = get_limits().call_log_error_chars
+    return text if len(text) <= limit else f"{text[:limit]}… [{len(text)} characters]"
 
 
 # At the middleware tier a result is the wire form, a dict with camelCase keys; a later SDK may hand

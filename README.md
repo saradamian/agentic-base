@@ -118,7 +118,10 @@ observer.record("checksum", {"url": "https://example.org/x"}, "...", True, 12.0)
   A host with its own journal implements `CallObserver` instead.
 - `ObservingMiddleware` puts that observer in front of every tool call of a server built on the
   MCP SDK: `MCPServer(name, middleware=[ObservingMiddleware(observer_from_environment(server=name))])`.
-  It imports nothing from the SDK, so it adds no dependency to the library half.
+  It imports nothing from the SDK, so it adds no dependency to the library half. Each line then
+  also says which client and request the call came from, its trace and span ids, the caller's
+  `_meta` keys and, for a failed call, the error the client got. An agent that sends its run id
+  as `_meta["agentic_base.run_id"]` gets its calls joined to its run record.
 
 What is deliberately not here: the server loop itself. The MCP SDK has it, and a server of a few
 tools is about a hundred lines on the SDK's low-level `Server`.

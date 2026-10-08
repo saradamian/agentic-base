@@ -213,3 +213,99 @@ def test_the_middleware_is_still_importable_where_it_used_to_live() -> None:
     from agentic_base.mcp import server
 
     assert server.ObservingMiddleware is ObservingMiddleware
+
+
+async def _served(log: Path, **call: Any) -> list[dict[str, Any]]:
+    from mcp import Client
+    from mcp.server import MCPServer
+
+    server = MCPServer(
+        "demo",
+        middleware=[
+            ObservingMiddleware(JsonLinesObserver(log, server="demo", version="1.2.3"))
+        ],
+    )
+
+    @server.tool()
+    def double(n: int) -> int:
+        return 2 * n
+
+    @server.tool()
+    def broken() -> str:
+        # A tool error's text reaches the client; an unexpected exception's text does not.
+        from mcp.server.mcpserver.exceptions import ToolError
+
+        raise ToolError("no page " + "x" * 2000)
+
+    async with Client(server) as client:
+        await client.call_tool(
+            "double", {"n": 21}, meta={"agentic_base.run_id": "run-123"}
+        )
+        await client.call_tool("broken", {})
+    return [json.loads(line) for line in log.read_text().splitlines()]
+
+
+@pytest.mark.asyncio
+async def test_a_call_record_says_which_client_request_and_run_it_belongs_to(
+    tmp_path: Path,
+) -> None:
+    ok, _ = await _served(tmp_path / "calls.jsonl")
+    assert ok["server_version"] == "1.2.3"
+    assert isinstance(ok["request_id"], int)
+    assert ok["protocol_version"]
+    assert ok["client"]["name"]
+    # the caller's own keys are kept; the protocol's, which the session already gives, are not
+    assert ok["meta"] == {"agentic_base.run_id": "run-123"}
+    assert "error" not in ok
+
+
+@pytest.mark.asyncio
+async def test_a_failed_call_keeps_its_error_cut_at_the_limit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from agentic_base.limits import get_limits
+
+    monkeypatch.setenv("AP_CALL_LOG_ERROR_CHARS", "40")
+    get_limits.cache_clear()
+    try:
+        _, failed = await _served(tmp_path / "calls.jsonl")
+    finally:
+        monkeypatch.delenv("AP_CALL_LOG_ERROR_CHARS")
+        get_limits.cache_clear()
+    assert failed["success"] is False
+    assert "no page" in failed["error"]
+    assert failed["error"].endswith("characters]")
+    assert len(failed["error"]) < 80
+
+
+@pytest.mark.asyncio
+async def test_a_call_record_carries_the_ids_of_the_span_it_ran_in(
+    tmp_path: Path,
+) -> None:
+    from dataclasses import dataclass
+
+    from opentelemetry.sdk.trace import TracerProvider
+
+    @dataclass
+    class _Ctx:
+        method: str
+        params: dict[str, Any]
+
+    async def _call_next(ctx: Any) -> dict[str, Any]:
+        return {"content": [{"type": "text", "text": "42"}], "isError": False}
+
+    extras: list[dict[str, Any]] = []
+
+    class _Extras(NullObserver):
+        def record(self, tool, arguments, result, success, elapsed_ms, **extra) -> None:
+            extras.append(extra)
+
+    middleware = ObservingMiddleware(_Extras())
+    tracer = TracerProvider().get_tracer("test")
+    with tracer.start_as_current_span("tools/call double") as span:
+        await middleware(
+            _Ctx("tools/call", {"name": "double", "arguments": {}}), _call_next
+        )
+    (extra,) = extras
+    assert extra["trace_id"] == format(span.get_span_context().trace_id, "032x")
+    assert extra["span_id"] == format(span.get_span_context().span_id, "016x")
