@@ -13,6 +13,7 @@ from agentic_base.recording import (
     CallObserver,
     JsonLinesObserver,
     NullObserver,
+    ObservingMiddleware,
     SafeObserver,
     observer_from_environment,
 )
@@ -173,3 +174,42 @@ def test_a_call_log_that_cannot_be_written_does_not_raise(
     observer.record("search", {}, "", True, 1.0)
 
     assert isinstance(observer, SafeObserver) and observer.failures == 1
+
+
+@pytest.mark.asyncio
+async def test_a_server_built_on_the_sdk_records_every_call_through_the_middleware(
+    tmp_path: Path,
+) -> None:
+    """A tool server outside this repository gets the seam with one argument and no database."""
+    from mcp import Client
+    from mcp.server import MCPServer
+
+    log = tmp_path / "calls.jsonl"
+    server = MCPServer(
+        "demo", middleware=[ObservingMiddleware(JsonLinesObserver(log, server="demo"))]
+    )
+
+    @server.tool()
+    def double(n: int) -> int:
+        return 2 * n
+
+    @server.tool()
+    def broken() -> str:
+        raise ValueError("no page")
+
+    async with Client(server) as client:
+        await client.call_tool("double", {"n": 21})
+        await client.call_tool("broken", {})
+
+    lines = [json.loads(line) for line in log.read_text().splitlines()]
+    assert [(e["server"], e["tool"], e["success"]) for e in lines] == [
+        ("demo", "double", True),
+        ("demo", "broken", False),
+    ]
+    assert lines[0]["arguments"] == {"n": 21}
+
+
+def test_the_middleware_is_still_importable_where_it_used_to_live() -> None:
+    from agentic_base.mcp import server
+
+    assert server.ObservingMiddleware is ObservingMiddleware

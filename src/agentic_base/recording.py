@@ -29,6 +29,9 @@ from __future__ import annotations
 
 import json
 import os
+import time
+from collections.abc import Awaitable, Callable
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
@@ -194,3 +197,128 @@ def observer_from_environment(server: str = "") -> CallObserver:
     if not path:
         return NullObserver()
     return SafeObserver(JsonLinesObserver(path, server=server))
+
+
+class ObservingMiddleware:
+    """The recording seam as MCP SDK middleware, for any server built on the SDK.
+
+    ``MCPServer(name, middleware=[ObservingMiddleware(observer_from_environment(server=name))])``
+    passes every ``tools/call`` through the observer's three hooks: arguments before dispatch, the
+    result after, and one record per call whether it succeeded or not. A failure that reaches the
+    middleware as an exception is recorded and re-raised. Wrapped in ``SafeObserver`` so a host's
+    recorder cannot break a call.
+
+    It reads the request and the result by their shape and imports nothing from the SDK, so it
+    lives in the library half: a server that never uses it pays nothing.
+    """
+
+    def __init__(self, observer: CallObserver) -> None:
+        self.observer = SafeObserver(observer)
+
+    async def __call__(
+        self, ctx: Any, call_next: Callable[[Any], Awaitable[Any]]
+    ) -> Any:
+        if ctx.method != "tools/call":
+            return await call_next(ctx)
+        params = dict(ctx.params or {})
+        tool = str(params.get("name", ""))
+        arguments = self.observer.inspect_arguments(
+            tool, dict(params.get("arguments") or {})
+        )
+        started = time.perf_counter()
+        try:
+            result = await call_next(
+                replace(ctx, params={**params, "arguments": arguments})
+            )
+        except Exception as exc:
+            self.observer.record(
+                tool, arguments, str(exc), False, (time.perf_counter() - started) * 1000
+            )
+            raise
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        success = not _is_error(result)
+        text = _first_text(result)
+        seen = self.observer.inspect_result(tool, text, success)
+        if seen != text:
+            # A client may read the structured copy instead of the text, so a rewrite that reached
+            # only the text would hand the original to exactly those clients.
+            result = _with_structured(_with_first_text(result, seen), seen)
+        self.observer.record(
+            tool, arguments, seen, success, elapsed_ms, method=ctx.method
+        )
+        return result
+
+
+# At the middleware tier a result is the wire form, a dict with camelCase keys; a later SDK may hand
+# the model through instead. Both are read by shape, the model through its attributes.
+
+
+def _is_error(result: Any) -> bool:
+    if isinstance(result, dict):
+        return bool(result.get("isError"))
+    return bool(getattr(result, "is_error", False))
+
+
+def _blocks(result: Any) -> list[Any]:
+    content = (
+        result.get("content")
+        if isinstance(result, dict)
+        else getattr(result, "content", None)
+    )
+    return list(content or [])
+
+
+def _is_text(block: Any) -> bool:
+    kind = (
+        block.get("type") if isinstance(block, dict) else getattr(block, "type", None)
+    )
+    return kind == "text"
+
+
+def _first_text(result: Any) -> str:
+    for block in _blocks(result):
+        if _is_text(block):
+            return str(
+                block.get("text", "")
+                if isinstance(block, dict)
+                else getattr(block, "text", "")
+            )
+    return ""
+
+
+def _with_first_text(result: Any, text: str) -> Any:
+    content = [dict(b) if isinstance(b, dict) else b for b in _blocks(result)]
+    for i, block in enumerate(content):
+        if _is_text(block):
+            content[i] = (
+                {**block, "text": text}
+                if isinstance(block, dict)
+                else block.model_copy(update={"text": text})
+            )
+            break
+    if isinstance(result, dict):
+        return {**result, "content": content}
+    if hasattr(result, "model_copy"):
+        return result.model_copy(update={"content": content})
+    return result
+
+
+def _with_structured(result: Any, text: str) -> Any:
+    """Replace the structured copy with the rewritten text: parsed when it is still a JSON object,
+    otherwise wrapped as ``{"result": text}``. Dropping it is not an option, because a client refuses
+    a result without structured content when the tool declares an output schema.
+    """
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        parsed = None
+    structured = parsed if isinstance(parsed, dict) else {"result": text}
+    if isinstance(result, dict):
+        if result.get("structuredContent") is None:
+            return result
+        return {**result, "structuredContent": structured}
+    if getattr(result, "structured_content", None) is None or not hasattr(
+        result, "model_copy"
+    ):
+        return result
+    return result.model_copy(update={"structured_content": structured})
