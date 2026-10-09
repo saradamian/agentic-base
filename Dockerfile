@@ -58,5 +58,7 @@ USER $USER
 
 EXPOSE 8080
 
-ENTRYPOINT ["/app/.venv/bin/uvicorn",  "--factory", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers", "--forwarded-allow-ips", "*"]
+# Forwarded headers are trusted only from the addresses in FORWARDED_ALLOW_IPS: the chart sets the
+# ingress controller's range, and without it uvicorn trusts the pod itself only.
+ENTRYPOINT ["/app/.venv/bin/uvicorn",  "--factory", "--host", "0.0.0.0", "--port", "8080", "--proxy-headers"]
 CMD ["agentic_base.main:get_app"]

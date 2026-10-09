@@ -224,6 +224,10 @@ podDisruptionBudget:
 
 config:
   logLevel: "info"
+  # The addresses whose X-Forwarded-For and X-Forwarded-Proto headers the service trusts:
+  # the ingress controller's range, comma-separated. Empty trusts the pod itself only, and the
+  # client address in the logs and traces is then the proxy's.
+  forwardedAllowIps: ""
 
 # Will be set during preview deploys
 namePrefix: ""

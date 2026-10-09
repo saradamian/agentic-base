@@ -54,6 +54,10 @@ class Limits(BaseSettings):
     verdict is "inconclusive: too little data" rather than "sound" — an interval that wide
     could not have told a real gap from none."""
 
+    contrast_equivalence_margin: float = 0.05
+    """A difference whose 95% interval sits wholly inside plus or minus this margin is
+    reported as equivalent. Fix it before looking at the results."""
+
     mcp_max_rows: int = 200
     """Rows one MCP call may return. A chat client pays for each of them in context."""
 
@@ -63,9 +67,10 @@ class Limits(BaseSettings):
     cap bounds one reply without hiding any part of a run."""
 
     call_log_retention_days: int = 183
-    """How long the default call log keeps a month: its file is deleted once the month ended this
-    many days ago. Below the AI Act's six months (183 days) nothing is deleted, and 0 keeps every
-    month (docs/decisions.md D12)."""
+    """How many days the default call log keeps a month after the month ends. 0 keeps every month.
+    No law makes the default of 183 days a floor for this log. The AI Act's six-month log duty
+    covers providers and deployers of high-risk systems, and a log of tool arguments may need less
+    under the GDPR (docs/decisions.md D12)."""
 
     call_log_error_chars: int = 500
     """How much of a failed call's error text a call record keeps. The client already got the same

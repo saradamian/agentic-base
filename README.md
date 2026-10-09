@@ -211,6 +211,11 @@ policy that allows only the destinations you intend.
 
 Not an agent framework, a tracing backend, a metrics store, an experiment tracker, a workflow
 engine or an inference server. Each exists and is better than one we would write.
+
+Not an enforcement layer either. The writer states the principal, the data class, the isolation
+tier and the approvals, and the record keeps what it was told. Whether the cluster, the network
+and the approval were real is for the caller to check at its own boundary. The service refuses
+only the three things listed under the contract.
 [The reuse ledger](https://github.com/saradamian/agentic-base/blob/main/docs/architecture/reuse-ledger.md) gives a verdict per concern (adopt,
 bridge or build), and a test fails when the code does by hand what the ledger says it adopted.
 

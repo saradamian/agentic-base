@@ -90,12 +90,15 @@ _Z_95 = 1.96
 """Two-sided 95% normal quantile, the confidence the intervals below are stated at."""
 
 
-def wilson_interval(count: int, total: int, *, z: float = _Z_95) -> tuple[float, float]:
+def wilson_interval(
+    count: float, total: float, *, z: float = _Z_95
+) -> tuple[float, float]:
     """The Wilson (1927) score interval for a single proportion `count / total`.
 
     The closed-form roots of the score equation, clamped to [0, 1]. Chosen over the Wald
     interval because it behaves at the boundaries this module lives at: a zero count gives a
-    non-degenerate interval instead of (0, 0).
+    non-degenerate interval instead of (0, 0). Counts are usually whole runs; a planning
+    calculation passes expected counts, which need not be.
     """
     if total <= 0:
         raise ValueError("an interval over zero observations is not an interval")
