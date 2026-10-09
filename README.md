@@ -116,7 +116,7 @@ observer.record("checksum", {"url": "https://example.org/x"}, "...", True, 12.0)
 - `observer_from_environment` returns a recorder that appends one JSON line per call, failed
   calls included. By default the lines go to one file a month in
   `~/.local/state/agentic-base/calls` (under `$XDG_STATE_HOME` when that is set), readable by
-  you only. `AP_CALL_LOG` names another file, and `AP_CALL_LOG=off` records nothing. A host with
+  you only, for six months. `AP_CALL_LOG` names another file, and `AP_CALL_LOG=off` records nothing. A host with
   its own journal implements `CallObserver` instead.
 - `ObservingMiddleware` puts that observer in front of every tool call of a server built on the
   MCP SDK: `MCPServer(name, middleware=[ObservingMiddleware(observer_from_environment(server=name))])`.

@@ -186,7 +186,7 @@ we first went to read the calls of the servers built on this library, no server 
 there was nothing to read. A record that has to be switched on is missing on the day someone
 asks for it.
 
-The default stays local and private. It writes one file a month, readable by its owner only. A
+The default stays local and private. It writes one file a month, readable by its owner only, and deletes a month once it ended `call_log_retention_days` ago (183, the AI Act's six months; never less). A
 line keeps the arguments and the length of the result, and the result itself stays out. A server
 whose arguments carry personal data redacts them in its own observer, as before, and a shared
 deployment points `AP_CALL_LOG` at its own place or turns it off.

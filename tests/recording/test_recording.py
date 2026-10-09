@@ -20,6 +20,7 @@ from agentic_base.recording import (
     SafeObserver,
     default_call_log_directory,
     observer_from_environment,
+    prune_call_log,
     read_call_log,
     summarise_calls,
 )
@@ -478,3 +479,75 @@ async def test_a_call_record_carries_the_ids_of_the_span_it_ran_in(
     (extra,) = extras
     assert extra["trace_id"] == format(span.get_span_context().trace_id, "032x")
     assert extra["span_id"] == format(span.get_span_context().span_id, "016x")
+
+
+NOW = datetime(2026, 10, 9, tzinfo=timezone.utc)
+
+
+def _months(directory: Path, *names: str) -> None:
+    for name in names:
+        (directory / name).write_text("{}\n")
+
+
+def test_a_month_that_ended_more_than_the_retention_ago_is_deleted(
+    tmp_path: Path,
+) -> None:
+    # March ended on 1 April, 191 days before NOW; April ended 161 days before it.
+    _months(
+        tmp_path,
+        "2025-01.jsonl",
+        "2026-03.jsonl",
+        "2026-04.jsonl",
+        "notes.jsonl",
+        "2026-13.jsonl",
+    )
+
+    deleted = prune_call_log(tmp_path, NOW, keep_days=183)
+
+    assert sorted(p.name for p in deleted) == ["2025-01.jsonl", "2026-03.jsonl"]
+    assert sorted(p.name for p in tmp_path.iterdir()) == [
+        "2026-04.jsonl",
+        "2026-13.jsonl",
+        "notes.jsonl",
+    ]
+
+
+@pytest.mark.parametrize("keep_days", [0, 30, 182])
+def test_zero_or_less_than_six_months_deletes_nothing(
+    tmp_path: Path, keep_days: int
+) -> None:
+    _months(tmp_path, "2020-01.jsonl")
+    assert prune_call_log(tmp_path, NOW, keep_days=keep_days) == []
+    assert (tmp_path / "2020-01.jsonl").exists()
+
+
+def test_december_ends_on_the_first_of_january(tmp_path: Path) -> None:
+    _months(tmp_path, "2025-12.jsonl")
+    assert (
+        prune_call_log(
+            tmp_path, datetime(2026, 7, 3, tzinfo=timezone.utc), keep_days=183
+        )
+        == []
+    )
+    assert prune_call_log(
+        tmp_path, datetime(2026, 7, 4, tzinfo=timezone.utc), keep_days=183
+    )
+
+
+def test_the_first_call_of_a_month_prunes_the_old_months(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("AP_CALL_LOG_RETENTION_DAYS", "183")
+    from agentic_base.limits import get_limits
+
+    get_limits.cache_clear()
+    try:
+        _months(tmp_path, "2020-01.jsonl")
+        JsonLinesObserver(tmp_path, server="easybuild", monthly=True).record(
+            "t", {}, "", True, 1.0
+        )
+    finally:
+        get_limits.cache_clear()
+
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    assert [p.name for p in tmp_path.iterdir()] == [f"{month}.jsonl"]
