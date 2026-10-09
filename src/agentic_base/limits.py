@@ -62,6 +62,11 @@ class Limits(BaseSettings):
     caller may ask for less, and pages through a longer transcript with ``from_message``, so the
     cap bounds one reply without hiding any part of a run."""
 
+    call_log_retention_days: int = 183
+    """How long the default call log keeps a month: its file is deleted once the month ended this
+    many days ago. Below the AI Act's six months (183 days) nothing is deleted, and 0 keeps every
+    month (docs/decisions.md D12)."""
+
     call_log_error_chars: int = 500
     """How much of a failed call's error text a call record keeps. The client already got the same
     text; the cap keeps a stack trace or an echoed document from filling the log."""

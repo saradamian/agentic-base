@@ -27,6 +27,7 @@ call is the work and the record is the account of it.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import math
 import os
@@ -207,6 +208,7 @@ class JsonLinesObserver:
             **extra,
         }
         target = self._path / f"{now:%Y-%m}.jsonl" if self._monthly else self._path
+        new_month = self._monthly and not target.exists()
         target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         line = (json.dumps(entry, default=str) + "\n").encode("utf-8")
         # One write to a file opened for appending, so the lines of servers sharing a file do not
@@ -216,6 +218,43 @@ class JsonLinesObserver:
             os.write(fd, line)
         finally:
             os.close(fd)
+        if new_month:
+            # Once a month, by whichever server writes first. The call is written already, so a
+            # file that cannot be deleted costs nothing.
+            with contextlib.suppress(OSError):
+                prune_call_log(self._path, now)
+
+
+def prune_call_log(
+    directory: str | Path, now: datetime | None = None, keep_days: int | None = None
+) -> list[Path]:
+    """Delete the month files (``2026-03.jsonl``) whose month ended more than *keep_days* ago.
+
+    *keep_days* defaults to `call_log_retention_days`. Under the AI Act's six months nothing is
+    deleted, and 0 keeps every month: a setting that would keep less than the law asks is refused
+    in the direction that loses nothing. Files with other names are not touched. Returns what it
+    deleted.
+    """
+    from agentic_base.domain.retention import FLOOR_DAYS
+    from agentic_base.limits import get_limits
+
+    days = get_limits().call_log_retention_days if keep_days is None else keep_days
+    if days < FLOOR_DAYS:
+        return []
+    now = now or datetime.now(timezone.utc)
+    deleted = []
+    for path in sorted(Path(directory).glob("*.jsonl")):
+        try:
+            month = datetime.strptime(path.stem, "%Y-%m").replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        ended = month.replace(
+            year=month.year + month.month // 12, month=month.month % 12 + 1
+        )
+        if (now - ended).days > days:
+            path.unlink()
+            deleted.append(path)
+    return deleted
 
 
 def default_call_log_directory() -> Path:
