@@ -3,7 +3,9 @@
 No server, database or token: the command reads eval results from disk — JSONL, CSV with a
 header row, or an Inspect AI ``.eval``/``.json`` log — through `agentic_base.adapters`, runs
 `check_comparison` over them, and prints the CONSORT-style per-arm flow, the verdict line and a
-citability line. The exit code carries the verdict so the command gates a CI job:
+citability line. With ``--baseline`` it also says how large each arm's difference from that
+arm is and how sure that is (`agentic_base.domain.contrast`). The exit code carries the
+validity verdict, with or without ``--baseline``, so the command gates a CI job:
 
 * **0** — sound, and the check could have flagged something: at least two arms, at least one
   exclusion channel, every difference inside an interval narrow enough to have caught a gap.
@@ -39,6 +41,7 @@ from agentic_base.adapters import (
     from_inspect_log,
     from_jsonl,
 )
+from agentic_base.domain.contrast import contrast_against, contrast_as_dict
 from agentic_base.domain.validity import (
     ValidityReport,
     check_comparison,
@@ -69,17 +72,27 @@ def exit_code(report: ValidityReport) -> int:
     return 0 if report.could_have_flagged else 2
 
 
-def check_text(observations: Iterable[LogObservation]) -> tuple[str, int]:
+def check_text(
+    observations: Iterable[LogObservation], *, baseline: str | None = None
+) -> tuple[str, int]:
     """The human-readable verdict block and its exit code, for these observations.
 
     One function rather than print statements in `main`, so `agentic_base.demo` shows exactly
-    what the command would say instead of a paraphrase of it.
+    what the command would say instead of a paraphrase of it. With a `baseline`, every other
+    arm's contrast against it follows the verdict line; the exit code is the verdict's either
+    way, because the contrast describes a comparison and does not decide whether to trust it.
     """
     observations = list(observations)
     report = check_comparison(observations)
+    contrasts = (
+        [c.describe() for c in contrast_against(observations, baseline=baseline)]
+        if baseline is not None
+        else []
+    )
     lines = [
         render_flow(report.flow),
         report.summary(),
+        *contrasts,
         citability(observations).describe(),
     ]
     return "\n".join(line for line in lines if line), exit_code(report)
@@ -114,6 +127,13 @@ def _check(args: argparse.Namespace) -> int:
     if not observations:
         print("the input holds no records", file=sys.stderr)
         return 2
+    arms = sorted({obs.arm for obs in observations})
+    if args.baseline is not None and args.baseline not in arms:
+        print(
+            f"no runs for baseline {args.baseline!r}; arms present: {', '.join(arms)}",
+            file=sys.stderr,
+        )
+        return 2
     if args.json:
         report = check_comparison(observations)
         summary = citability(observations)
@@ -124,9 +144,14 @@ def _check(args: argparse.Namespace) -> int:
             "unattributed": summary.unattributed,
             "description": summary.describe(),
         }
+        if args.baseline is not None:
+            document["contrasts"] = [
+                contrast_as_dict(c)
+                for c in contrast_against(observations, baseline=args.baseline)
+            ]
         print(json.dumps(document, indent=2))
         return exit_code(report)
-    text, code = check_text(observations)
+    text, code = check_text(observations, baseline=args.baseline)
     print(text)
     return code
 
@@ -322,6 +347,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         default="auto",
         help="how to read the paths; 'auto' (default) reads .eval and .json as Inspect "
         "logs, .csv as CSV with a header row, and anything else as JSONL",
+    )
+    check.add_argument(
+        "--baseline",
+        default=None,
+        help="an arm to compare every other arm against: prints the difference, its 95%% "
+        "interval, McNemar's exact test and bounds that assume nothing about excluded runs",
     )
     check.add_argument(
         "--json", action="store_true", help="print the report as JSON instead of text"

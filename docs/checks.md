@@ -42,6 +42,51 @@ comparison-is-sound:
     exit_codes: [2]   # too little data yet: say so, do not block
 ```
 
+## How large the difference is
+
+Name one arm as the baseline, and the check also says how far each other arm is from it and how
+sure that is. The verdict line and the exit code do not change.
+
+```bash
+agentic-base check results.jsonl --arm config --baseline baseline
+```
+
+```text
+baseline: assessed 20; excluded 1 (1 timeout); analysed 19
+with-planner: assessed 20; excluded 6 (6 timeout); analysed 14
+not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline), 95% interval +0.8 to +47.3 pp
+with-planner vs baseline, 14 tasks both scored: +14.3 pp (95% interval -9.8 to +38.0 pp), exact McNemar p = 0.50
+  inconclusive: these pairs can only detect 28 pp or more
+  excluded runs as failures, 20 tasks: +10.0 pp, p = 0.50
+  assuming nothing about the 7 excluded runs: +5.0 to +40.0 pp, the sign holds
+outcomes: 27 name a citable scorer, 4 diagnostic, 2 name none
+```
+
+An excluded run has no outcome, so the difference is given three ways:
+
+- **Tasks both arms scored.** The difference, its 95% interval and McNemar's exact test. Both
+  arms faced the same tasks. Both arms finished them, so they lean easy, and the number compares
+  the two arms on them.
+- **Excluded runs counted as failures.** Every task either arm attempted. This reading is lowest
+  for the arm with more exclusions.
+- **Assumption-free bounds.** Every excluded outcome set to its worst value, then to its best. A
+  sign inside these bounds holds whatever the excluded runs would have done.
+
+The bounds describe these tasks. The interval describes what to expect on new ones. In the example
+both are right. On these twenty tasks the planner resolves more, whatever the timeouts hid.
+Fourteen pairs with two disagreements are too few to say the same of other tasks.
+
+When the interval spans zero, the line gives the smallest difference the pairs could have
+detected, so a reader knows how large an effect could have gone unseen. When the interval sits
+inside the equivalence margin, the arms are reported as equivalent. The margin is five percentage
+points by default, set with `AP_CONTRAST_EQUIVALENCE_MARGIN`, and belongs in the plan before any
+result is read.
+
+A task with more than one run in an arm stops the contrast, and the line says so. Choose the run to
+count before checking. With more than two arms, each is compared with the baseline, and each line
+carries Holm's correction. `--json` adds the contrasts to the report, and
+`agentic_base.domain.contrast` holds the same functions for Python.
+
 `examples/is_this_comparison_sound.py` runs the same check from Python over a record type of its
 own, through `agentic_base.domain.validity` and `agentic_base.domain.outcomes`:
 

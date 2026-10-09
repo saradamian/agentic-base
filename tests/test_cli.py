@@ -139,6 +139,46 @@ def test_json_output_reuses_report_as_dict(tmp_path, capsys) -> None:
     assert document["citability"]["unattributed"] == 68
 
 
+def test_a_baseline_adds_the_contrast_and_keeps_the_verdicts_exit_code(
+    tmp_path, capsys
+) -> None:
+    code = main(["check", str(_uneven(tmp_path)), "--baseline", "a"])
+
+    out = capsys.readouterr().out
+    assert code == 1, "the contrast describes the comparison; the verdict still gates"
+    assert "b vs a, 28 tasks both scored: -100.0 pp" in out
+    assert "b resolves fewer tasks" in out
+    assert "assuming nothing about the 12 excluded runs" in out
+
+
+def test_an_unknown_baseline_exits_2_and_names_the_arms_present(
+    tmp_path, capsys
+) -> None:
+    code = main(["check", str(_uneven(tmp_path)), "--baseline", "c"])
+
+    assert code == 2
+    assert "no runs for baseline 'c'; arms present: a, b" in capsys.readouterr().err
+
+
+def test_json_with_a_baseline_carries_one_contrast_per_other_arm(
+    tmp_path, capsys
+) -> None:
+    code = main(["check", str(_uneven(tmp_path)), "--json", "--baseline", "a"])
+
+    document = json.loads(capsys.readouterr().out)
+    assert code == 1
+    (contrast,) = document["contrasts"]
+    assert (contrast["baseline"], contrast["treatment"]) == ("a", "b")
+    assert contrast["reading"] == "fewer"
+    assert contrast["excluded"] == 12
+
+
+def test_json_without_a_baseline_has_no_contrasts(tmp_path, capsys) -> None:
+    main(["check", str(_uneven(tmp_path)), "--json"])
+
+    assert "contrasts" not in json.loads(capsys.readouterr().out)
+
+
 def test_field_mapping_flags_reach_the_adapter(tmp_path, capsys) -> None:
     path = tmp_path / "renamed.jsonl"
     path.write_text(

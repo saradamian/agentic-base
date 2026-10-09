@@ -54,6 +54,11 @@ class Limits(BaseSettings):
     verdict is "inconclusive: too little data" rather than "sound" — an interval that wide
     could not have told a real gap from none."""
 
+    contrast_equivalence_margin: float = 0.05
+    """A difference whose 95% interval sits wholly inside plus or minus this is reported as
+    equivalent rather than inconclusive. Fix it before looking at results; a margin chosen
+    afterwards is not a margin."""
+
     mcp_max_rows: int = 200
     """Rows one MCP call may return. A chat client pays for each of them in context."""
 
