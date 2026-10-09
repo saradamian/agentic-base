@@ -13,6 +13,7 @@
 #     so it cannot see a defect that exists only in the built wheel;
 #   * the artifact carries build provenance. Without it the chain of custody stops at the tag,
 #     and anyone with write access can replace a release asset with nothing to detect it.
+#     The attestations are also attached to the release, so they can be checked offline.
 name: release
 
 on:
@@ -60,9 +61,14 @@ jobs:
           uv pip install --python /tmp/floor/bin/python --quiet dist/*.whl
           python3 scripts/check_wheel_imports.py /tmp/floor/bin/python
 
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      # The wheel and the sdist only: `uv build` also writes a `.gitignore` into dist/, and `dist/*`
+      # made it a subject of every attestation up to 0.10.0.
+      - id: provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          subject-path: dist/*
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
 
       # The SBOM is generated from the wheel INSTALLED on the consumer floor, so it lists what a
       # consumer actually gets, dependencies resolved, not what the source tree declares. It is
@@ -76,14 +82,27 @@ jobs:
           upload-release-assets: false
       # actions/attest-sbom is deprecated and was a wrapper around this action; the header-size
       # setting is the one thing the wrapper added, kept so the attestation step behaves the same.
-      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+      - id: sbom-attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         env:
           NODE_OPTIONS: "--max-http-header-size=32768"
         with:
-          subject-path: dist/*
+          subject-path: |
+            dist/*.whl
+            dist/*.tar.gz
           sbom-path: sbom.spdx.json
 
-      - run: gh release create "${GITHUB_REF_NAME}" dist/* sbom.spdx.json --generate-notes --verify-tag
+      # Both attestations, also as a file on the release: one Sigstore bundle per line. A consumer
+      # checks a download without asking GitHub, with
+      # `gh attestation verify <file> --bundle <this file> --repo saradamian/agentic-base`, and
+      # OpenSSF Scorecard reads a release that carries one as signed.
+      - name: the attestations, as a release asset
+        env:
+          PROVENANCE: ${{ steps.provenance.outputs.bundle-path }}
+          SBOM_ATTESTATION: ${{ steps.sbom-attestation.outputs.bundle-path }}
+        run: jq -c . "$PROVENANCE" "$SBOM_ATTESTATION" > "surf_agentic_base-${GITHUB_REF_NAME#v}.intoto.jsonl"
+
+      - run: gh release create "${GITHUB_REF_NAME}" dist/* sbom.spdx.json surf_agentic_base-*.intoto.jsonl --generate-notes --verify-tag
         env:
           GH_TOKEN: ${{ github.token }}
 
