@@ -115,6 +115,30 @@ def test_pypi_receives_the_files_the_release_attested_not_a_rebuild() -> None:
     assert "gh attestation verify" in publish_runs
 
 
+def test_a_release_carries_its_attestations_as_a_file_and_names_only_the_distributions() -> (
+    None
+):
+    """Attestations kept only in GitHub's store cannot be checked offline, and Scorecard reads a
+    release without a signature file as unsigned. `dist/*` also made uv's `.gitignore` a subject."""
+    steps = yaml.safe_load(
+        (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    )["jobs"]["release"]["steps"]
+    attesting = [s for s in steps if s.get("uses", "").startswith("actions/attest")]
+    asset = " ".join(
+        s.get("run", "") for s in steps if "intoto.jsonl" in s.get("run", "")
+    )
+    publish = next(s["run"] for s in steps if "gh release create" in s.get("run", ""))
+
+    assert len(attesting) == 2
+    for step in attesting:
+        assert step["with"]["subject-path"].split() == ["dist/*.whl", "dist/*.tar.gz"]
+        assert f"steps.{step['id']}.outputs.bundle-path" in str(
+            [s.get("env", {}) for s in steps]
+        )
+    assert "jq -c" in asset
+    assert "*.intoto.jsonl" in publish
+
+
 def test_the_image_installs_the_service_and_not_the_development_tools() -> None:
     """Built without the service extra, the image started with no structlog and died; built with
     the default groups it carried pytest, ruff and mypy into production."""
