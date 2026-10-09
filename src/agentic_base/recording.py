@@ -34,7 +34,7 @@ import os
 import statistics
 import time
 from collections import Counter
-from collections.abc import Awaitable, Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -471,7 +471,13 @@ class ObservingMiddleware:
         arguments = self.observer.inspect_arguments(
             tool, dict(params.get("arguments") or {})
         )
-        context = _call_context(ctx, params)
+        context = call_context(
+            params,
+            request_id=getattr(ctx, "request_id", None),
+            protocol_version=getattr(ctx, "protocol_version", None) or "",
+            client=_client_info(ctx),
+            meta=params.get("_meta") or getattr(ctx, "meta", None),
+        )
         started = time.perf_counter()
         try:
             result = await call_next(
@@ -485,94 +491,136 @@ class ObservingMiddleware:
                 False,
                 (time.perf_counter() - started) * 1000,
                 method=ctx.method,
-                error=_capped(str(exc)),
+                error=capped_error(str(exc)),
                 **context,
             )
             raise
         elapsed_ms = (time.perf_counter() - started) * 1000
-        success = not _is_error(result)
-        text = _first_text(result)
+        text, success = call_outcome(result)
         seen = self.observer.inspect_result(tool, text, success)
         if seen != text:
             # A client may read the structured copy instead of the text, so a rewrite that reached
             # only the text would hand the original to exactly those clients.
             result = _with_structured(_with_first_text(result, seen), seen)
         if not success:
-            context["error"] = _capped(seen)
+            context["error"] = capped_error(seen)
         self.observer.record(
             tool, arguments, seen, success, elapsed_ms, method=ctx.method, **context
         )
         return result
 
 
-#: Keys the protocol itself puts in a request's ``_meta``; the session already says what they say.
-_PROTOCOL_META_PREFIX = "io.modelcontextprotocol/"
+PROTOCOL_META_PREFIX = "io.modelcontextprotocol/"
+"""Keys the protocol itself puts in a request's ``_meta``; the session already says what they say."""
+
+CALL_LOG_SCHEMA = "call_log_line.schema.json"
+"""The JSON Schema of one line of the call log, shipped beside this module (`call_log_schema`)."""
 
 
-def _call_context(ctx: Any, params: dict[str, Any]) -> dict[str, Any]:
+def call_context(
+    params: Mapping[str, Any],
+    *,
+    request_id: Any = None,
+    protocol_version: str = "",
+    client: Any = None,
+    meta: Mapping[str, Any] | None = None,
+    span_context: Any = None,
+) -> dict[str, Any]:
     """What joins a call to the rest of the story: who called, which request, which trace, which run.
 
-    The request id and protocol version from the request; the client's name and version from the
-    handshake; the caller's own ``_meta`` keys, where an agent can pass its run id (base names it
-    ``agentic_base.run_id``, the tag its MLflow export uses); and the ids of the current
-    OpenTelemetry span, which is the SDK's span for this call. A field that is unknown is left out.
+    The one definition of these fields of a call record. `ObservingMiddleware` uses it inside a
+    server built on the MCP SDK; a relay in front of any other server uses it with what it read
+    off the wire. *client* is the handshake's client info, a mapping or an object with ``name``
+    and ``version``. The caller's ``_meta`` keys are kept, where an agent passes its run id (base
+    names it ``agentic_base.run_id``, the tag its MLflow export uses). The trace and span ids are
+    those of *span_context*, or of the current OpenTelemetry span. A field that is unknown is left
+    out.
     """
     context: dict[str, Any] = {}
-    request_id = getattr(ctx, "request_id", None)
     if request_id is not None:
         context["request_id"] = request_id
-    protocol = getattr(ctx, "protocol_version", None)
-    if protocol:
-        context["protocol_version"] = protocol
-    client = _client(ctx)
-    if client:
-        context["client"] = client
-    meta = params.get("_meta") or getattr(ctx, "meta", None) or {}
+    if protocol_version:
+        context["protocol_version"] = protocol_version
+    pairs = (
+        ("name", _field(client, "name")),
+        ("version", _field(client, "version")),
+    )
+    named = {key: str(value) for key, value in pairs if value}
+    if named:
+        context["client"] = named
+    raw = meta if meta is not None else params.get("_meta")
     caller_meta = {
         k: v
-        for k, v in dict(meta).items()
-        if not str(k).startswith(_PROTOCOL_META_PREFIX)
+        for k, v in dict(raw or {}).items()
+        if not str(k).startswith(PROTOCOL_META_PREFIX)
     }
     if caller_meta:
         context["meta"] = caller_meta
-    context.update(_trace_ids())
+    context.update(_trace_ids(span_context))
     return context
 
 
-def _client(ctx: Any) -> dict[str, str]:
-    session = getattr(ctx, "session", None)
-    info = getattr(getattr(session, "client_params", None), "client_info", None)
-    pairs = (
-        ("name", getattr(info, "name", None)),
-        ("version", getattr(info, "version", None)),
-    )
-    return {key: str(value) for key, value in pairs if value}
+def call_outcome(
+    result: Any = None, error: Mapping[str, Any] | None = None
+) -> tuple[str, bool]:
+    """The text the client got and whether the call succeeded.
 
-
-def _trace_ids() -> dict[str, str]:
-    """The current span's ids, when OpenTelemetry is installed and a span is recording.
-
-    The MCP SDK depends on OpenTelemetry and opens a span for every request, so on a server this is
-    that span. The import is here so the library half does not need OpenTelemetry to be imported.
+    From a result, in its wire form or as the SDK's model: its first text block, failed when it
+    says ``isError``. Or from a JSON-RPC error object, which is always a failure.
     """
-    try:
-        from opentelemetry import trace
-    except ImportError:
-        return {}
-    span = trace.get_current_span().get_span_context()
-    if not span.is_valid:
-        return {}
-    return {
-        "trace_id": format(span.trace_id, "032x"),
-        "span_id": format(span.span_id, "016x"),
-    }
+    if error is not None:
+        return str(error.get("message", "")), False
+    return _first_text(result), not _is_error(result)
 
 
-def _capped(text: str) -> str:
+def capped_error(text: str) -> str:
+    """A failed call's error text as a record keeps it: cut at `call_log_error_chars`."""
     from agentic_base.limits import get_limits
 
     limit = get_limits().call_log_error_chars
     return text if len(text) <= limit else f"{text[:limit]}… [{len(text)} characters]"
+
+
+def call_log_schema() -> dict[str, Any]:
+    """The JSON Schema one line of the call log satisfies, whoever wrote it."""
+    from importlib.resources import files
+
+    schema: dict[str, Any] = json.loads(
+        files("agentic_base").joinpath(CALL_LOG_SCHEMA).read_text(encoding="utf-8")
+    )
+    return schema
+
+
+def _field(source: Any, name: str) -> Any:
+    if isinstance(source, Mapping):
+        return source.get(name)
+    return getattr(source, name, None)
+
+
+def _client_info(ctx: Any) -> Any:
+    session = getattr(ctx, "session", None)
+    return getattr(getattr(session, "client_params", None), "client_info", None)
+
+
+def _trace_ids(span_context: Any = None) -> dict[str, str]:
+    """The ids of *span_context*, or of the current span when OpenTelemetry is installed.
+
+    The MCP SDK depends on OpenTelemetry and opens a span for every request, so on a server the
+    current span is that span. The import is here so the library half does not need
+    OpenTelemetry to be imported.
+    """
+    if span_context is None:
+        try:
+            from opentelemetry import trace
+        except ImportError:
+            return {}
+        span_context = trace.get_current_span().get_span_context()
+    if not getattr(span_context, "is_valid", False):
+        return {}
+    return {
+        "trace_id": format(span_context.trace_id, "032x"),
+        "span_id": format(span_context.span_id, "016x"),
+    }
 
 
 # At the middleware tier a result is the wire form, a dict with camelCase keys; a later SDK may hand

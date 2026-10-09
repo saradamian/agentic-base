@@ -18,6 +18,10 @@ from agentic_base.recording import (
     NullObserver,
     ObservingMiddleware,
     SafeObserver,
+    call_context,
+    call_log_schema,
+    call_outcome,
+    capped_error,
     default_call_log_directory,
     observer_from_environment,
     prune_call_log,
@@ -479,6 +483,83 @@ async def test_a_call_record_carries_the_ids_of_the_span_it_ran_in(
     (extra,) = extras
     assert extra["trace_id"] == format(span.get_span_context().trace_id, "032x")
     assert extra["span_id"] == format(span.get_span_context().span_id, "016x")
+
+
+def test_call_context_reads_a_relays_mapping_and_its_own_span() -> None:
+    class Span:
+        is_valid = True
+        trace_id = 0x120BB1DF40892F503418AAFD635553D2
+        span_id = 0x1A2B3C4D5E6F7081
+
+    context = call_context(
+        {
+            "_meta": {
+                "agentic_base.run_id": "run-7",
+                "io.modelcontextprotocol/progressToken": 1,
+            }
+        },
+        request_id=4,
+        protocol_version="2026-07-28",
+        client={"name": "claude-code", "version": "2.1"},
+        span_context=Span(),
+    )
+
+    assert context == {
+        "request_id": 4,
+        "protocol_version": "2026-07-28",
+        "client": {"name": "claude-code", "version": "2.1"},
+        "meta": {"agentic_base.run_id": "run-7"},
+        "trace_id": "120bb1df40892f503418aafd635553d2",
+        "span_id": "1a2b3c4d5e6f7081",
+    }
+
+
+def test_call_outcome_reads_a_result_and_a_protocol_error() -> None:
+    failed = {"isError": True, "content": [{"type": "text", "text": "no such page"}]}
+    assert call_outcome(failed) == ("no such page", False)
+    assert call_outcome({"content": [{"type": "text", "text": "ok"}]}) == ("ok", True)
+    assert call_outcome(error={"code": -32602, "message": "Unknown tool: t"}) == (
+        "Unknown tool: t",
+        False,
+    )
+
+
+def test_capped_error_keeps_a_short_text_and_says_how_long_a_cut_one_was() -> None:
+    assert capped_error("short") == "short"
+    assert capped_error("x" * 600).endswith("… [600 characters]")
+
+
+@pytest.mark.asyncio
+async def test_a_line_the_middleware_writes_satisfies_the_published_schema(
+    tmp_path: Path,
+) -> None:
+    import jsonschema
+    from mcp import Client
+    from mcp.server import MCPServer
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    log = tmp_path / "calls.jsonl"
+    server = MCPServer(
+        "schema-check",
+        middleware=[ObservingMiddleware(JsonLinesObserver(log, server="schema-check"))],
+    )
+
+    @server.tool()
+    def refuse(reason: str) -> str:
+        raise ToolError(reason)
+
+    async with Client(server) as client:
+        await client.call_tool(
+            "refuse", {"reason": "no"}, meta={"agentic_base.run_id": "r"}
+        )
+
+    schema = call_log_schema()
+    [line] = _lines(log)
+    jsonschema.validate(line, schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({**line, "trace_id": "not-a-trace-id"}, schema)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({k: v for k, v in line.items() if k != "success"}, schema)
 
 
 NOW = datetime(2026, 10, 9, tzinfo=timezone.utc)

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/saradamian/agentic-base/blob/main/src/agentic_base/call_log_line.schema.json",
+  "title": "CallLogLine",
+  "description": "One line of the call log: one tool call a server received, failed calls included. Written by JsonLinesObserver; the joining fields come from agentic_base.recording.call_context. A writer may add fields of its own.",
+  "type": "object",
+  "required": ["time", "server", "tool", "arguments", "success", "elapsed_ms", "result_chars"],
+  "properties": {
+    "time": { "type": "string", "format": "date-time", "description": "When the call ended, UTC." },
+    "server": { "type": "string", "description": "The server that answered." },
+    "server_version": { "type": "string" },
+    "tool": { "type": "string" },
+    "arguments": { "type": "object", "description": "The arguments the server received." },
+    "success": { "type": "boolean" },
+    "elapsed_ms": { "type": "number", "minimum": 0 },
+    "result_chars": { "type": "integer", "minimum": 0, "description": "The length of the result. The result itself is not kept." },
+    "method": { "type": "string" },
+    "request_id": { "type": ["string", "integer"] },
+    "protocol_version": { "type": "string" },
+    "client": {
+      "type": "object",
+      "properties": { "name": { "type": "string" }, "version": { "type": "string" } },
+      "additionalProperties": false
+    },
+    "meta": { "type": "object", "description": "The caller's _meta keys; agentic_base.run_id joins the call to a run record." },
+    "trace_id": { "type": "string", "pattern": "^[0-9a-f]{32}$" },
+    "span_id": { "type": "string", "pattern": "^[0-9a-f]{16}$" },
+    "error": { "type": "string", "description": "For a failed call, the text the client got, cut at call_log_error_chars." }
+  }
+}
