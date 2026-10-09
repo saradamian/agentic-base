@@ -107,7 +107,7 @@ dev = [
 # installs the distribution and calls the function.
 [tool.setuptools.package-data]
 # The marker that lets a consumer's type checker read this package; the classifier alone is a claim.
-"agentic_base" = ["py.typed"]
+"agentic_base" = ["py.typed", "call_log_line.schema.json"]
 "agentic_base.hpc" = ["profiles/*.yaml"]
 # Alembic loads these by path, so they ship as data beside the package that runs them.
 "agentic_base.migrations" = ["script.py.mako", "versions/*.py"]

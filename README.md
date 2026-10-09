@@ -122,7 +122,9 @@ observer.record("checksum", {"url": "https://example.org/x"}, "...", True, 12.0)
   MCP SDK: `MCPServer(name, middleware=[ObservingMiddleware(observer_from_environment(server=name))])`.
   It imports nothing from the SDK, so it adds no dependency to the library half. Each line then
   also says which client and request the call came from, its trace and span ids, the caller's
-  `_meta` keys and, for a failed call, the error the client got. An agent that sends its run id
+  `_meta` keys and, for a failed call, the error the client got. `call_context` and `call_outcome`
+  build those fields for a relay in front of a server that is not built on this library, and
+  `call_log_schema()` is the JSON Schema a line satisfies. An agent that sends its run id
   as `_meta["agentic_base.run_id"]` gets its calls joined to its run record.
 
 What is deliberately not here: the server loop itself. The MCP SDK has it, and a server of a few
