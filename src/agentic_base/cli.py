@@ -15,6 +15,11 @@ citability line. The exit code carries the verdict so the command gates a CI job
 
 A green that was never able to go red gets cited, so 0 is reserved for the first case and
 everything unanswerable is 2, never 0.
+
+``agentic-base calls`` reads back the calls tool servers built on the library recorded
+(`agentic_base.recording`): per tool, how often it was called, how often it failed and how long
+it took, and with ``--failures`` each failed call with its arguments and error. It exits 0 when
+it could read what it was given, an empty log included, and 2 when it could not.
 """
 
 from __future__ import annotations
@@ -23,6 +28,8 @@ import argparse
 import json
 import sys
 from collections.abc import Iterable, Sequence
+from dataclasses import asdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from agentic_base.adapters import (
@@ -37,6 +44,13 @@ from agentic_base.domain.validity import (
     check_comparison,
     render_flow,
     report_as_dict,
+)
+from agentic_base.recording import (
+    CallLog,
+    CallSummary,
+    default_call_log_directory,
+    read_call_log,
+    summarise_calls,
 )
 
 _EXIT_CODES = "exit codes: 0 sound, 1 not sound, 2 inconclusive or unreadable input"
@@ -117,11 +131,153 @@ def _check(args: argparse.Namespace) -> int:
     return code
 
 
+def _since(value: str) -> datetime:
+    """``7d``, ``12h`` or a date such as ``2026-10-01``, as the moment it names in UTC."""
+    now = datetime.now(timezone.utc)
+    try:
+        if value.endswith("d"):
+            return now - timedelta(days=float(value[:-1]))
+        if value.endswith("h"):
+            return now - timedelta(hours=float(value[:-1]))
+        when = datetime.fromisoformat(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"{value!r} is not a number of days (7d), hours (12h) or a date (2026-10-01)"
+        ) from None
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+
+
+def _shown(path: Path) -> str:
+    """A path as a person would type it: the home directory as ``~``."""
+    try:
+        return f"~/{path.relative_to(Path.home())}"
+    except (ValueError, RuntimeError):
+        return str(path)
+
+
+def _minute(time: str) -> str:
+    return time[:16].replace("T", " ")
+
+
+def calls_text(log: CallLog, summary: CallSummary, where: str) -> str:
+    """The table `agentic-base calls` prints, one row per server and tool."""
+    if not summary.tools:
+        return (
+            f"No calls recorded in {where}. A tool server built on agentic-base writes one line "
+            "there for each call an agent makes."
+        )
+    servers = len({t.server for t in summary.tools})
+    first, last = _minute(summary.first), _minute(summary.last)
+    period = f"at {first}" if first == last else f"{first} to {last}"
+    lines = [
+        f"{summary.calls} call{'s' * (summary.calls != 1)} to {servers} "
+        f"server{'s' * (servers != 1)}, {period} UTC, in {where}",
+        "",
+    ]
+    rows = [("server", "tool", "calls", "failed", "median ms", "p95 ms")]
+    rows += [
+        (
+            t.server,
+            t.tool,
+            f"{t.calls}",
+            f"{t.failed}",
+            f"{t.median_ms:,.0f}",
+            f"{t.p95_ms:,.0f}",
+        )
+        for t in summary.tools
+    ]
+    widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+    for row in rows:
+        left = [cell.ljust(widths[i]) for i, cell in enumerate(row[:2])]
+        right = [cell.rjust(widths[i + 2]) for i, cell in enumerate(row[2:])]
+        lines.append("  ".join(left + right).rstrip())
+    if summary.clients:
+        clients = ", ".join(
+            f"{name} ({count})" for name, count in summary.clients.items()
+        )
+        lines += ["", f"clients: {clients}"]
+    if log.unreadable_lines:
+        lines.append(
+            f"{log.unreadable_lines} line(s) could not be read and were skipped."
+        )
+    if summary.failed:
+        lines += [
+            "",
+            "agentic-base calls --failures shows each failed call with its arguments.",
+        ]
+    return "\n".join(lines)
+
+
+def _latest_failures(
+    calls: list[dict[str, object]], limit: int
+) -> list[dict[str, object]]:
+    failed = [c for c in calls if not c.get("success")]
+    return failed[max(0, len(failed) - limit) :]
+
+
+def failures_text(calls: list[dict[str, object]], limit: int) -> str:
+    """The latest *limit* failed calls, newest last: when, where, the arguments and the error."""
+    failed = _latest_failures(calls, limit)
+    if not failed:
+        return "No failed calls."
+    lines = []
+    for call in failed:
+        arguments = json.dumps(call.get("arguments", {}), ensure_ascii=False)
+        lines.append(
+            f"{_minute(str(call.get('time', '')))}  {call.get('server', '')}  "
+            f"{call.get('tool', '')}  {arguments}"
+        )
+        lines.append(f"  {call.get('error') or 'failed, no error text recorded'}")
+    return "\n".join(lines)
+
+
+def _calls(args: argparse.Namespace) -> int:
+    try:
+        log = read_call_log(args.paths, since=args.since, server=args.server)
+    except OSError as error:
+        print(
+            f"cannot read {error.filename or error}: {error.strerror or error}",
+            file=sys.stderr,
+        )
+        return 2
+    summary = summarise_calls(log.calls)
+    if len(args.paths) == 1:
+        where = _shown(Path(args.paths[0]))
+    elif args.paths:
+        where = f"{len(log.files)} files"
+    else:
+        where = _shown(default_call_log_directory())
+    if args.json:
+        document: dict[str, object] = {
+            "files": [str(f) for f in log.files],
+            "calls": summary.calls,
+            "failed": summary.failed,
+            "unreadable_lines": log.unreadable_lines,
+            "first": summary.first,
+            "last": summary.last,
+            "tools": [asdict(t) for t in summary.tools],
+            "clients": summary.clients,
+        }
+        if args.failures:
+            document["failures"] = _latest_failures(log.calls, args.limit)
+        print(json.dumps(document, indent=2, default=str))
+        return 0
+    print(
+        failures_text(log.calls, args.limit)
+        if args.failures
+        else calls_text(log, summary, where)
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point for the ``agentic-base`` console script."""
     parser = argparse.ArgumentParser(
         prog="agentic-base",
-        description="The library's checks, over eval logs you already have.",
+        description=(
+            "The library's checks over eval logs you already have, and the calls your tool "
+            "servers recorded."
+        ),
         epilog=_EXIT_CODES,
     )
     commands = parser.add_subparsers(dest="command", required=True)
@@ -171,6 +327,43 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--json", action="store_true", help="print the report as JSON instead of text"
     )
     check.set_defaults(handler=_check)
+    calls = commands.add_parser(
+        "calls",
+        help="what agents did with your tool servers",
+        description=(
+            "Reads the call log that tool servers built on agentic-base write, by default every "
+            "month's file in ~/.local/state/agentic-base/calls, and prints per tool how often it "
+            "was called, how often it failed and how long it took."
+        ),
+        epilog="exit codes: 0 read (an empty log included), 2 a path could not be read",
+    )
+    calls.add_argument(
+        "paths",
+        nargs="*",
+        help="call log files or directories (default: the directory servers write to)",
+    )
+    calls.add_argument(
+        "--since",
+        type=_since,
+        default=None,
+        help="only calls after this: 7d, 12h or a date such as 2026-10-01",
+    )
+    calls.add_argument("--server", default=None, help="only this server's calls")
+    calls.add_argument(
+        "--failures",
+        action="store_true",
+        help="list the failed calls with their arguments and errors instead of the table",
+    )
+    calls.add_argument(
+        "--limit",
+        type=int,
+        default=20,
+        help="how many of the latest failed calls --failures shows (default 20)",
+    )
+    calls.add_argument(
+        "--json", action="store_true", help="print the summary as JSON instead of text"
+    )
+    calls.set_defaults(handler=_calls)
     args = parser.parse_args(argv)
     return int(args.handler(args))
 

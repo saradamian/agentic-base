@@ -70,6 +70,14 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://phoenix:6006
 
 A hosted Phoenix wants an API key: `OTEL_EXPORTER_OTLP_HEADERS="api_key=$PHOENIX_API_KEY"`.
 
+## A tool server's calls
+
+A tool server built on the library half keeps its own record of each call it serves: one JSON
+line per call, in a local file, with no service involved. `agentic-base calls` reads it back. The
+README's section on building a tool server shows the output and where the file is. Each line
+carries the trace and span ids of its call, so when the server also exports spans, a line in the
+file and a span in Jaeger or Tempo can be matched by those ids.
+
 ## Provenance is a separate export
 
 A run's provenance in W3C PROV, OpenLineage or a Process Run Crate comes from

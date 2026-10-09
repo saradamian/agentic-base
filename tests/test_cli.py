@@ -254,3 +254,151 @@ def test_format_csv_reads_a_table_whatever_the_file_is_called(tmp_path, capsys) 
 
     assert main(["check", str(path), "--format", "csv"]) == 1
     assert main(["check", str(path)]) == 2, "read as JSONL, a table is unreadable"
+
+
+def _call_log(tmp_path: Path) -> Path:
+    """Three calls to two tools, one of them failed, from one client."""
+    base = {
+        "time": "2026-10-08T10:00:00.000+00:00",
+        "server": "easybuild",
+        "client": {"name": "claude-code", "version": "2.1"},
+    }
+    lines = [
+        {
+            **base,
+            "tool": "pypi_info",
+            "arguments": {"package": "tqdm"},
+            "success": True,
+            "elapsed_ms": 200.0,
+        },
+        {
+            **base,
+            "tool": "pypi_info",
+            "arguments": {"package": "numpy"},
+            "success": True,
+            "elapsed_ms": 400.0,
+        },
+        {
+            **base,
+            "time": "2026-10-08T10:05:00.000+00:00",
+            "tool": "compute_checksum",
+            "arguments": {"url": "http://10.0.0.1/x.tar.gz"},
+            "success": False,
+            "elapsed_ms": 3.0,
+            "error": "URL rejected: internal address",
+        },
+    ]
+    path = tmp_path / "2026-10.jsonl"
+    path.write_text("".join(json.dumps(line) + "\n" for line in lines))
+    return path
+
+
+def test_calls_prints_one_row_per_tool_and_points_at_the_failures(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["calls", str(_call_log(tmp_path))]) == 0
+
+    out = capsys.readouterr().out
+    assert "3 calls to 1 server, 2026-10-08 10:00 to 2026-10-08 10:05 UTC" in out
+    rows = [line.split() for line in out.splitlines() if line.startswith("easybuild")]
+    assert rows == [
+        ["easybuild", "pypi_info", "2", "0", "300", "400"],
+        ["easybuild", "compute_checksum", "1", "1", "3", "3"],
+    ]
+    assert "clients: claude-code 2.1 (3)" in out
+    assert "--failures" in out
+
+
+def test_calls_with_failures_lists_each_failed_call_with_its_arguments_and_error(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["calls", "--failures", str(_call_log(tmp_path))]) == 0
+
+    assert capsys.readouterr().out.splitlines() == [
+        '2026-10-08 10:05  easybuild  compute_checksum  {"url": "http://10.0.0.1/x.tar.gz"}',
+        "  URL rejected: internal address",
+    ]
+
+
+def test_calls_reads_the_directory_servers_write_to_when_given_no_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    directory = tmp_path / "agentic-base" / "calls"
+    directory.mkdir(parents=True)
+    _call_log(directory)
+
+    assert main(["calls", "--json"]) == 0
+
+    document = json.loads(capsys.readouterr().out)
+    assert (document["calls"], document["failed"]) == (3, 1)
+    assert [t["tool"] for t in document["tools"]] == ["pypi_info", "compute_checksum"]
+
+
+def test_calls_says_nothing_was_recorded_yet_and_exits_0_on_an_empty_log(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert main(["calls"]) == 0
+
+    assert capsys.readouterr().out.startswith("No calls recorded in ")
+
+
+def test_calls_exits_2_on_a_path_it_cannot_read(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["calls", str(tmp_path / "missing.jsonl")]) == 2
+
+    assert "cannot read" in capsys.readouterr().err
+
+
+def test_calls_since_keeps_only_the_later_calls(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    log = _call_log(tmp_path)
+
+    assert main(["calls", "--json", "--since", "2026-10-08T10:01", str(log)]) == 0
+
+    assert json.loads(capsys.readouterr().out)["calls"] == 1
+
+
+def test_calls_refuses_a_since_it_cannot_read(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as stopped:
+        main(["calls", "--since", "last tuesday"])
+
+    assert stopped.value.code == 2
+    assert "not a number of days" in capsys.readouterr().err
+
+
+def test_calls_failures_limit_keeps_the_latest_and_zero_keeps_none(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    log = _call_log(tmp_path)
+
+    main(["calls", "--json", "--failures", "--limit", "0", str(log)])
+    assert json.loads(capsys.readouterr().out)["failures"] == []
+    main(["calls", "--json", "--failures", "--limit", "1", str(log)])
+    assert [c["tool"] for c in json.loads(capsys.readouterr().out)["failures"]] == [
+        "compute_checksum"
+    ]
+
+
+def test_calls_names_one_call_and_one_moment_in_the_singular(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    line = {
+        "time": "2026-10-08T10:00:00.000+00:00",
+        "server": "easybuild",
+        "tool": "pypi_info",
+        "success": True,
+        "elapsed_ms": 42.0,
+    }
+    log = tmp_path / "calls.jsonl"
+    log.write_text(json.dumps(line) + "\n")
+
+    assert main(["calls", str(log)]) == 0
+
+    assert capsys.readouterr().out.startswith(
+        "1 call to 1 server, at 2026-10-08 10:00 UTC, in "
+    )

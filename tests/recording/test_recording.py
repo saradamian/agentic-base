@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +18,10 @@ from agentic_base.recording import (
     NullObserver,
     ObservingMiddleware,
     SafeObserver,
+    default_call_log_directory,
     observer_from_environment,
+    read_call_log,
+    summarise_calls,
 )
 
 
@@ -144,12 +150,175 @@ def test_two_servers_can_write_to_the_same_call_log(tmp_path: Path) -> None:
     assert [entry["server"] for entry in _lines(log)] == ["easybuild", "slurm"]
 
 
-def test_without_the_variable_nothing_is_recorded(
-    monkeypatch: pytest.MonkeyPatch,
+def test_without_the_variable_calls_go_to_this_months_file_in_the_state_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
     monkeypatch.delenv(CALL_LOG_VARIABLE, raising=False)
 
+    observer_from_environment("easybuild").record("search", {}, "", True, 1.0)
+
+    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    log = tmp_path / "agentic-base" / "calls" / f"{month}.jsonl"
+    assert _lines(log)[0]["server"] == "easybuild"
+
+
+def test_an_empty_variable_means_the_default_like_an_unset_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path))
+    monkeypatch.setenv(CALL_LOG_VARIABLE, " ")
+
+    observer_from_environment("easybuild").record("search", {}, "", True, 1.0)
+
+    assert read_call_log([default_call_log_directory()]).calls
+
+
+@pytest.mark.parametrize("value", ["off", "OFF", " off "])
+def test_off_records_nothing(value: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(CALL_LOG_VARIABLE, value)
+
     assert isinstance(observer_from_environment("easybuild"), NullObserver)
+
+
+def test_the_default_directory_is_under_the_home_when_xdg_state_home_is_unset_or_relative(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    expected = tmp_path / ".local" / "state" / "agentic-base" / "calls"
+
+    monkeypatch.delenv("XDG_STATE_HOME", raising=False)
+    assert default_call_log_directory() == expected
+    monkeypatch.setenv("XDG_STATE_HOME", "relative/state")
+    assert default_call_log_directory() == expected
+
+
+def test_without_a_home_directory_nothing_is_recorded_and_nothing_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_home() -> Path:
+        raise RuntimeError("Could not determine home directory.")
+
+    monkeypatch.delenv("XDG_STATE_HOME", raising=False)
+    monkeypatch.setattr(Path, "home", no_home)
+
+    assert isinstance(observer_from_environment("easybuild"), NullObserver)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX permission bits")
+def test_a_new_call_log_is_readable_by_its_owner_only(tmp_path: Path) -> None:
+    log = tmp_path / "calls.jsonl"
+
+    JsonLinesObserver(log).record("search", {"q": "internal"}, "", True, 1.0)
+
+    assert os.stat(log).st_mode & 0o777 == 0o600
+
+
+def test_a_monthly_log_names_each_file_by_the_month_of_its_calls(
+    tmp_path: Path,
+) -> None:
+    JsonLinesObserver(tmp_path, server="easybuild", monthly=True).record(
+        "search", {}, "", True, 1.0
+    )
+
+    [written] = list(tmp_path.iterdir())
+    assert written.name == datetime.now(timezone.utc).strftime("%Y-%m") + ".jsonl"
+
+
+def _write(path: Path, *entries: dict[str, Any], tail: str = "") -> Path:
+    path.write_text("".join(json.dumps(e) + "\n" for e in entries) + tail)
+    return path
+
+
+def _call(
+    tool: str, success: bool = True, ms: float = 10.0, **extra: Any
+) -> dict[str, Any]:
+    return {
+        "time": "2026-10-08T10:00:00.000+00:00",
+        "server": "easybuild",
+        "tool": tool,
+        "arguments": {},
+        "success": success,
+        "elapsed_ms": ms,
+        **extra,
+    }
+
+
+def test_reading_skips_a_half_written_line_and_counts_it(tmp_path: Path) -> None:
+    log = _write(tmp_path / "2026-10.jsonl", _call("search"), tail='{"time": "2026-10-')
+
+    read = read_call_log([log])
+
+    assert [c["tool"] for c in read.calls] == ["search"] and read.unreadable_lines == 1
+
+
+def test_reading_a_directory_reads_every_month_oldest_first(tmp_path: Path) -> None:
+    _write(tmp_path / "2026-10.jsonl", _call("later", time="2026-10-01T00:00:00+00:00"))
+    _write(
+        tmp_path / "2026-09.jsonl", _call("earlier", time="2026-09-01T00:00:00+00:00")
+    )
+
+    assert [c["tool"] for c in read_call_log([tmp_path]).calls] == ["earlier", "later"]
+
+
+def test_reading_keeps_only_the_server_and_the_period_asked_for(tmp_path: Path) -> None:
+    log = _write(
+        tmp_path / "calls.jsonl",
+        _call("old", time="2026-09-01T00:00:00+00:00"),
+        _call("new", time="2026-10-08T00:00:00+00:00"),
+        {**_call("other"), "server": "confluence"},
+    )
+
+    read = read_call_log(
+        [log], since=datetime(2026, 10, 1, tzinfo=timezone.utc), server="easybuild"
+    )
+
+    assert [c["tool"] for c in read.calls] == ["new"]
+
+
+def test_reading_the_default_directory_before_anything_was_recorded_is_an_empty_log() -> (
+    None
+):
+    read = read_call_log()
+
+    assert read.calls == [] and read.files == []
+
+
+def test_reading_a_named_path_that_does_not_exist_raises(tmp_path: Path) -> None:
+    with pytest.raises(FileNotFoundError):
+        read_call_log([tmp_path / "missing.jsonl"])
+
+
+def test_the_summary_puts_the_busiest_tool_first_with_its_failures_and_durations() -> (
+    None
+):
+    calls = [_call("search", ms=float(ms)) for ms in range(1, 21)]
+    calls += [
+        _call("checksum", success=False, error="URL rejected: internal address"),
+        _call("checksum", ms=30.0),
+    ]
+
+    summary = summarise_calls(calls)
+
+    search, checksum = summary.tools
+    assert (search.tool, search.calls, search.failed) == ("search", 20, 0)
+    assert (search.median_ms, search.p95_ms) == (10.5, 19.0)
+    assert (checksum.failed, checksum.last_error) == (
+        1,
+        "URL rejected: internal address",
+    )
+    assert (summary.calls, summary.failed) == (22, 1)
+
+
+def test_the_summary_counts_clients_by_name_and_version() -> None:
+    calls = [
+        _call("a", client={"name": "claude-code", "version": "2.1"}),
+        _call("b", client={"name": "claude-code", "version": "2.1"}),
+        _call("c", client={"name": "opencode"}),
+        _call("d"),
+    ]
+
+    assert summarise_calls(calls).clients == {"claude-code 2.1": 2, "opencode": 1}
 
 
 def test_the_variable_names_the_file_calls_are_written_to(
