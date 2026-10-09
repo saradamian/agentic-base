@@ -67,6 +67,29 @@ def test_the_check_cli_prints_what_its_output_file_shows(capsys) -> None:
     )
 
 
+def test_the_check_cli_with_a_baseline_prints_what_its_output_file_shows(
+    capsys,
+) -> None:
+    """The same front-door command, asked how large the difference is."""
+    from agentic_base.cli import main
+
+    code = main(
+        [
+            "check",
+            str(EXAMPLES / "results.jsonl"),
+            "--arm",
+            "config",
+            "--baseline",
+            "baseline",
+        ]
+    )
+
+    assert capsys.readouterr().out == (EXAMPLES / "results_contrast.out").read_text()
+    assert code == 1, (
+        "a baseline adds the contrast and leaves the verdict's exit code alone"
+    )
+
+
 @pytest.fixture(scope="module")
 def service_url(tmp_path_factory) -> Iterator[str]:
     """A real service on a free port, as a reader would start it."""
@@ -128,7 +151,11 @@ def test_a_service_example_prints_what_its_output_file_shows(
 def test_the_pages_show_the_output_the_examples_print() -> None:
     pages = {
         "README.md": ("results.out",),
-        "docs/checks.md": ("results.out", "is_this_comparison_sound.out"),
+        "docs/checks.md": (
+            "results.out",
+            "results_contrast.out",
+            "is_this_comparison_sound.out",
+        ),
         "docs/service.md": ("record_and_ask.out", "service_agent.out"),
     }
     for page, outputs in pages.items():

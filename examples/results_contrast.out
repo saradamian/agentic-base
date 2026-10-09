@@ -1,0 +1,8 @@
+baseline: assessed 20; excluded 1 (1 timeout); analysed 19
+with-planner: assessed 20; excluded 6 (6 timeout); analysed 14
+not sound: timeout: 30.0% (with-planner) vs 5.0% (baseline), 95% interval +0.8 to +47.3 pp
+with-planner vs baseline, 14 tasks both scored: +14.3 pp (95% interval -9.8 to +38.0 pp), exact McNemar p = 0.50
+  inconclusive: these pairs can only detect 28 pp or more
+  excluded runs as failures, 20 tasks: +10.0 pp, p = 0.50
+  assuming nothing about the 7 excluded runs, the difference lies between +5.0 and +40.0 pp and keeps its sign
+outcomes: 27 name a citable scorer, 4 diagnostic, 2 name none
