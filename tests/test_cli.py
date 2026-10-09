@@ -382,3 +382,23 @@ def test_calls_failures_limit_keeps_the_latest_and_zero_keeps_none(
     assert [c["tool"] for c in json.loads(capsys.readouterr().out)["failures"]] == [
         "compute_checksum"
     ]
+
+
+def test_calls_names_one_call_and_one_moment_in_the_singular(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    line = {
+        "time": "2026-10-08T10:00:00.000+00:00",
+        "server": "easybuild",
+        "tool": "pypi_info",
+        "success": True,
+        "elapsed_ms": 42.0,
+    }
+    log = tmp_path / "calls.jsonl"
+    log.write_text(json.dumps(line) + "\n")
+
+    assert main(["calls", str(log)]) == 0
+
+    assert capsys.readouterr().out.startswith(
+        "1 call to 1 server, at 2026-10-08 10:00 UTC, in "
+    )

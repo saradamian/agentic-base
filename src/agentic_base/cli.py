@@ -167,9 +167,11 @@ def calls_text(log: CallLog, summary: CallSummary, where: str) -> str:
             "there for each call an agent makes."
         )
     servers = len({t.server for t in summary.tools})
+    first, last = _minute(summary.first), _minute(summary.last)
+    period = f"at {first}" if first == last else f"{first} to {last}"
     lines = [
-        f"{summary.calls} calls to {servers} server{'s' * (servers != 1)}, "
-        f"{_minute(summary.first)} to {_minute(summary.last)} UTC, in {where}",
+        f"{summary.calls} call{'s' * (summary.calls != 1)} to {servers} "
+        f"server{'s' * (servers != 1)}, {period} UTC, in {where}",
         "",
     ]
     rows = [("server", "tool", "calls", "failed", "median ms", "p95 ms")]

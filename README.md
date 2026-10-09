@@ -135,7 +135,7 @@ EasyBuild server, which is built on this library:
 
 ```console
 $ agentic-base calls
-7 calls to 1 server, 2026-10-09 03:13 to 2026-10-09 03:13 UTC, in ~/.local/state/agentic-base/calls
+7 calls to 1 server, at 2026-10-09 03:13 UTC, in ~/.local/state/agentic-base/calls
 
 server     tool                 calls  failed  median ms  p95 ms
 easybuild  compute_checksum         2       1         56     106
