@@ -230,16 +230,13 @@ def prune_call_log(
 ) -> list[Path]:
     """Delete the month files (``2026-03.jsonl``) whose month ended more than *keep_days* ago.
 
-    *keep_days* defaults to `call_log_retention_days`. Under the AI Act's six months nothing is
-    deleted, and 0 keeps every month: a setting that would keep less than the law asks is refused
-    in the direction that loses nothing. Files with other names are not touched. Returns what it
-    deleted.
+    *keep_days* defaults to `call_log_retention_days`, and 0 or less keeps every month. Files with
+    other names are not touched. Returns what it deleted.
     """
-    from agentic_base.domain.retention import FLOOR_DAYS
     from agentic_base.limits import get_limits
 
     days = get_limits().call_log_retention_days if keep_days is None else keep_days
-    if days < FLOOR_DAYS:
+    if days <= 0:
         return []
     now = now or datetime.now(timezone.utc)
     deleted = []

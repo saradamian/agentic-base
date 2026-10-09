@@ -186,7 +186,10 @@ we first went to read the calls of the servers built on this library, no server 
 there was nothing to read. A record that has to be switched on is missing on the day someone
 asks for it.
 
-The default stays local and private. It writes one file a month, readable by its owner only, and deletes a month once it ended `call_log_retention_days` ago (183, the AI Act's six months; never less). A
-line keeps the arguments and the length of the result, and the result itself stays out. A server
-whose arguments carry personal data redacts them in its own observer, as before, and a shared
-deployment points `AP_CALL_LOG` at its own place or turns it off.
+The default stays local and private. It writes one file a month, readable by its owner only. It
+deletes a month `call_log_retention_days` after the month ends, 183 days unless set otherwise. No
+law makes 183 days a floor for this log. The AI Act's six-month log duty covers providers and
+deployers of high-risk systems, and a log of tool arguments may need less under the GDPR. A line
+keeps the arguments and the length of the result. It does not keep the result. A server whose
+arguments carry personal data redacts them in its own observer. A shared deployment points
+`AP_CALL_LOG` at its own place or turns it off.
