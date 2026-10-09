@@ -51,6 +51,10 @@ spec:
               value: {{ .Values.config.logLevel }}
             - name: METRICS_PORT
               value: {{ .Values.monitoring.service.port | quote }}
+            {{- with .Values.config.forwardedAllowIps }}
+            - name: FORWARDED_ALLOW_IPS
+              value: {{ . | quote }}
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}

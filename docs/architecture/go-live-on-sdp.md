@@ -44,7 +44,10 @@ the request timeout, not a literal; registries are build arguments.
    other token gets the plain list and can record diagnostic outcomes only. Without it the
    service refuses every data request, which is the intended state of a deployment nobody has
    configured.
-9. **Push, and let the pipeline deploy** to development first, then promote.
+9. **Name the ingress controller's addresses** in `config.forwardedAllowIps`. The service trusts
+   forwarded client addresses from those only. Left empty, every log line and trace names the
+   proxy as the client.
+10. **Push, and let the pipeline deploy** to development first, then promote.
 
 ## What to settle before it is useful
 
