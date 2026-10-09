@@ -67,9 +67,10 @@ class Limits(BaseSettings):
     cap bounds one reply without hiding any part of a run."""
 
     call_log_retention_days: int = 183
-    """How long the default call log keeps a month: its file is deleted once the month ended this
-    many days ago. Below the AI Act's six months (183 days) nothing is deleted, and 0 keeps every
-    month (docs/decisions.md D12)."""
+    """How many days the default call log keeps a month after the month ends. 0 keeps every month.
+    No law makes the default of 183 days a floor for this log. The AI Act's six-month log duty
+    covers providers and deployers of high-risk systems, and a log of tool arguments may need less
+    under the GDPR (docs/decisions.md D12)."""
 
     call_log_error_chars: int = 500
     """How much of a failed call's error text a call record keeps. The client already got the same

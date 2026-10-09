@@ -593,13 +593,20 @@ def test_a_month_that_ended_more_than_the_retention_ago_is_deleted(
     ]
 
 
-@pytest.mark.parametrize("keep_days", [0, 30, 182])
-def test_zero_or_less_than_six_months_deletes_nothing(
-    tmp_path: Path, keep_days: int
-) -> None:
+def test_zero_keeps_every_month(tmp_path: Path) -> None:
     _months(tmp_path, "2020-01.jsonl")
-    assert prune_call_log(tmp_path, NOW, keep_days=keep_days) == []
+    assert prune_call_log(tmp_path, NOW, keep_days=0) == []
     assert (tmp_path / "2020-01.jsonl").exists()
+
+
+def test_a_period_shorter_than_six_months_is_honoured(tmp_path: Path) -> None:
+    # August ended on 1 September, 38 days before NOW; September ended 8 days before it.
+    _months(tmp_path, "2026-08.jsonl", "2026-09.jsonl")
+
+    deleted = prune_call_log(tmp_path, NOW, keep_days=30)
+
+    assert [p.name for p in deleted] == ["2026-08.jsonl"]
+    assert (tmp_path / "2026-09.jsonl").exists()
 
 
 def test_december_ends_on_the_first_of_january(tmp_path: Path) -> None:
