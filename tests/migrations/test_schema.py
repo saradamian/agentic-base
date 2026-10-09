@@ -313,8 +313,31 @@ def test_the_second_migration_rewrites_an_existing_log_and_drops_the_person_from
     assert verdict.erased == ["r2"]
     assert erased_at is not None
     assert verdict.unchained == ["r3"]
+    assert verdict.altered == [], "fields added after the entries hold their defaults"
     assert not verdict.intact  # the smuggled row stays a finding
     assert events == {"created", "migrated"}
+
+
+def test_a_value_written_later_into_a_field_the_entries_predate_is_found(
+    tmp_path,
+) -> None:
+    from sqlmodel import Session
+
+    from agentic_base.domain import audit
+
+    url, config = _a_0001_database(tmp_path)
+    command.upgrade(config, "head")
+    engine = create_engine(url)
+    with engine.begin() as connection:
+        connection.exec_driver_sql(
+            "UPDATE run_record SET trace_id = '120bb1df40892f503418aafd635553d2' "
+            "WHERE run_id = 'r1'"
+        )
+    with Session(engine) as session:
+        verdict = audit.verify(session, "hpml")
+    engine.dispose()
+
+    assert verdict.altered == ["r1"]
 
 
 @pytest.mark.parametrize(

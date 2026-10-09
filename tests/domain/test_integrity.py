@@ -80,3 +80,23 @@ def test_an_empty_chain_is_inconclusive_rather_than_intact() -> None:
     verdict = verify_chain([], [])
 
     assert not verdict.could_have_failed
+
+
+def test_a_field_an_entry_predates_matches_only_while_the_row_holds_its_default() -> (
+    None
+):
+    from agentic_base.domain.integrity import matches_entry
+
+    entry = {"tenant": "t", "model": "m"}
+    defaults = {"tenant": "", "model": "", "trace_id": ""}
+
+    assert matches_entry({"tenant": "t", "model": "m", "trace_id": ""}, entry, defaults)
+    assert not matches_entry(
+        {"tenant": "t", "model": "m", "trace_id": "ab" * 16}, entry, defaults
+    )
+    assert not matches_entry(
+        {"tenant": "t", "model": "x", "trace_id": ""}, entry, defaults
+    )
+    assert not matches_entry({"tenant": "t"}, entry, defaults), (
+        "a field the entry names has gone"
+    )

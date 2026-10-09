@@ -156,6 +156,9 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
         ),
     )
 
+    # --- what joins it to its spans and its conversation ----------------------
+    trace_id: str = Field(default="", index=True)
+    conversation_id: str = Field(default="", index=True)
     # --- what the model saw ---------------------------------------------------
     system_prompt: str = Field(default="")
     messages: list[dict[str, Any]] = Field(default_factory=list, sa_column=Column(JSON))
@@ -164,6 +167,8 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     model: str = Field(default="", index=True)
     endpoint: str = Field(default="")
     precision: str = Field(default="")
+    sampling: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    finish_reasons: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     code_revision: str = Field(default="")
     principal: str = Field(default="", index=True)
     classification: DataClass = Field(
@@ -225,6 +230,8 @@ class RunRecord(SQLModel, table=True):  # type: ignore[call-arg]
     # --- cost -----------------------------------------------------------------
     prompt_tokens: int = Field(default=0)
     completion_tokens: int = Field(default=0)
+    cache_read_tokens: int = Field(default=0)
+    cache_creation_tokens: int = Field(default=0)
     joules: float = Field(
         default=0.0,
         description=(

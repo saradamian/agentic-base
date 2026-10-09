@@ -36,7 +36,7 @@ from __future__ import annotations
 import enum
 from typing import Any, Protocol, runtime_checkable
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class LabelSource(str, enum.Enum):
@@ -286,6 +286,22 @@ class LabelUpdate(BaseModel):
         return self
 
 
+class Sampling(BaseModel):
+    """How the model was asked to generate. None means the request left it to the server.
+
+    Two runs of one model at different temperatures are not the same experiment, and a seed is
+    what makes a sampled run repeatable at all. The names follow OpenTelemetry's
+    ``gen_ai.request.*`` attributes.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    temperature: float | None = None
+    top_p: float | None = None
+    max_tokens: int | None = None
+    seed: int | None = None
+
+
 class RunRecordCreate(BaseModel):
     """What a caller must supply to record a run.
 
@@ -327,11 +343,27 @@ class RunRecordCreate(BaseModel):
     """A digest of the configuration behind ``arm``, so two runs sharing a label but not a
     configuration are never pooled. Empty when ``arm`` is."""
 
+    trace_id: str = ""
+    """The OpenTelemetry trace the run ran under, 32 hexadecimal characters, so the record and its
+    spans can be read together. A tool call's line in the call log names it too. Empty when the run
+    was not traced."""
+
+    conversation_id: str = ""
+    """The conversation (session, thread) the run belongs to, so the runs of one exchange can be
+    read together. OpenTelemetry's ``gen_ai.conversation.id``. Empty for a run that stands
+    alone."""
+
     system_prompt: str = ""
     messages: list[dict[str, Any]] = Field(default_factory=list)
     model: str = ""
     endpoint: str = ""
     precision: str = ""
+    sampling: Sampling = Field(default_factory=Sampling)
+    finish_reasons: list[str] = Field(default_factory=list)
+    """Why generation stopped, as the provider said it, for example ``stop``, ``length``,
+    ``tool_calls`` or ``content_filter``. A run cut off by a length or a filter is not the run
+    that finished."""
+
     principal: str = ""
     """The person the run acted for, as the federation names them. Empty means a service identity,
     which every block will refuse once credentials are delegated; until then it is recorded so
@@ -370,12 +402,28 @@ class RunRecordCreate(BaseModel):
     degraded: bool = False
     instrument: str = ""
     prompt_tokens: int = 0
+    """Every input token, those served from or written to a prompt cache included."""
     completion_tokens: int = 0
+    cache_read_tokens: int = 0
+    """The part of ``prompt_tokens`` served from a provider's prompt cache. Priced lower, so a
+    cost comparison without it is wrong as soon as a provider caches."""
+    cache_creation_tokens: int = 0
+    """The part of ``prompt_tokens`` written to a provider's prompt cache."""
     joules: float = 0.0
     num_steps: int = 0
     total_tool_calls: int = 0
     elapsed_ms: float = 0.0
     extra: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("trace_id")
+    @classmethod
+    def _trace_id_is_an_opentelemetry_id(cls, value: str) -> str:
+        trace_id = value.strip().lower()
+        if trace_id and (
+            len(trace_id) != 32 or any(c not in "0123456789abcdef" for c in trace_id)
+        ):
+            raise ValueError("trace_id is 32 hexadecimal characters, or empty")
+        return trace_id
 
     @model_validator(mode="after")
     def an_outcome_requires_a_source(self) -> RunRecordCreate:

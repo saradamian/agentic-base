@@ -70,6 +70,7 @@ def span_attributes(
                 "model": run.model,
                 "prompt_tokens": run.prompt_tokens,
                 "completion_tokens": run.completion_tokens,
+                **({"session_id": run.conversation_id} if run.conversation_id else {}),
             },
         )
     )

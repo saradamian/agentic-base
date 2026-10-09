@@ -88,8 +88,16 @@ class PendingRun:
     """Approvals known when the run is recorded; later ones go through `RunRecorder.approve`."""
     status: RunStatus = RunStatus.COMPLETED
     failure_kind: str = ""
+    trace_id: str = ""
+    """The OpenTelemetry trace the run ran under, when it was traced."""
+    conversation_id: str = ""
+    sampling: dict[str, Any] = field(default_factory=dict)
+    """``temperature``, ``top_p``, ``max_tokens`` and ``seed``, those the request set."""
+    finish_reasons: list[str] = field(default_factory=list)
     prompt_tokens: int = 0
     completion_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_creation_tokens: int = 0
     joules: float = 0.0
     num_steps: int = 0
     total_tool_calls: int = 0

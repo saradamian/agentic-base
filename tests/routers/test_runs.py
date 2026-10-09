@@ -567,3 +567,29 @@ def test_a_replayed_export_of_an_erased_run_is_accepted_and_stays_erased(
 
     assert response.status_code == 201, response.text
     assert response.json()["erased_at"] == "2026-01-02T03:04:05Z"
+
+
+def test_the_trace_conversation_and_sampling_come_back_and_the_chain_holds(
+    test_client,
+) -> None:
+    fields = {
+        "trace_id": "120bb1df40892f503418aafd635553d2",
+        "conversation_id": "thread-9",
+        "sampling": {"temperature": 0.0, "seed": 42},
+        "finish_reasons": ["length"],
+        "prompt_tokens": 1000,
+        "cache_read_tokens": 800,
+        "cache_creation_tokens": 100,
+    }
+    created = test_client.post(
+        "/runs", json=_payload(tenant="joins", item="t-joins", **fields)
+    ).json()
+
+    fetched = test_client.get(f"/runs/{created['run_id']}").json()
+    integrity = test_client.get("/runs/integrity", params={"tenant": "joins"}).json()
+
+    assert {k: fetched[k] for k in fields} == {
+        **fields,
+        "sampling": {"temperature": 0.0, "top_p": None, "max_tokens": None, "seed": 42},
+    }
+    assert integrity["intact"] is True

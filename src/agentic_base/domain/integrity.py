@@ -75,13 +75,23 @@ AUDIT_FIELDS = (
     "content_marking",
     "prompt_tokens",
     "completion_tokens",
+    "cache_read_tokens",
+    "cache_creation_tokens",
     "joules",
     "num_steps",
     "total_tool_calls",
     "elapsed_ms",
     "erased_at",
+    "trace_id",
+    "conversation_id",
+    "sampling",
+    "finish_reasons",
 )
 """Fields hashed as values: what ran, under what configuration, what it cost, what was decided.
+
+A field added here later is not in the entries written before it. `matches_entry` reads such a
+field as unchanged while the row still holds its default, so old runs keep verifying and a value
+written into one of them afterwards does not.
 
 Deliberately excludes what :data:`DIGEST_FIELDS` covers. Those fields either carry personal
 data, which an erasure must be able to remove from everywhere it lives without breaking the
@@ -130,6 +140,22 @@ def snapshot(record: Any) -> dict[str, Any]:
     values = {field: _plain(getattr(record, field, None)) for field in AUDIT_FIELDS}
     plain: dict[str, Any] = json.loads(_canonical(values))
     return plain
+
+
+def matches_entry(
+    current: Mapping[str, Any], entry: Mapping[str, Any], defaults: Mapping[str, Any]
+) -> bool:
+    """Whether a run's snapshot is the one its latest entry recorded.
+
+    A field the entry predates must still hold its default in *defaults*; every other field must
+    equal the entry's value, and the entry may name no field the snapshot lacks.
+    """
+    if set(entry) - set(current):
+        return False
+    return all(
+        current[name] == (entry[name] if name in entry else defaults.get(name))
+        for name in current
+    )
 
 
 def digest_value(value: Any) -> str:
