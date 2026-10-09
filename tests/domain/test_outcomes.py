@@ -260,3 +260,35 @@ def test_a_run_records_whether_the_person_was_told_and_the_output_marked() -> No
 
     assert told.disclosure == "channel-notice"
     assert told.content_marking == "c2pa:urn:uuid:1234"
+
+
+def test_a_trace_id_is_kept_in_lowercase_and_anything_else_is_refused() -> None:
+    from pydantic import ValidationError
+
+    from agentic_base.domain.outcomes import RunRecordCreate
+
+    run = RunRecordCreate(
+        tenant="t", code_revision="c", trace_id="120BB1DF40892F503418AAFD635553D2"
+    )
+    assert run.trace_id == "120bb1df40892f503418aafd635553d2"
+    assert RunRecordCreate(tenant="t", code_revision="c").trace_id == ""
+    for bad in ("abc", "z" * 32, "1" * 33):
+        with pytest.raises(ValidationError, match="32 hexadecimal"):
+            RunRecordCreate(tenant="t", code_revision="c", trace_id=bad)
+
+
+def test_sampling_refuses_a_parameter_it_does_not_name() -> None:
+    from pydantic import ValidationError
+
+    from agentic_base.domain.outcomes import RunRecordCreate
+
+    run = RunRecordCreate(
+        tenant="t", code_revision="c", sampling={"temperature": 0.2, "seed": 7}
+    )
+    assert (run.sampling.temperature, run.sampling.seed, run.sampling.top_p) == (
+        0.2,
+        7,
+        None,
+    )
+    with pytest.raises(ValidationError):
+        RunRecordCreate(tenant="t", code_revision="c", sampling={"temprature": 0.2})

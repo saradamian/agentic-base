@@ -33,6 +33,7 @@ from typing import Any
 import sqlalchemy as sa
 import sqlmodel
 from alembic import op
+from sqlalchemy.orm import load_only
 from sqlmodel import Session, col, select
 
 import agentic_base.domain.run_record
@@ -41,8 +42,6 @@ from agentic_base.domain.integrity import (
     GENESIS,
     digest_value,
     entry_hash,
-    field_digests,
-    snapshot,
 )
 from agentic_base.domain.run_record import RunRecord
 
@@ -173,6 +172,91 @@ def _failures_under_0001(connection: sa.Connection) -> dict[str, str]:
     return failures
 
 
+# The 0002 scheme, frozen for the same reason: the rewrite below reads runs through the ORM model,
+# which carries every column later migrations add, and snapshots them with the fields this scheme
+# covered. Loading or hashing more would fail on a database that has not had those migrations yet.
+_RUN_COLUMNS_0002 = (
+    "run_id",
+    "created_at",
+    "tenant",
+    "item",
+    "arm",
+    "arm_fingerprint",
+    "system_prompt",
+    "messages",
+    "model",
+    "endpoint",
+    "precision",
+    "code_revision",
+    "principal",
+    "classification",
+    "isolation_tier",
+    "redaction",
+    "disclosure",
+    "content_marking",
+    "approvals",
+    "component_versions",
+    "status",
+    "failure_kind",
+    "resolved",
+    "label_source",
+    "labelled_at",
+    "degraded",
+    "instrument",
+    "prompt_tokens",
+    "completion_tokens",
+    "joules",
+    "num_steps",
+    "total_tool_calls",
+    "elapsed_ms",
+    "extra",
+    "erased_at",
+)
+_AUDIT_FIELDS_0002 = (
+    "run_id",
+    "created_at",
+    "tenant",
+    "item",
+    "arm",
+    "arm_fingerprint",
+    "model",
+    "endpoint",
+    "precision",
+    "code_revision",
+    "component_versions",
+    "status",
+    "failure_kind",
+    "resolved",
+    "label_source",
+    "labelled_at",
+    "degraded",
+    "instrument",
+    "classification",
+    "isolation_tier",
+    "redaction",
+    "disclosure",
+    "content_marking",
+    "prompt_tokens",
+    "completion_tokens",
+    "joules",
+    "num_steps",
+    "total_tool_calls",
+    "elapsed_ms",
+    "erased_at",
+)
+_DIGEST_FIELDS_0002 = ("principal", "approvals", "system_prompt", "messages", "extra")
+
+
+def _snapshot_0002(run: RunRecord) -> dict[str, Any]:
+    plain = {field: _plain_0001(getattr(run, field)) for field in _AUDIT_FIELDS_0002}
+    snapshot: dict[str, Any] = json.loads(_canonical_0001(plain))
+    return snapshot
+
+
+def _digests_0002(run: RunRecord) -> dict[str, str]:
+    return {field: digest_value(getattr(run, field)) for field in _DIGEST_FIELDS_0002}
+
+
 def _accepted_unverified() -> set[str]:
     return {
         name.strip()
@@ -273,6 +357,7 @@ def _rewrite_chains(session: Session, *, unverified: set[str]) -> None:
         runs = list(
             session.exec(
                 select(RunRecord)
+                .options(load_only(*(getattr(RunRecord, c) for c in _RUN_COLUMNS_0002)))
                 .where(RunRecord.tenant == tenant)
                 .order_by(col(RunRecord.created_at), col(RunRecord.run_id))
             ).all()
@@ -318,7 +403,7 @@ def _rewrite_chains(session: Session, *, unverified: set[str]) -> None:
             if run.run_id not in chained:
                 continue
             position += 1
-            fields, digests = snapshot(run), field_digests(run)
+            fields, digests = _snapshot_0002(run), _digests_0002(run)
             entry = AuditEntry(
                 tenant=tenant,
                 run_id=run.run_id,

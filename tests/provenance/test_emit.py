@@ -320,3 +320,20 @@ def test_a_deliberate_none_is_a_statement_and_stays() -> None:
     assert graph["#abc/classification"]["value"] == "unclassified"
     assert graph["#abc/redaction"]["value"] == "none"
     assert graph["#abc/approvals"]["value"] == "[]"
+
+
+def test_the_facet_carries_the_trace_and_the_conversation() -> None:
+    from openlineage.client.serde import Serde
+
+    run = _run(trace_id="120bb1df40892f503418aafd635553d2", conversation_id="thread-9")
+    event = json.loads(
+        Serde.to_json(
+            to_openlineage(run, "c5a4b1e0-0000-4000-8000-000000000001", CREATED)
+        )
+    )
+
+    facet = event["run"]["facets"]["agenticBaseOutcome"]
+    assert (facet["traceId"], facet["conversationId"]) == (
+        "120bb1df40892f503418aafd635553d2",
+        "thread-9",
+    )

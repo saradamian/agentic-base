@@ -192,6 +192,8 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
         disclosure: str = "none"
         contentMarking: str = "none"
         approvals: int = 0
+        traceId: str = ""
+        conversationId: str = ""
 
         @staticmethod
         def _get_schema() -> str:
@@ -221,6 +223,8 @@ def to_openlineage(run: RunRecordCreate, run_id: str, created_at: datetime) -> R
             disclosure=run.disclosure,
             contentMarking=run.content_marking,
             approvals=len(run.approvals),
+            traceId=run.trace_id,
+            conversationId=run.conversation_id,
         ),
     }
     versions = run.component_versions

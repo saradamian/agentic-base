@@ -26,7 +26,9 @@
     "redaction": { "type": "string", "description": "What removed personal data before the transcript was written: none, or the instrument's name and version." },
     "disclosure": { "type": "string", "description": "How the person was told they were dealing with an AI, or none. The AI Act article 50 duty applies since 2 August 2026 and is discharged in a channel, not here; this records the claim." },
     "contentMarking": { "type": "string", "description": "How generated output was marked machine-readable as AI output, or none. For example c2pa:<manifest id>." },
-    "approvals": { "type": "integer", "description": "How many human approval records the run carries." }
+    "approvals": { "type": "integer", "description": "How many human approval records the run carries." },
+    "traceId": { "type": "string", "description": "The OpenTelemetry trace the run ran under, 32 hexadecimal characters, or empty." },
+    "conversationId": { "type": "string", "description": "The conversation the run belongs to (OpenTelemetry's gen_ai.conversation.id), or empty." }
   },
   "required": ["labelSource", "authority", "degraded"]
 }

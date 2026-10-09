@@ -22,11 +22,12 @@ A run record carries these fields, in groups:
 
 | group | fields |
 |---|---|
-| where it came from | `tenant`, `code_revision`, `component_versions`, `model`, `endpoint`, `precision`, `system_prompt`, `messages` |
+| where it came from | `tenant`, `code_revision`, `component_versions`, `model`, `endpoint`, `precision`, `sampling`, `system_prompt`, `messages` |
+| what joins it to the rest | `trace_id` (its spans), `conversation_id` (the other runs of one exchange) |
 | for whom, on what | `principal`, `classification`, `isolation_tier`, `disclosure`, `content_marking`, `redaction` |
 | oversight | `approvals`, each saying who said yes to which action and when |
-| the outcome | `status`, `resolved`, `label_source` (who scored it), `instrument`, `degraded` |
-| what it cost | `prompt_tokens`, `completion_tokens`, `joules`, `num_steps`, `total_tool_calls`, `elapsed_ms` |
+| the outcome | `status`, `finish_reasons`, `resolved`, `label_source` (who scored it), `instrument`, `degraded` |
+| what it cost | `prompt_tokens` (of which `cache_read_tokens`, `cache_creation_tokens`), `completion_tokens`, `joules`, `num_steps`, `total_tool_calls`, `elapsed_ms` |
 | for a comparison | `item`, `arm`, `arm_fingerprint`, `failure_kind` |
 
 Only `tenant` and `code_revision` are required, so a writer that does not know the rest yet still

@@ -33,6 +33,7 @@ from agentic_base.domain.integrity import (
     ChainVerdict,
     entry_hash,
     field_digests,
+    matches_entry,
     snapshot,
 )
 from agentic_base.domain.run_record import RunRecord, UTCDateTime
@@ -239,12 +240,15 @@ def verify(session: Session, tenant: str) -> AuditVerdict:
     records = session.exec(select(RunRecord).where(RunRecord.tenant == tenant)).all()
     present = {r.run_id for r in records}
     unchained = sorted(r.run_id for r in records if r.run_id not in latest)
+    defaults = snapshot(RunRecord(tenant=tenant))
     altered = sorted(
         r.run_id
         for r in records
         if r.run_id in latest
         and (
-            snapshot(r) != latest[r.run_id].audit_fields
+            not matches_entry(
+                snapshot(r), latest[r.run_id].audit_fields or {}, defaults
+            )
             or field_digests(r) != latest[r.run_id].digests
         )
     )
