@@ -167,10 +167,12 @@ core controls, so most of the second half of that table is inherited.
   For images, audio and video the Commission's draft code of practice names Content Credentials
   (C2PA) as its example, and there is an Apache-licensed implementation to adopt when the channels
   block needs one. For text there is no equivalent open format: the published schemes are either
-  metadata beside the text, which does not survive copying, or proprietary token watermarking. So
-  for a text channel the honest reading of article 50(2) is a disclosure the person sees, recorded
-  in `disclosure`, and `content_marking` left at `none` with that fact visible rather than a
-  standard invented here.
+  metadata beside the text, which does not survive copying, or proprietary token watermarking. A
+  notice the person sees answers article 50(1): it tells them they are dealing with an AI. It does
+  not answer article 50(2), which asks for output marked in a machine-readable way. So for a text
+  channel `disclosure` records the notice and `content_marking` stays `none`. That `none` records
+  an open gap. It stays a gap until a format exists or one of article 50's exceptions applies.
+  This repository does not invent a standard to close it.
 - **No decision on the Cyber Resilience Act.** Whether this is out of scope, or a steward's
   obligation from December 2027, is unanswered, and the answer changes who reports what.
 
