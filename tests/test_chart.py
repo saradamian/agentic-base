@@ -194,3 +194,19 @@ def test_the_retention_job_sweeps_once_at_a_time_with_the_service_settings() -> 
     assert 'agentic-base-retention", "sweep", "--apply"]' in job
     assert "concurrencyPolicy: Forbid" in job
     assert "{{- with .Values.envFromSecret }}" in job
+
+
+def test_forwarded_headers_are_trusted_only_from_the_configured_proxies(values) -> None:
+    """`--forwarded-allow-ips "*"` let any client that reached the pod set its own address."""
+    entrypoint = next(
+        line
+        for line in (VALUES.parents[2] / "Dockerfile").read_text().splitlines()
+        if line.startswith("ENTRYPOINT")
+    )
+    deployment = (VALUES.parent / "templates" / "deployment.yaml").read_text()
+
+    assert "--proxy-headers" in entrypoint
+    assert "forwarded-allow-ips" not in entrypoint
+    assert values["config"]["forwardedAllowIps"] == ""
+    assert "FORWARDED_ALLOW_IPS" in deployment
+    assert ".Values.config.forwardedAllowIps" in deployment
