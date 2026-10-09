@@ -37,6 +37,13 @@ def _service_database(tmp_path_factory):
     get_engine().dispose()
 
 
+@pytest.fixture(autouse=True)
+def _private_call_log(tmp_path_factory, monkeypatch):
+    """Tool calls are recorded by default. A test's calls must never reach the developer's log."""
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path_factory.mktemp("state")))
+    monkeypatch.delenv("AP_CALL_LOG", raising=False)
+
+
 @pytest.fixture(scope="session")
 def app(_service_database):
     return get_app()

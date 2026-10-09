@@ -172,3 +172,21 @@ needs: which runs predate the solution. A corpus where every old row is indistin
 row the solution processed cannot be audited, and a solution with nowhere to write gets built
 with its own store, one hop from the record it describes. D5 and D9 decide when a field is
 required; this decides that it exists.
+
+## D12: A served tool call is recorded unless someone turns it off
+
+A tool server built on the library records every call by default, in a file in the user's own
+state directory. `AP_CALL_LOG=off` turns it off, and `AP_CALL_LOG` with a path sends the calls
+there instead.
+
+The people who need the record are rarely the people who configure the client. The person an
+agent worked for, a maintainer finding out why a tool keeps failing, an incident responder: none
+of them edits the `env` block of an MCP client. Until 0.9.0 recording had to be switched on. When
+we first went to read the calls of the servers built on this library, no server had it on, so
+there was nothing to read. A record that has to be switched on is missing on the day someone
+asks for it.
+
+The default stays local and private. It writes one file a month, readable by its owner only. A
+line keeps the arguments and the length of the result, and the result itself stays out. A server
+whose arguments carry personal data redacts them in its own observer, as before, and a shared
+deployment points `AP_CALL_LOG` at its own place or turns it off.

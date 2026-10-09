@@ -103,12 +103,26 @@ def _settings_fields() -> set[str]:
 
 
 def _source_constants() -> set[str]:
-    return {
-        name
-        for module in SRC.rglob("*.py")
-        for name in _top_level_names(module)
-        if name.isupper()
-    }
+    """Upper-case names at the top of a module, and the upper-case name such a constant holds.
+
+    A page names the environment variable a person sets, ``AP_CALL_LOG``; the code keeps it in
+    ``CALL_LOG_VARIABLE``. Both are in the tree.
+    """
+    found: set[str] = set()
+    for module in SRC.rglob("*.py"):
+        for name, node in _top_level_names(module).items():
+            if not name.isupper():
+                continue
+            found.add(name)
+            value = getattr(node, "value", None)
+            if (
+                isinstance(value, ast.Constant)
+                and isinstance(value.value, str)
+                and value.value.isupper()
+                and value.value.isidentifier()
+            ):
+                found.add(value.value)
+    return found
 
 
 def missing_name_reference(
@@ -206,9 +220,9 @@ def test_a_planted_reference_of_each_kind_is_reported() -> None:
     page = (
         "`agentic_base.domain.integrity.no_such_function` `agentic_base.nowhere` "
         "`tests/test_nothing_here.py` `REDACTION_NO_SUCH_SETTING` `GET /runs/nowhere` "
-        "`AP_MCP_MAX_ROWS` `AP_NO_SUCH_LIMIT` "
+        "`AP_MCP_MAX_ROWS` `AP_NO_SUCH_LIMIT` `AP_CALL_LOG` `AP_NO_SUCH_VARIABLE` "
         "`agentic_base.domain.integrity.verify_chain` `REDACTION_LLM_*` `GET /runs/export?tenant=x`"
     )
     problems, examined = check(page)
-    assert examined == {"modules": 3, "paths": 1, "names": 4, "endpoints": 2}
-    assert len(problems) == 6, problems
+    assert examined == {"modules": 3, "paths": 1, "names": 6, "endpoints": 2}
+    assert len(problems) == 7, problems

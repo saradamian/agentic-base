@@ -28,16 +28,22 @@ call is the work and the record is the account of it.
 from __future__ import annotations
 
 import json
+import math
 import os
+import statistics
 import time
-from collections.abc import Awaitable, Callable
-from dataclasses import replace
+from collections import Counter
+from collections.abc import Awaitable, Callable, Iterable
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 CALL_LOG_VARIABLE = "AP_CALL_LOG"
-"""Names the file that `observer_from_environment` writes calls to."""
+"""Says where `observer_from_environment` writes calls: a file, ``off``, or unset for the default."""
+
+CALL_LOG_OFF = "off"
+"""The value of `CALL_LOG_VARIABLE` that records nothing."""
 
 
 @runtime_checkable
@@ -154,14 +160,24 @@ class JsonLinesObserver:
     name and version, the caller's `_meta` keys (an agent's run id among them), the trace and span
     ids, and, for a failed call, the error text the client got, cut at `call_log_error_chars`. A
     host that handles personal data wraps this in its own observer and redacts first.
+
+    With *monthly*, *path* is a directory and each call goes to the file of its month,
+    ``2026-10.jsonl``, so no file grows without end and an old month is removed by its name. A new
+    file is readable by its owner only.
     """
 
     def __init__(
-        self, path: str | Path, *, server: str = "", version: str = ""
+        self,
+        path: str | Path,
+        *,
+        server: str = "",
+        version: str = "",
+        monthly: bool = False,
     ) -> None:
         self._path = Path(path)
         self._server = server
         self._version = version
+        self._monthly = monthly
 
     def inspect_arguments(self, tool: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return arguments
@@ -178,8 +194,9 @@ class JsonLinesObserver:
         elapsed_ms: float,
         **extra: Any,
     ) -> None:
+        now = datetime.now(timezone.utc)
         entry = {
-            "time": datetime.now(timezone.utc).isoformat(timespec="milliseconds"),
+            "time": now.isoformat(timespec="milliseconds"),
             "server": self._server,
             **({"server_version": self._version} if self._version else {}),
             "tool": tool,
@@ -189,13 +206,43 @@ class JsonLinesObserver:
             "result_chars": len(result),
             **extra,
         }
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        with self._path.open("a", encoding="utf-8") as log:
-            log.write(json.dumps(entry, default=str) + "\n")
+        target = self._path / f"{now:%Y-%m}.jsonl" if self._monthly else self._path
+        target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        line = (json.dumps(entry, default=str) + "\n").encode("utf-8")
+        # One write to a file opened for appending, so the lines of servers sharing a file do not
+        # interleave.
+        fd = os.open(target, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+        try:
+            os.write(fd, line)
+        finally:
+            os.close(fd)
+
+
+def default_call_log_directory() -> Path:
+    """Where calls are written when nobody said otherwise.
+
+    ``$XDG_STATE_HOME/agentic-base/calls``, which is ``~/.local/state/agentic-base/calls`` on most
+    machines: the place the XDG convention keeps what a program records and a person may want
+    later. A relative ``XDG_STATE_HOME`` is ignored, as the convention says.
+    """
+    state = os.environ.get("XDG_STATE_HOME", "").strip()
+    root = (
+        Path(state)
+        if state and Path(state).is_absolute()
+        else Path.home() / ".local" / "state"
+    )
+    return root / "agentic-base" / "calls"
 
 
 def observer_from_environment(server: str = "", version: str = "") -> CallObserver:
-    """The observer the environment asks for: a call log when `AP_CALL_LOG` names a file.
+    """The observer the environment asks for. `AP_CALL_LOG` says where calls go.
+
+    * Unset or empty: one file a month in `default_call_log_directory`.
+    * ``off``: nowhere.
+    * Anything else: the file it names.
+
+    Recording is the default because the people who need the record, the person an agent worked
+    for and whoever answers for the agent later, are not the people who configure the client.
 
     *server* and *version* name the server in every line, so a log several servers share still says
     which build answered.
@@ -203,10 +250,160 @@ def observer_from_environment(server: str = "", version: str = "") -> CallObserv
     Read when called, never at import, so a variable set after import still counts. Wrapped in
     `SafeObserver`: a log that cannot be written must not fail the call it describes.
     """
-    path = os.environ.get(CALL_LOG_VARIABLE, "").strip()
-    if not path:
+    setting = os.environ.get(CALL_LOG_VARIABLE, "").strip()
+    if setting.lower() == CALL_LOG_OFF:
         return NullObserver()
-    return SafeObserver(JsonLinesObserver(path, server=server, version=version))
+    if setting:
+        return SafeObserver(JsonLinesObserver(setting, server=server, version=version))
+    try:
+        directory = default_call_log_directory()
+    except RuntimeError:
+        # No home directory to find, as for some service accounts: nowhere to put the default.
+        return NullObserver()
+    return SafeObserver(
+        JsonLinesObserver(directory, server=server, version=version, monthly=True)
+    )
+
+
+@dataclass(frozen=True)
+class CallLog:
+    """Calls read back from call log files, oldest first."""
+
+    calls: list[dict[str, Any]]
+    files: list[Path]
+    unreadable_lines: int = 0
+
+
+@dataclass(frozen=True)
+class ToolSummary:
+    """How one tool of one server was used: how often, how often it failed, how long it took."""
+
+    server: str
+    tool: str
+    calls: int
+    failed: int
+    median_ms: float
+    p95_ms: float
+    last_error: str = ""
+
+
+@dataclass(frozen=True)
+class CallSummary:
+    """What a call log says at a glance."""
+
+    tools: list[ToolSummary]
+    clients: dict[str, int] = field(default_factory=dict)
+    first: str = ""
+    last: str = ""
+
+    @property
+    def calls(self) -> int:
+        return sum(t.calls for t in self.tools)
+
+    @property
+    def failed(self) -> int:
+        return sum(t.failed for t in self.tools)
+
+
+def read_call_log(
+    paths: Iterable[str | Path] = (),
+    *,
+    since: datetime | None = None,
+    server: str | None = None,
+) -> CallLog:
+    """The calls in *paths*, or in `default_call_log_directory` when there are none.
+
+    A directory stands for every ``*.jsonl`` file in it. A line that is not a JSON object, or has no
+    time when *since* asks for one, is counted in ``unreadable_lines`` and skipped: a server killed
+    mid-write leaves half a line, and that must not hide the rest. A path that does not exist
+    raises `FileNotFoundError`, except the default directory, which only means nothing was recorded
+    yet.
+    """
+    named = [Path(p) for p in paths]
+    files: list[Path] = []
+    for path in named or [default_call_log_directory()]:
+        if path.is_dir():
+            files.extend(sorted(path.glob("*.jsonl")))
+        elif named or path.exists():
+            files.append(path)
+    calls: list[dict[str, Any]] = []
+    unreadable = 0
+    for path in files:
+        with path.open(encoding="utf-8", errors="replace") as log:
+            for line in log:
+                if not line.strip():
+                    continue
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    unreadable += 1
+                    continue
+                if not isinstance(entry, dict):
+                    unreadable += 1
+                    continue
+                if server is not None and entry.get("server") != server:
+                    continue
+                if since is not None:
+                    when = _when(entry)
+                    if when is None:
+                        unreadable += 1
+                        continue
+                    if when < since:
+                        continue
+                calls.append(entry)
+    calls.sort(key=lambda entry: str(entry.get("time", "")))
+    return CallLog(calls=calls, files=files, unreadable_lines=unreadable)
+
+
+def summarise_calls(calls: Iterable[dict[str, Any]]) -> CallSummary:
+    """Per server and tool: calls, failures, median and 95th percentile duration, latest error.
+
+    The busiest tool comes first. Clients are counted by name and version, as the handshake gave
+    them.
+    """
+    by_tool: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    clients: Counter[str] = Counter()
+    times: list[str] = []
+    for entry in calls:
+        key = (str(entry.get("server", "")), str(entry.get("tool", "")))
+        by_tool.setdefault(key, []).append(entry)
+        client = entry.get("client")
+        if isinstance(client, dict) and client.get("name"):
+            clients[
+                " ".join(str(client[k]) for k in ("name", "version") if client.get(k))
+            ] += 1
+        if entry.get("time"):
+            times.append(str(entry["time"]))
+    tools = []
+    for (server, tool), entries in by_tool.items():
+        durations = sorted(float(e.get("elapsed_ms", 0.0)) for e in entries)
+        failures = [e for e in entries if not e.get("success")]
+        tools.append(
+            ToolSummary(
+                server=server,
+                tool=tool,
+                calls=len(entries),
+                failed=len(failures),
+                median_ms=statistics.median(durations),
+                p95_ms=durations[max(0, math.ceil(0.95 * len(durations)) - 1)],
+                last_error=str(failures[-1].get("error", "")) if failures else "",
+            )
+        )
+    tools.sort(key=lambda t: (-t.calls, t.server, t.tool))
+    return CallSummary(
+        tools=tools,
+        clients=dict(clients.most_common()),
+        first=min(times, default=""),
+        last=max(times, default=""),
+    )
+
+
+def _when(entry: dict[str, Any]) -> datetime | None:
+    try:
+        when = datetime.fromisoformat(str(entry["time"]))
+    except (KeyError, ValueError):
+        return None
+    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
 
 
 class ObservingMiddleware:

@@ -31,6 +31,10 @@ Or point `agentic-base check` at results you already have. If your logs are JSON
 `--verdict` and `--channel`; if they are Inspect AI logs, pass the `.eval` file. You will find out in a minute whether your comparison lost runs unevenly, and whether your
 logs record who scored each outcome at all.
 
+If you run a tool server built on the library, let an agent use it and then run
+`agentic-base calls`. It shows every call the server received, the failed ones too, with what
+the agent asked for.
+
 ## The habit that matters most
 
 A guard that cannot fail is worse than no guard, because it gets cited. In the project this came

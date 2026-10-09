@@ -113,9 +113,11 @@ observer.record("checksum", {"url": "https://example.org/x"}, "...", True, 12.0)
 - `open_checked` validates the URL and every redirect target, connects to the address it
   validated, and yields the response before the body is read. `safe_fetch_text` does the same for
   a text.
-- `observer_from_environment` returns a recorder that appends one JSON line per call to the file
-  named by `CALL_LOG_VARIABLE`, failed calls included, and a no-op when that variable is not set.
-  A host with its own journal implements `CallObserver` instead.
+- `observer_from_environment` returns a recorder that appends one JSON line per call, failed
+  calls included. By default the lines go to one file a month in
+  `~/.local/state/agentic-base/calls` (under `$XDG_STATE_HOME` when that is set), readable by
+  you only. `AP_CALL_LOG` names another file, and `AP_CALL_LOG=off` records nothing. A host with
+  its own journal implements `CallObserver` instead.
 - `ObservingMiddleware` puts that observer in front of every tool call of a server built on the
   MCP SDK: `MCPServer(name, middleware=[ObservingMiddleware(observer_from_environment(server=name))])`.
   It imports nothing from the SDK, so it adds no dependency to the library half. Each line then
@@ -125,6 +127,37 @@ observer.record("checksum", {"url": "https://example.org/x"}, "...", True, 12.0)
 
 What is deliberately not here: the server loop itself. The MCP SDK has it, and a server of a few
 tools is about a hundred lines on the SDK's low-level `Server`.
+
+### See what agents did with it
+
+`agentic-base calls` reads the call log back. This is a short session of an MCP client with the
+EasyBuild server, which is built on this library:
+
+```console
+$ agentic-base calls
+7 calls to 1 server, 2026-10-09 03:13 to 2026-10-09 03:13 UTC, in ~/.local/state/agentic-base/calls
+
+server     tool                 calls  failed  median ms  p95 ms
+easybuild  compute_checksum         2       1         56     106
+easybuild  pypi_info                2       1        109     174
+easybuild  github_release_info      1       0        226     226
+easybuild  list_toolchains          1       0          0       0
+easybuild  search_easyconfigs       1       0         58      58
+
+clients: mcp 0.1.0 (7)
+
+agentic-base calls --failures shows each failed call with its arguments.
+
+$ agentic-base calls --failures
+2026-10-09 03:13  easybuild  pypi_info  {"package": "tqdm-but-misspelt-xyz"}
+  PyPI has no package 'tqdm-but-misspelt-xyz'
+2026-10-09 03:13  easybuild  compute_checksum  {"url": "http://169.254.169.254/latest/meta-data"}
+  URL rejected: disallowed address: 169.254.169.254
+```
+
+The second failure is the checked fetch refusing a cloud metadata address. Each failed call
+shows what the agent asked for and the error it got back. `--since 7d` and `--server` narrow the
+log down, and `--json` gives the same summary to a script.
 
 ## Check a comparison
 
@@ -162,6 +195,7 @@ own.
 | declare a tool a model can call | `agentic_base.tools` |
 | pre-check a URL an agent wants to fetch, or stream a file from it | `agentic_base.security.netsec` |
 | record the calls a served tool receives | `agentic_base.recording` |
+| see what agents did with your tool server | `agentic-base calls` |
 | know which outcomes may be cited | `agentic_base.domain.outcomes` |
 | check whether version B really beats version A | `agentic-base check`, or `agentic_base.domain.validity` |
 
