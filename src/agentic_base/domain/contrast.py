@@ -10,7 +10,7 @@ reported three ways:
 - **Per protocol**: the tasks both arms scored. The difference carries its 95% interval and
   McNemar's exact test. Both arms finished these tasks, so they lean easy. The number compares
   the arms on them.
-- **Intention to treat**: every task either arm attempted, with an excluded run counted as a
+- **Intention to treat**: every task either arm attempted. An excluded run counts as a
   failure. This reading is lowest for the arm with more exclusions.
 - **Bounds** (Manski, 1990): every excluded outcome set to its worst value, then to its best.
   They make no assumption about why runs were excluded, so a sign inside them is established.
@@ -22,8 +22,8 @@ resolves more, resolves fewer, is equivalent within the margin, or the result is
 
 McNemar (1947) is used in its exact binomial form. The interval is method 10 of Newcombe
 (1998), "Improved confidence intervals for the difference between binomial proportions based on
-paired data", Statistics in Medicine 17:2635-2650, with its continuity correction on the
-correlation. The tests pin both to published values. Standard library only, so the library
+paired data", Statistics in Medicine 17:2635-2650. It includes Newcombe's continuity
+correction on the correlation. The tests pin both to published values. Standard library only, so the library
 half keeps its dependency floor.
 """
 
@@ -40,7 +40,7 @@ from agentic_base.domain.validity import INCLUDED, wilson_interval
 from agentic_base.limits import get_limits
 
 _Z_95 = NormalDist().inv_cdf(0.975)
-"""Two-sided 95% normal quantile, to full precision so the interval matches published tables."""
+"""Two-sided 95% normal quantile. Full precision keeps the interval equal to published tables."""
 
 
 class ScoredObservation(Protocol):
@@ -67,10 +67,9 @@ def exact_mcnemar(only_treatment: int, only_baseline: int) -> float:
     """Two-sided exact McNemar test over the discordant pairs.
 
     Under no difference, each discordant pair is equally likely to favour either arm, so the
-    smaller count is binomial with p = 1/2. The p-value doubles that tail, capped at 1. Exact
-    at every sample size, unlike the chi-square approximation, which is too optimistic when
-    few pairs disagree. Computed with integers, so there is nothing to round until the final
-    division.
+    smaller count is binomial with p = 1/2. The p-value doubles that tail and is capped at 1.
+    The test is exact at every sample size. The chi-square approximation is too optimistic
+    when few pairs disagree. The arithmetic stays in integers until the final division.
     """
     total = only_treatment + only_baseline
     if total == 0:
@@ -120,7 +119,8 @@ def paired_difference_interval(
     the treatment resolved, tasks only the baseline resolved, and tasks neither did. Each
     arm's rate gets its Wilson interval, and the two are combined around the observed
     difference with a correction for the correlation between the arms. With no correlation it
-    is exactly `validity.newcombe_interval`, the interval for independent samples.
+    equals `validity.newcombe_interval`. That function gives the interval for independent
+    samples.
     """
     n = both + only_treatment + only_baseline + neither
     if n <= 0:
@@ -149,11 +149,11 @@ def paired_difference_interval(
 def minimum_detectable_effect(
     pairs: int, discordant: int, *, alpha: float = 0.05, power: float = 0.80
 ) -> float | None:
-    """The smallest difference these pairs could have detected, as a proportion.
+    """The smallest difference these pairs could have detected. The result is a proportion.
 
     For a paired design the power comes from the discordant pairs. With d the share of pairs
     that disagree, the detectable difference is about (z for alpha/2 + z for power) times the
-    square root of d / n. None when no pair disagrees: the sample then gives no estimate of
+    square root of d / n. None when no pair disagrees. The sample then gives no estimate of
     the variance to plan from, and the interval is the better guide.
     """
     if pairs <= 0 or discordant <= 0:
@@ -200,8 +200,9 @@ class PairedTable:
 class Contrast:
     """One arm against the baseline, read three ways.
 
-    Differences are proportions (0.10 is ten percentage points), always treatment minus
-    baseline. When `declined` is not empty the contrast was not computed and says why.
+    Differences are proportions, so 0.10 is ten percentage points. Each difference is
+    treatment minus baseline. When `declined` is not empty the contrast was not computed, and
+    `declined` holds the reason.
     """
 
     baseline: str
@@ -217,17 +218,19 @@ class Contrast:
     detectable: float | None = None
     margin: float = 0.05
     excluded: int = 0
-    """Runs with no outcome in either arm, never-attempted tasks included."""
+    """Runs with no outcome in either arm. A task one arm never attempted counts as an
+    excluded run for that arm."""
 
     itt_difference: float = 0.0
     itt_p_value: float = 1.0
     bounds: tuple[float, float] = (0.0, 0.0)
     holm_significant: bool | None = None
-    """Set when several arms were contrasted against one baseline; None for a single contrast."""
+    """Set when several arms are contrasted against one baseline. A single contrast leaves it
+    None."""
 
     @property
     def reading(self) -> str:
-        """`more`, `fewer`, `equivalent` or `inconclusive`, from the per-protocol interval."""
+        """Read from the per-protocol interval: `more`, `fewer`, `equivalent` or `inconclusive`."""
         low, high = self.interval
         if low > 0:
             return "more"
@@ -239,11 +242,12 @@ class Contrast:
 
     @property
     def sign_established(self) -> bool:
-        """True when the bounds exclude zero, whatever the excluded runs would have done."""
+        """True when the bounds exclude zero. The sign then holds whatever the excluded runs
+        would have done."""
         return self.bounds[0] > 0 or self.bounds[1] < 0
 
     def describe(self) -> str:
-        """A few lines a person can read, one idea each."""
+        """A few lines for a person to read. Each line carries one idea."""
         if self.declined:
             return f"{self.treatment} vs {self.baseline}: not compared, {self.declined}"
         low, high = self.interval
@@ -275,12 +279,11 @@ class Contrast:
             f"  excluded runs as failures, {self.tasks} tasks: {_pp(self.itt_difference)}, "
             f"p {_p(self.itt_p_value)}"
         )
-        sign = (
-            "the sign holds" if self.sign_established else "the sign is not established"
-        )
+        low, high = self.bounds
+        sign = "keeps its sign" if self.sign_established else "may change sign"
         lines.append(
-            f"  assuming nothing about the {self.excluded} excluded runs: "
-            f"{_span(*self.bounds)}, {sign}"
+            f"  assuming nothing about the {self.excluded} excluded runs, the difference lies "
+            f"between {low * 100:+.1f} and {high * 100:+.1f} pp and {sign}"
         )
         return "\n".join(lines)
 
@@ -291,7 +294,8 @@ def _pp(value: float) -> str:
 
 
 def _span(low: float, high: float) -> str:
-    """Two proportions as a range of signed percentage points, the form `validity` uses."""
+    """Two proportions as a range of signed percentage points. `validity` prints its ranges
+    the same way."""
     return f"{low * 100:+.1f} to {high * 100:+.1f} pp"
 
 
@@ -311,14 +315,13 @@ def contrast_arms(
 ) -> Contrast:
     """Contrast `treatment` against `baseline`, task by task.
 
-    Declines, and says why, when either arm has no runs, when the arms share no task, or when
-    a task has more than one run in an arm. A retried task has two outcomes, and choosing one
-    is a decision the caller has to make and state; picking silently is how a retry rule
-    becomes an effect.
+    The contrast declines when either arm has no runs, when the arms share no task, or when a
+    task has more than one run in an arm. A declined contrast states its reason. A retried
+    task has two outcomes. Which one counts is the caller's decision, and the caller should
+    state it.
 
     `margin` is the equivalence margin as a proportion. Left out, it is read from the limits
-    (`AP_CONTRAST_EQUIVALENCE_MARGIN`). Fix it before looking at the results: a margin chosen
-    afterwards is not a margin.
+    (`AP_CONTRAST_EQUIVALENCE_MARGIN`). Fix it before looking at the results.
     """
     if margin is None:
         margin = get_limits().contrast_equivalence_margin
@@ -407,7 +410,7 @@ def contrast_against(
     baseline: str,
     margin: float | None = None,
 ) -> list[Contrast]:
-    """Every other arm against `baseline`, with Holm's correction when there is more than one."""
+    """Every other arm against `baseline`. With more than one, Holm's correction applies."""
     observations = list(observations)
     others = sorted({obs.arm for obs in observations} - {baseline})
     contrasts = [

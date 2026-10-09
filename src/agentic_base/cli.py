@@ -5,7 +5,7 @@ header row, or an Inspect AI ``.eval``/``.json`` log — through `agentic_base.a
 `check_comparison` over them, and prints the CONSORT-style per-arm flow, the verdict line and a
 citability line. With ``--baseline`` it also says how large each arm's difference from that
 arm is and how sure that is (`agentic_base.domain.contrast`). The exit code carries the
-validity verdict, with or without ``--baseline``, so the command gates a CI job:
+validity verdict in both cases, so the command gates a CI job:
 
 * **0** — sound, and the check could have flagged something: at least two arms, at least one
   exclusion channel, every difference inside an interval narrow enough to have caught a gap.
@@ -79,8 +79,8 @@ def check_text(
 
     One function rather than print statements in `main`, so `agentic_base.demo` shows exactly
     what the command would say instead of a paraphrase of it. With a `baseline`, every other
-    arm's contrast against it follows the verdict line; the exit code is the verdict's either
-    way, because the contrast describes a comparison and does not decide whether to trust it.
+    arm's contrast against it follows the verdict line. The exit code stays the verdict's. The
+    contrast describes the comparison, and the verdict decides whether to trust it.
     """
     observations = list(observations)
     report = check_comparison(observations)

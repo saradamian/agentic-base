@@ -55,9 +55,8 @@ class Limits(BaseSettings):
     could not have told a real gap from none."""
 
     contrast_equivalence_margin: float = 0.05
-    """A difference whose 95% interval sits wholly inside plus or minus this is reported as
-    equivalent rather than inconclusive. Fix it before looking at results; a margin chosen
-    afterwards is not a margin."""
+    """A difference whose 95% interval sits wholly inside plus or minus this margin is
+    reported as equivalent. Fix it before looking at the results."""
 
     mcp_max_rows: int = 200
     """Rows one MCP call may return. A chat client pays for each of them in context."""
