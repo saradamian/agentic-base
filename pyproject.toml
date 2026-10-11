@@ -92,7 +92,7 @@ dev = [
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
   "pytest-cov==7.1.0",
-  "pytest-env==1.7.1",
+  "pytest-env==1.8.0",
   "ruff==0.16.10",
   "mkdocs-techdocs-core==1.7.1",
   # The suite runs on the consumer floor too, so the 3.10 leg needs a TOML reader.
