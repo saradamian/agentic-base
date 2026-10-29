@@ -28,7 +28,7 @@ tenant's chain, :func:`lock`, before it reads what it will change.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import JSON, Column, UniqueConstraint, update
@@ -46,7 +46,7 @@ from agentic_base.domain.run_record import RunRecord, UTCDateTime
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class AuditEntry(SQLModel, table=True):  # type: ignore[call-arg]

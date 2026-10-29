@@ -4,7 +4,7 @@ import enum
 import json
 import tempfile
 from collections.abc import Callable, Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, TypeVar
 from urllib.parse import quote
@@ -270,7 +270,7 @@ def export_tenant(
     ]
     manifest = {
         "tenant": tenant,
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "records": len(exportable),
         "format": "application/x-ndjson",
         "schema": "agentic_base.domain.outcomes.RunRecordCreate",
@@ -536,7 +536,7 @@ def label_run(
         record.label_source = update.label_source
         record.instrument = update.instrument
         record.degraded = update.degraded
-        record.labelled_at = datetime.now(timezone.utc)
+        record.labelled_at = datetime.now(UTC)
         return record
 
     return _write(session, tenant, change, "labelled", access.actor)

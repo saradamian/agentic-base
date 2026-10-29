@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import mlflow
 import pytest
@@ -22,7 +22,7 @@ from agentic_base.provenance.mlflow_export import (
     to_mlflow,
 )
 
-CREATED = datetime(2026, 9, 12, 10, 0, tzinfo=timezone.utc)
+CREATED = datetime(2026, 9, 12, 10, 0, tzinfo=UTC)
 
 
 @pytest.fixture(scope="module")

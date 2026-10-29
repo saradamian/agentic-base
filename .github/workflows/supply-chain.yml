@@ -6,8 +6,8 @@
 #   audit              the fully pinned dependency set, every extra included, checked against the
 #                      advisory databases on every push and pull request. pip-audit reads the lock
 #                      export and installs nothing. It evaluates the export's markers for the
-#                      runner's Python, so a version the lock keeps for 3.10 alone, because the
-#                      fixed release needs a newer Python, is not audited.
+#                      runner's Python, so a version the lock keeps for an older Python alone,
+#                      because the fixed release needs a newer one, is not audited.
 #   secrets            every file and every commit, scanned for credentials by gitleaks. GitHub's
 #                      own secret scanning covers provider-shaped tokens only: its generic
 #                      patterns need paid Secret Protection, and the API refuses to enable them

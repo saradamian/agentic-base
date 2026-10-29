@@ -36,7 +36,7 @@ import time
 from collections import Counter
 from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
@@ -195,7 +195,7 @@ class JsonLinesObserver:
         elapsed_ms: float,
         **extra: Any,
     ) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         entry = {
             "time": now.isoformat(timespec="milliseconds"),
             "server": self._server,
@@ -238,11 +238,11 @@ def prune_call_log(
     days = get_limits().call_log_retention_days if keep_days is None else keep_days
     if days <= 0:
         return []
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     deleted = []
     for path in sorted(Path(directory).glob("*.jsonl")):
         try:
-            month = datetime.strptime(path.stem, "%Y-%m").replace(tzinfo=timezone.utc)
+            month = datetime.strptime(path.stem, "%Y-%m").replace(tzinfo=UTC)
         except ValueError:
             continue
         ended = month.replace(
@@ -439,7 +439,7 @@ def _when(entry: dict[str, Any]) -> datetime | None:
         when = datetime.fromisoformat(str(entry["time"]))
     except (KeyError, ValueError):
         return None
-    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+    return when if when.tzinfo else when.replace(tzinfo=UTC)
 
 
 class ObservingMiddleware:

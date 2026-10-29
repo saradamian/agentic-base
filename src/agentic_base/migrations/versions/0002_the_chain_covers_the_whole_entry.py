@@ -27,7 +27,7 @@ import json
 import logging
 import os
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import sqlalchemy as sa
@@ -92,8 +92,8 @@ def _canonical_0001(values: dict[str, Any]) -> bytes:
 
 def _plain_0001(value: Any) -> Any:
     if isinstance(value, datetime):
-        aware = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-        return aware.astimezone(timezone.utc).isoformat()
+        aware = value if value.tzinfo else value.replace(tzinfo=UTC)
+        return aware.astimezone(UTC).isoformat()
     if isinstance(value, enum.Enum):
         return value.value
     return value
@@ -428,7 +428,7 @@ def _rewrite_chains(session: Session, *, unverified: set[str]) -> None:
         # scheme now covers. A row that never had an entry stays unchained and stays flagged.
         chained = {entry.run_id for entry in entries}
         session.flush()  # the rewritten rows, before new rows chain to them
-        at = datetime.now(timezone.utc)
+        at = datetime.now(UTC)
         event = "migrated_unverified" if tenant in unverified else "migrated"
         for run in runs:
             if run.run_id not in chained:

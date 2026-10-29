@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlmodel import Session, select
 
@@ -215,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
     from agentic_base.db import get_engine, init_db
 
     init_db()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with Session(get_engine()) as session:
         if args.command == "erase":
             erased = erase_run(session, args.run_id, args.reason, now)

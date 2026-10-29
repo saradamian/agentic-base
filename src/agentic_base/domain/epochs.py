@@ -34,7 +34,7 @@ from __future__ import annotations
 import enum
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field
 
@@ -65,7 +65,7 @@ class MeaningChange(BaseModel):
             "about, which is most of them."
         )
     )
-    declared_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    declared_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     declared_by: str = Field(default="")
 
 
@@ -110,11 +110,11 @@ def classify(record, change: MeaningChange) -> Epoch:
     if not revision:
         return Epoch.UNKNOWN
 
-    record_at = created if created.tzinfo else created.replace(tzinfo=timezone.utc)
+    record_at = created if created.tzinfo else created.replace(tzinfo=UTC)
     boundary_at = (
         change.effective_at
         if change.effective_at.tzinfo
-        else change.effective_at.replace(tzinfo=timezone.utc)
+        else change.effective_at.replace(tzinfo=UTC)
     )
     return Epoch.AFTER if record_at >= boundary_at else Epoch.BEFORE
 

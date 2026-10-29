@@ -9,7 +9,7 @@ pulled all three into a benchmark cell running inside a task container.
 So the portable surface is declared here rather than described in a document, and three
 properties of it are checked. Each was verified to fail when broken:
 
-* every portable module parses under the 3.10 grammar;
+* every portable module parses under the floor's grammar;
 * importing one loads no service dependency, checked in a fresh interpreter so that another
   test having already imported SQLModel cannot make this pass vacuously;
 * none of them reaches for the runtime attributes that exist only above the floor.
@@ -68,15 +68,22 @@ SERVICE_ONLY = (
     "uvicorn",
 )
 
-CONSUMER_PYTHON_FLOOR = (3, 10)
-"""`agentic-env` declares `requires-python = ">=3.10"`. This layer cannot ask for more."""
+PYTHON_FLOOR = (3, 11)
+"""What this package declares. 3.10 reached end of life on 1 October 2026, and the pillow and
+dnspython releases that fixed their advisories need 3.11."""
+
+CONSUMER_PYTHON_FLOOR = (3, 13)
+"""`agentic-env` declares `requires-python = ">=3.13"` (since 2026-10-07). This layer cannot ask
+for more than its consumer has."""
 
 ABOVE_THE_FLOOR = (
-    ("datetime.UTC", "datetime.UTC is 3.11+; use datetime.timezone.utc"),
-    ("import UTC", "datetime.UTC is 3.11+; use datetime.timezone.utc"),
-    ("StrEnum", "enum.StrEnum is 3.11+; subclass (str, Enum)"),
-    ("ExceptionGroup", "ExceptionGroup is 3.11+"),
-    ("tomllib", "tomllib is 3.11+; use tomli or pyyaml"),
+    ("itertools.batched", "itertools.batched is 3.12+"),
+    ("import batched", "itertools.batched is 3.12+"),
+    ("typing.override", "typing.override is 3.12+; typing_extensions has it"),
+    ("import override", "typing.override is 3.12+; typing_extensions has it"),
+    ("TypeAliasType", "typing.TypeAliasType is 3.12+"),
+    ("warnings.deprecated", "warnings.deprecated is 3.13+"),
+    ("copy.replace", "copy.replace is 3.13+"),
 )
 
 
@@ -85,9 +92,9 @@ def _path_of(module: str) -> Path:
 
 
 @pytest.mark.parametrize("module", PORTABLE_MODULES)
-def test_portable_module_parses_under_the_consumer_python_floor(module: str) -> None:
+def test_portable_module_parses_under_the_python_floor(module: str) -> None:
     source = _path_of(module).read_text()
-    ast.parse(source, feature_version=CONSUMER_PYTHON_FLOOR)
+    ast.parse(source, feature_version=PYTHON_FLOOR)
 
 
 @pytest.mark.parametrize("module", PORTABLE_MODULES)
@@ -122,28 +129,38 @@ def test_importing_a_portable_module_loads_no_service_dependency(module: str) ->
     assert leaked == "[]", f"{module} pulled service dependencies: {leaked}"
 
 
-def test_the_linter_targets_the_consumer_floor_rather_than_ours() -> None:
-    """Otherwise the linter demands the constructs the consumer cannot run.
+def test_the_linter_targets_the_floor_rather_than_the_newest_python() -> None:
+    """Otherwise the linter demands the constructs the floor cannot run.
 
     This is not hypothetical. With `target-version = "py314"`, ruff's own pyupgrade rules asked
-    for `datetime.UTC` and `enum.StrEnum` in these modules, both 3.11+. A contributor clearing
-    the lint would have broken the consumer, and the lint would have been the reason.
+    for `datetime.UTC` and `enum.StrEnum` in these modules, both above the floor of the day. A
+    contributor clearing the lint would have broken the consumer, and the lint would have been
+    the reason.
     """
     text = (SRC.parent / "pyproject.toml").read_text()
     line = next(ln for ln in text.splitlines() if ln.startswith("target-version"))
     target = line.split('"')[1]
-    want = f"py{CONSUMER_PYTHON_FLOOR[0]}{CONSUMER_PYTHON_FLOOR[1]}"
+    want = f"py{PYTHON_FLOOR[0]}{PYTHON_FLOOR[1]}"
     assert target == want, (
-        f"ruff targets {target} but the consumer floor is {want}; its upgrade rules will ask "
-        "for syntax this layer's consumers cannot run"
+        f"ruff targets {target} but the floor is {want}; its upgrade rules will ask "
+        "for syntax the floor cannot run"
     )
 
 
-def test_the_declared_python_floor_admits_the_consumer() -> None:
+def _declared_floor() -> tuple[int, ...]:
     text = (SRC.parent / "pyproject.toml").read_text()
     line = next(ln for ln in text.splitlines() if ln.startswith("requires-python"))
-    floor = tuple(int(p) for p in line.split('">=')[1].rstrip('"').split("."))
-    assert floor <= CONSUMER_PYTHON_FLOOR, (
-        f"requires-python is {floor}, above the consumer floor {CONSUMER_PYTHON_FLOOR}; "
-        "agentic-env could not import this at all"
+    return tuple(int(p) for p in line.split('">=')[1].rstrip('"').split("."))
+
+
+def test_the_declared_python_floor_is_the_one_the_guards_check() -> None:
+    """The grammar and name checks above run against PYTHON_FLOOR; a floor raised in
+    pyproject.toml alone would leave them checking the old one."""
+    assert _declared_floor() == PYTHON_FLOOR
+
+
+def test_the_declared_python_floor_admits_the_consumer() -> None:
+    assert _declared_floor() <= CONSUMER_PYTHON_FLOOR, (
+        f"requires-python is {_declared_floor()}, above the consumer floor "
+        f"{CONSUMER_PYTHON_FLOOR}; agentic-env could not import this at all"
     )

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from alembic import command
@@ -143,7 +143,7 @@ def test_the_command_upgrades_the_configured_database(
     ]
 
 
-_CREATED = datetime(2026, 9, 1, 12, 0, tzinfo=timezone.utc)
+_CREATED = datetime(2026, 9, 1, 12, 0, tzinfo=UTC)
 
 # Hashes the 0.7.1 release computes for rows r1 and r2 below, chained from genesis: computed by
 # running 0.7.1's own `domain.integrity` against these values, not by this repository's copy of

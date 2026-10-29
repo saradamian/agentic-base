@@ -136,7 +136,8 @@ This layer exists so other projects can delete their copies and import instead. 
 they can import it. On the day this was checked they could not. The package declared Python 3.14
 against a consumer whose floor is 3.10. Its core dependencies were a web framework, a migration
 tool and a database driver, so importing a URL-safety helper would have pulled all three into a
-container on a compute node.
+container on a compute node. The floor is 3.11 since 0.11.0: 3.10 reached end of life on
+1 October 2026, and `agentic-env` itself had moved to 3.13 that month.
 
 Rules travel, storage does not. The outcome rules are functions over a structural protocol, so a
 consumer keeps its own record type and still gets them.

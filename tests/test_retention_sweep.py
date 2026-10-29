@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlmodel import Session, select
@@ -21,7 +21,7 @@ from agentic_base.retention_sweep import (
 )
 from agentic_base.routers import runs
 
-NOW = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
 
 
 def _add(session: Session, tenant: str, days_old: int, item: str) -> str:
