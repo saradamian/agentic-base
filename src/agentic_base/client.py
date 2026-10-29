@@ -21,7 +21,9 @@ Usage:
                    instrument="harness-1.4")
 
 The context manager records on exit, including when the body raises, because a run that crashed
-is a measurement and losing it biases whatever it was part of.
+is a measurement and losing it biases whatever it was part of. When recording itself fails
+while the body raised, the body's exception is the one re-raised, with the recording failure
+attached as a note; a successful body with a failed recording raises the recording failure.
 """
 
 from __future__ import annotations
@@ -224,5 +226,12 @@ class _RunContext:
         if exc_type is not None and self._pending.status is RunStatus.COMPLETED:
             self._pending.status = RunStatus.FAILED
             self._pending.failure_kind = exc_type.__name__
-        self._pending.run_id = self._recorder.record(self._pending)
+        try:
+            self._pending.run_id = self._recorder.record(self._pending)
+        except Exception as failure:
+            if exc is None:
+                raise
+            # The agent's own exception is the one to debug; a service that could not take the
+            # record must not replace it in the traceback. The failure travels as a note on it.
+            exc.add_note(f"recording the run failed as well: {failure!r}")
         return False
