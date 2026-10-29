@@ -103,6 +103,16 @@ def test_recording_a_run_without_a_code_revision_is_refused(test_client) -> None
     assert response.status_code == 422
 
 
+def test_an_empty_tenant_or_code_revision_is_refused_not_stored(test_client) -> None:
+    """The field is required, but a required string admits "". The recording client refused
+    an empty one; a direct HTTP client could write a run with no provenance at all."""
+    for field in ("tenant", "code_revision"):
+        response = test_client.post("/runs", json={**_payload(item="x"), field: "  "})
+
+        assert response.status_code == 422, field
+        assert f"{field} is required" in response.json()["detail"]
+
+
 def test_recording_an_outcome_without_naming_its_scorer_is_refused(test_client) -> None:
     """A label whose provenance is unknown can be neither cited nor trained on."""
     response = test_client.post("/runs", json=_payload(item="task-9", resolved=True))
