@@ -23,7 +23,7 @@ SCORER = "token-for-harness-00001"
 POLICY = AccessPolicy(
     enabled=True,
     tokens={
-        TEAM_A: Grant(tenants=frozenset({"team-a"})),
+        TEAM_A: Grant(tenants=frozenset({"team-a"}), name="team-a-writer"),
         OPERATOR: Grant(tenants=None),
         SCORER: Grant(
             tenants=frozenset({"team-a"}),
@@ -274,7 +274,7 @@ def test_a_wrong_auth_mode_fails_the_start(monkeypatch) -> None:
         ),
         (
             '{"long-enough-token-1": {"tenants": ["team-a"], "scorers": ["human"]}}',
-            "knows 'tenants' and 'label_sources'",
+            "knows 'tenants', 'label_sources' and 'name'",
         ),
     ],
 )
@@ -329,3 +329,38 @@ def test_the_tokens_never_appear_in_the_settings_dump(monkeypatch) -> None:
     monkeypatch.setenv("API_TOKENS", '{"a-very-secret-token-1": ["team-a"]}')
 
     assert "a-very-secret-token-1" not in str(Settings().model_dump())
+
+
+def test_a_grant_may_carry_a_name_and_an_unnamed_token_is_named_by_its_digest() -> None:
+    named, unnamed = "named-token-0000000001", "unnamed-token-000000001"
+    grants = parse_tokens(
+        f'{{"{named}": {{"tenants": ["a"], "name": "swebench-writer"}}, "{unnamed}": ["a"]}}'
+    )
+    policy = AccessPolicy(enabled=True, tokens=grants)
+
+    assert policy.resolve(named).actor == "swebench-writer"
+    digest = policy.resolve(unnamed).actor
+    assert digest.startswith("token:") and len(digest) == len("token:") + 12
+    assert unnamed not in digest and unnamed[:8] not in digest
+
+
+def test_every_change_through_the_service_names_the_token_that_made_it(secured) -> None:
+    run_id = secured.post("/runs", json=_run("team-a"), headers=_bearer(TEAM_A)).json()[
+        "run_id"
+    ]
+    secured.post(
+        f"/runs/{run_id}/label",
+        json={"resolved": True, "label_source": "official_harness"},
+        headers=_bearer(SCORER),
+    )
+    secured.post(
+        f"/runs/{run_id}/approvals",
+        json={"action": "push", "decision": "approved", "by": "p", "at": "now"},
+        headers=_bearer(TEAM_A),
+    )
+
+    history = secured.get(f"/runs/{run_id}/history", headers=_bearer(TEAM_A)).json()
+
+    actors = [h["actor"] for h in history]
+    assert actors[0] == actors[2] == "team-a-writer"
+    assert actors[1].startswith("token:") and SCORER not in actors[1]

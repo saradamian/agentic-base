@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 from starlette import status
 
 from agentic_base.auth import Access, caller_access
@@ -59,7 +59,11 @@ def _visible_run(session: Session, run_id: str, access: Access) -> RunRecord:
 
 
 def _write(
-    session: Session, tenant: str, change: Callable[[], RunRecord], event: str
+    session: Session,
+    tenant: str,
+    change: Callable[[], RunRecord],
+    event: str,
+    actor: str,
 ) -> RunRecord:
     """Make a change and write its audit entry together, or neither.
 
@@ -74,7 +78,7 @@ def _write(
             audit.lock(session, tenant)
             record = change()
             session.add(record)
-            audit.append(session, record, event)
+            audit.append(session, record, event, actor)
             session.commit()
         except IntegrityError:
             session.rollback()
@@ -216,7 +220,7 @@ def create_run(
             record.erased_at = claimed_at or record.created_at
         return record
 
-    return _write(session, payload.tenant, change, "created")
+    return _write(session, payload.tenant, change, "created", access.actor)
 
 
 class _ExportLine(BaseModel):
@@ -362,6 +366,42 @@ def get_run(
     return _visible_run(session, run_id, access)
 
 
+class HistoryEntry(BaseModel):
+    """One change to a run, as the audit log recorded it."""
+
+    seq: int
+    """The entry's position in the tenant's chain."""
+    event: str
+    at: datetime
+    actor: str
+    """The token's grant by name or digest, ``anonymous`` under ``AUTH=none``, the command that
+    ran, or empty for an entry written before the log recorded actors."""
+
+
+@router.get("/{run_id}/history")
+def run_history(
+    run_id: str,
+    session: Session = Depends(get_session),
+    access: Access = Depends(caller_access),
+) -> list[HistoryEntry]:
+    """Every change to this run, in order: what happened, when, and who did it.
+
+    This is the audit log's answer to "who labelled this, and when was it approved"; the
+    content of each change is on the run, and whether the log has been altered since is
+    `GET /runs/integrity`.
+    """
+    _visible_run(session, run_id, access)
+    entries = session.exec(
+        select(audit.AuditEntry)
+        .where(audit.AuditEntry.run_id == run_id)
+        .order_by(col(audit.AuditEntry.chain_seq))
+    ).all()
+    return [
+        HistoryEntry(seq=e.chain_seq, event=e.event, at=e.at, actor=e.actor)
+        for e in entries
+    ]
+
+
 class ProvenanceFormat(str, enum.Enum):
     PROV = "prov"
     OPENLINEAGE = "openlineage"
@@ -456,7 +496,7 @@ def record_approval(
             record.redaction = " | ".join(merged["instruments"]) or record.redaction
         return record
 
-    return _write(session, tenant, change, "approved")
+    return _write(session, tenant, change, "approved", access.actor)
 
 
 @router.post("/{run_id}/label")
@@ -484,7 +524,7 @@ def label_run(
         record.labelled_at = datetime.now(timezone.utc)
         return record
 
-    return _write(session, tenant, change, "labelled")
+    return _write(session, tenant, change, "labelled", access.actor)
 
 
 @router.get("/validity/report")
