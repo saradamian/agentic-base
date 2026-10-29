@@ -138,8 +138,11 @@ core controls, so most of the second half of that table is inherited.
   `agentic-base-retention erase` answers one person's request. The chart runs the sweep as a
   CronJob, off by default. Because the audit log holds the personal fields only as digests, an
   erasure leaves it verifiable and the verification reports the erasure, which is what makes the
-  GDPR's erasure right and the AI Act's log-keeping duty compatible rather than opposed. What is
-  missing is organisational: the policy per tenant, and who is told what was erased.
+  GDPR's erasure right and the AI Act's log-keeping duty compatible rather than opposed. An erasure
+  reaches the transcript, the principal and the approvers' identities, and not the fields the log
+  keeps as values nor the writer's `extra`; the schema holds those to the work, and redaction
+  covers `extra` at write time. What is missing is organisational: the policy per tenant, and who
+  is told what was erased.
 - **The incident path has been walked once, on paper.** `incident-response.md` says which clock
   is which, who is told, and where each thing a report asks for lives. A tabletop against v0.3.4
   found that PyPI served a rebuilt wheel no attestation covered and that no release carried an
