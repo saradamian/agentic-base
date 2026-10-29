@@ -153,3 +153,36 @@ def test_the_recorder_sends_its_token_and_is_refused_without_one(
         app.dependency_overrides.pop(get_access_policy)
 
     assert run.run_id
+
+
+def test_a_failed_recording_does_not_replace_the_agents_own_exception(
+    monkeypatch,
+) -> None:
+    """The service being down while the agent crashed used to show up as the service's error,
+    with the agent's traceback gone."""
+    recorder = RunRecorder("http://localhost", tenant="hpml", code_revision="abc")
+
+    def _refuse(pending: PendingRun) -> str:
+        raise ConnectionError("service unreachable")
+
+    monkeypatch.setattr(recorder, "record", _refuse)
+
+    with (
+        pytest.raises(RuntimeError, match="agent blew up") as raised,
+        recorder.run(item="t"),
+    ):
+        raise RuntimeError("agent blew up")
+
+    assert any("recording the run failed" in note for note in raised.value.__notes__)
+
+
+def test_a_failed_recording_of_a_successful_run_is_raised(monkeypatch) -> None:
+    recorder = RunRecorder("http://localhost", tenant="hpml", code_revision="abc")
+    monkeypatch.setattr(
+        recorder,
+        "record",
+        lambda pending: (_ for _ in ()).throw(ConnectionError("down")),
+    )
+
+    with pytest.raises(ConnectionError, match="down"), recorder.run(item="t"):
+        pass
