@@ -13,7 +13,7 @@ Closes #
 
 ## Portability
 
-- [ ] If a module in `tests/test_portable_surface.py` changed: it still imports on 3.10 with only the four library dependencies.
+- [ ] If a module in `tests/test_portable_surface.py` changed: it still imports on 3.11 with only the four library dependencies.
 - [ ] No site-specific value in code, chart defaults or the Dockerfile. Those belong in a deployment overlay.
 
 ## Risk

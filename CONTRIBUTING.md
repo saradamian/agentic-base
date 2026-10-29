@@ -13,7 +13,7 @@ correct; that goes in the commit message and, when it is a decision, in `docs/de
 
 ## Two halves, one repository
 
-The **library half** is what other projects import. It installs on Python 3.10 with pydantic,
+The **library half** is what other projects import. It installs on Python 3.11 with pydantic,
 pydantic-settings, httpx and PyYAML, and nothing else. The portable modules are listed in
 `tests/test_portable_surface.py`, and its guards fail when the list stops being true. The **service half** is an optional extra. If your change makes a portable module import a
 service dependency, the suite tells you.
@@ -42,7 +42,7 @@ Two real defects reached the public gate that way in one day. If a warning must 
 scope a `filterwarnings` entry to that one message, name the upstream cause, and say when it can
 be removed.
 
-Continuous integration runs the same five steps on 3.10 and 3.14. If your machine has only one,
+Continuous integration runs the same five steps on 3.11 and 3.14. If your machine has only one,
 the runner is the other. Three more checks are required to merge and run on GitHub: a dependency
 review of what the change adds, an audit of the fully pinned set, and a secret scan over every file
 and every commit.
@@ -104,7 +104,7 @@ Semantic versioning. The version is the git tag; nothing is edited to cut a rele
 - Patch releases fix without changing an interface.
 - Tag `vX.Y.Z` on `main`. The release workflow verifies the tag's signature against
   `.github/allowed_signers`, builds the distribution, refuses if the built version differs from
-  the tag, checks the wheel imports on Python 3.10, attests the distribution files and an SBOM,
+  the tag, checks the wheel imports on Python 3.11, attests the distribution files and an SBOM,
   and publishes a GitHub release with generated notes. A second job takes those same files,
   verifies each against its attestation, and publishes them to PyPI by trusted publishing. No
   token is stored anywhere.

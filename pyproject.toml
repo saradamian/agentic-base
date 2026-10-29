@@ -2,7 +2,7 @@
 name = "surf-agentic-base"
 authors = [{ name = "SURF" }]
 description = "The record of what an AI agent did, for whom and with whose approval; plus the library a tool server needs."
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "EUPL-1.2"
 license-files = ["LICENSE"]
 dynamic = ["version", "readme"]
@@ -11,7 +11,6 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
@@ -22,11 +21,14 @@ classifiers = [
 
 # The library half. Anything a consumer imports must be satisfiable by this list alone.
 #
-# The floor is 3.10 and the list is short because of who imports this. `agentic-env` declares
-# `requires-python = ">=3.10"` and its benchmark cells run inside task containers on compute
-# nodes, so a base layer that needs 3.14, a web framework and a Postgres driver cannot be
-# imported there at all. That is not a packaging preference, it is the difference between this
-# layer being adoptable and being a second copy of the code it was meant to replace.
+# The list is short because of who imports this. `agentic-env`'s benchmark cells run inside task
+# containers on compute nodes, so a base layer that needs a web framework and a Postgres driver
+# cannot be imported there at all. That is not a packaging preference, it is the difference
+# between this layer being adoptable and being a second copy of the code it was meant to replace.
+#
+# The floor is 3.11, below every consumer (agentic-env declares 3.13) and the lowest Python still
+# maintained: 3.10 reached end of life on 1 October 2026, and the pillow and dnspython releases
+# that fixed their advisories need 3.11.
 dependencies = [
   "pydantic>=2.9,<3",
   "pydantic-settings>=2.5,<3",
@@ -95,8 +97,6 @@ dev = [
   "pytest-env==1.7.1",
   "ruff==0.16.10",
   "mkdocs-techdocs-core==1.7.1",
-  # The suite runs on the consumer floor too, so the 3.10 leg needs a TOML reader.
-  'tomli>=2.4; python_version < "3.11"',
   # The MLflow export test needs MLflow, on both ends of the supported range.
   "mlflow>=3.16,<4",
 
@@ -146,7 +146,7 @@ line-length = 88
 indent-width = 4
 
 # Assume Python version
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [
@@ -166,6 +166,9 @@ select = [
 ignore = [
   "E501",   # Don't complain about line length, the formatter should handle this.
   "COM812", # This does not play wel with formatter
+  # The vocabularies stay `(str, Enum)`: `StrEnum` changes what `str(member)` and an f-string
+  # print, from the member's name to its value, and consumers format these in their own messages.
+  "UP042",
 ]
 
 # Allow unused variables when underscore-prefixed.

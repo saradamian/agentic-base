@@ -4,7 +4,7 @@ outcome label survives the round trip in every format."""
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -17,7 +17,7 @@ from agentic_base.provenance import (
     to_prov,
 )
 
-CREATED = datetime(2026, 9, 12, 10, 0, tzinfo=timezone.utc)
+CREATED = datetime(2026, 9, 12, 10, 0, tzinfo=UTC)
 
 
 def _run(**overrides) -> RunRecordCreate:

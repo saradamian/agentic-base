@@ -1,6 +1,5 @@
-# The gate this repository declares, run on both ends of the supported range. 3.10 is not
-# decoration: it is the floor a consumer of this library runs on, and the portable-surface guards
-# mean nothing unless something executes them there.
+# The gate this repository declares, run on both ends of the supported range. The floor is not
+# decoration: the portable-surface guards mean nothing unless something executes them there.
 #
 # Actions are pinned to commit hashes, not tags. A tag can be moved; a hash cannot.
 name: ci
@@ -23,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.10", "3.14"]
+        python: ["3.11", "3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0

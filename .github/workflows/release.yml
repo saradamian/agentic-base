@@ -57,7 +57,7 @@ jobs:
 
       - name: the wheel must install and import on the consumer floor
         run: |
-          uv venv --python 3.10 /tmp/floor
+          uv venv --python 3.11 /tmp/floor
           uv pip install --python /tmp/floor/bin/python --quiet dist/*.whl
           python3 scripts/check_wheel_imports.py /tmp/floor/bin/python
 

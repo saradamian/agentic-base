@@ -43,7 +43,7 @@ import hashlib
 import json
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 GENESIS = "0" * 64
@@ -124,8 +124,8 @@ def _canonical(values: dict[str, Any]) -> bytes:
 
 def _plain(value: Any) -> Any:
     if isinstance(value, datetime):
-        aware = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-        return aware.astimezone(timezone.utc).isoformat()
+        aware = value if value.tzinfo else value.replace(tzinfo=UTC)
+        return aware.astimezone(UTC).isoformat()
     if isinstance(value, enum.Enum):
         return value.value
     return value

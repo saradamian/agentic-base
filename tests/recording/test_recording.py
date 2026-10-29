@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -163,7 +163,7 @@ def test_without_the_variable_calls_go_to_this_months_file_in_the_state_director
 
     observer_from_environment("easybuild").record("search", {}, "", True, 1.0)
 
-    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    month = datetime.now(UTC).strftime("%Y-%m")
     log = tmp_path / "agentic-base" / "calls" / f"{month}.jsonl"
     assert _lines(log)[0]["server"] == "easybuild"
 
@@ -227,7 +227,7 @@ def test_a_monthly_log_names_each_file_by_the_month_of_its_calls(
     )
 
     [written] = list(tmp_path.iterdir())
-    assert written.name == datetime.now(timezone.utc).strftime("%Y-%m") + ".jsonl"
+    assert written.name == datetime.now(UTC).strftime("%Y-%m") + ".jsonl"
 
 
 def _write(path: Path, *entries: dict[str, Any], tail: str = "") -> Path:
@@ -275,7 +275,7 @@ def test_reading_keeps_only_the_server_and_the_period_asked_for(tmp_path: Path) 
     )
 
     read = read_call_log(
-        [log], since=datetime(2026, 10, 1, tzinfo=timezone.utc), server="easybuild"
+        [log], since=datetime(2026, 10, 1, tzinfo=UTC), server="easybuild"
     )
 
     assert [c["tool"] for c in read.calls] == ["new"]
@@ -562,7 +562,7 @@ async def test_a_line_the_middleware_writes_satisfies_the_published_schema(
         jsonschema.validate({k: v for k, v in line.items() if k != "success"}, schema)
 
 
-NOW = datetime(2026, 10, 9, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 9, tzinfo=UTC)
 
 
 def _months(directory: Path, *names: str) -> None:
@@ -612,14 +612,9 @@ def test_a_period_shorter_than_six_months_is_honoured(tmp_path: Path) -> None:
 def test_december_ends_on_the_first_of_january(tmp_path: Path) -> None:
     _months(tmp_path, "2025-12.jsonl")
     assert (
-        prune_call_log(
-            tmp_path, datetime(2026, 7, 3, tzinfo=timezone.utc), keep_days=183
-        )
-        == []
+        prune_call_log(tmp_path, datetime(2026, 7, 3, tzinfo=UTC), keep_days=183) == []
     )
-    assert prune_call_log(
-        tmp_path, datetime(2026, 7, 4, tzinfo=timezone.utc), keep_days=183
-    )
+    assert prune_call_log(tmp_path, datetime(2026, 7, 4, tzinfo=UTC), keep_days=183)
 
 
 def test_the_first_call_of_a_month_prunes_the_old_months(
@@ -637,5 +632,5 @@ def test_the_first_call_of_a_month_prunes_the_old_months(
     finally:
         get_limits.cache_clear()
 
-    month = datetime.now(timezone.utc).strftime("%Y-%m")
+    month = datetime.now(UTC).strftime("%Y-%m")
     assert [p.name for p in tmp_path.iterdir()] == [f"{month}.jsonl"]

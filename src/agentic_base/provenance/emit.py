@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -103,7 +103,7 @@ def _cost(run: RunRecordCreate) -> dict[str, float | int]:
 
 def _iso(moment: datetime) -> str:
     if moment.tzinfo is None:
-        moment = moment.replace(tzinfo=timezone.utc)
+        moment = moment.replace(tzinfo=UTC)
     return moment.isoformat().replace("+00:00", "Z")
 
 

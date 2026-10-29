@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -18,7 +18,7 @@ from agentic_base.domain.retention import (
     was_erased,
 )
 
-NOW = datetime(2026, 9, 13, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 13, tzinfo=UTC)
 
 
 @dataclass

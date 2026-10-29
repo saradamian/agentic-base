@@ -2,7 +2,7 @@
 
 [![ci](https://github.com/saradamian/agentic-base/actions/workflows/ci.yml/badge.svg)](https://github.com/saradamian/agentic-base/actions/workflows/ci.yml)
 [![licence: EUPL-1.2](https://img.shields.io/badge/licence-EUPL--1.2-blue.svg)](https://github.com/saradamian/agentic-base/blob/main/LICENSE)
-[![python](https://img.shields.io/badge/python-3.10%20to%203.14-blue.svg)](https://github.com/saradamian/agentic-base/blob/main/pyproject.toml)
+[![python](https://img.shields.io/badge/python-3.11%20to%203.14-blue.svg)](https://github.com/saradamian/agentic-base/blob/main/pyproject.toml)
 [![cite](https://img.shields.io/badge/cite-CITATION.cff-green.svg)](https://github.com/saradamian/agentic-base/blob/main/CITATION.cff)
 
 The record of what an AI agent did, kept so that the people who have to answer for it can read
@@ -38,7 +38,7 @@ the chain still verifying.
 
 The type is `agentic_base.domain.outcomes.RunRecordCreate`. The rules over it are functions on a
 structural protocol, so a consumer with its own record type gets them without adopting the
-storage. The library half runs on Python 3.10 with four dependencies and no database. The words
+storage. The library half runs on Python 3.11 with four dependencies and no database. The words
 (principal, scorer, citable, exclusion channel) are defined in
 [Concepts](https://github.com/saradamian/agentic-base/blob/main/docs/concepts.md).
 
@@ -81,7 +81,7 @@ the install, the tokens, and what each example prints.
 
 A server that gives an agent tools needs four things this library has: a way to declare a tool,
 a result type, a fetch that refuses internal addresses on every hop, and a record of each call.
-They are in the library half, which installs on Python 3.10 with four dependencies and no
+They are in the library half, which installs on Python 3.11 with four dependencies and no
 database.
 
 ```python
@@ -222,7 +222,7 @@ bridge or build), and a test fails when the code does by hand what the ledger sa
 ## Installing
 
 ```bash
-pip install surf-agentic-base                # the library half: four dependencies, Python 3.10+
+pip install surf-agentic-base                # the library half: four dependencies, Python 3.11+
 pip install 'surf-agentic-base[provenance]'  # plus the three provenance-standard libraries
 pip install 'surf-agentic-base[service]'     # the service: FastAPI, storage, tracing, MCP
 pip install 'surf-agentic-base[mlflow]'      # plus the MLflow export
