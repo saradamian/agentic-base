@@ -188,8 +188,9 @@ def create_run(
 ) -> RunRecord:
     """Record one agent run, transcript and provenance included.
 
-    Tenant and code revision are required. An outcome may only be supplied together with the
-    scorer that produced it, and a citable scorer only through a token granted that scorer.
+    Tenant and code revision are required and may not be empty: a run that cannot name its
+    code cannot be placed against a later change in what a field means. An outcome may only be
+    supplied together with the scorer that produced it, and a citable scorer only through a token granted that scorer.
     When redaction is configured, the transcript is redacted before it is written, whatever the
     writer's own ``redaction`` field claims.
 
@@ -197,6 +198,17 @@ def create_run(
     erasure removes, which is what a replayed export of an erased run looks like; anything else
     is a run trying to skip retention while keeping its content, and is refused.
     """
+    for name, value in (
+        ("tenant", payload.tenant),
+        ("code_revision", payload.code_revision),
+    ):
+        # Required by the model, but a required string admits "". The recording client refuses
+        # an empty one at construction; a direct HTTP client did not meet that rule until here.
+        if not value.strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=f"{name} is required and may not be empty",
+            )
     access.require(payload.tenant)
     access.require_label_source(payload.label_source)
     if redactor is not None:
