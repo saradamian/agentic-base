@@ -60,7 +60,7 @@ service = [
   "asgi-correlation-id==5.0.1",
   # The protocol belongs to the SDK; docs/architecture/reuse-ledger.md, mcp/server.py row.
   "mcp>=2.2,<3",
-  "fastapi[standard]==0.143.0",
+  "fastapi[standard]==0.162.0",
   "prometheus-fastapi-instrumentator==8.1.0",
   "uvicorn==0.54.0",
   # Tracing: the vocabulary in observability/conventions.py is worthless if no span is opened.
@@ -69,10 +69,10 @@ service = [
   "opentelemetry-exporter-otlp-proto-http==1.45.1",
   # The two span vocabularies, pinned: the GenAI one has no stable schema URL to pin instead.
   "opentelemetry-semantic-conventions==0.66b1",
-  "openinference-semantic-conventions==0.1.41",
+  "openinference-semantic-conventions==0.1.42",
   "structlog==26.1.0",
   "sqlmodel==0.0.48",
-  "alembic==1.20.0",
+  "alembic==1.20.1",
   "psycopg[binary]==3.3.6",
   # The API serves a run in the provenance standards, so the service carries their libraries.
   "prov>=3.1,<4",
@@ -88,14 +88,14 @@ Changelog = "https://github.com/saradamian/agentic-base/releases"
 
 [dependency-groups]
 dev = [
-  "coverage==7.16.2",
-  "mypy==2.4.0",
+  "coverage==7.17.0",
+  "mypy==2.4.1",
   "mypy-extensions==1.1.0",
   "pytest==9.1.1",
-  "pytest-asyncio==1.4.0",
+  "pytest-asyncio==1.4.1",
   "pytest-cov==7.1.0",
-  "pytest-env==1.7.1",
-  "ruff==0.16.10",
+  "pytest-env==1.8.3",
+  "ruff==0.17.3",
   "mkdocs-techdocs-core==1.7.1",
   # The MLflow export test needs MLflow, on both ends of the supported range.
   "mlflow>=3.16,<4",
