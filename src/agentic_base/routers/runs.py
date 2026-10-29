@@ -7,6 +7,7 @@ from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, TypeVar
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
@@ -300,10 +301,20 @@ def export_tenant(
         lines(),
         media_type="application/x-ndjson",
         headers={
-            "Content-Disposition": f'attachment; filename="{tenant}-runs.ndjson"',
+            "Content-Disposition": _attachment(f"{tenant}-runs.ndjson"),
             "X-Record-Count": str(len(exportable)),
         },
     )
+
+
+def _attachment(filename: str) -> str:
+    """A Content-Disposition any client can read. Headers carry Latin-1, so a tenant named outside
+    it used to fail the export with 500; the name travels percent-encoded under ``filename*``
+    (RFC 6266), with an ASCII fallback for a client that reads only ``filename``."""
+    fallback = "".join(
+        c if c.isascii() and c.isalnum() or c in "._-" else "_" for c in filename
+    )
+    return f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
 
 
 class IntegrityResponse(BaseModel):
@@ -510,13 +521,17 @@ def label_run(
 
     The source is mandatory: a label whose provenance is unknown cannot be trained on or
     cited, and a corpus that permits unattributed labels discovers this only once it is
-    expensive to fix. A citable source is only accepted from a token granted that scorer.
+    expensive to fix. A citable source is only accepted from a token granted that scorer, and
+    a label from a citable source is only replaced by a token granted that scorer.
     """
     tenant = _visible_run(session, run_id, access).tenant
     access.require_label_source(update.label_source)
 
     def change() -> RunRecord:
         record = _current(session, run_id)
+        # Overturning a citable verdict takes the same grant as asserting one; a diagnostic
+        # label from an ungranted token used to replace a harness's result.
+        access.require_label_source(record.label_source, replacing=True)
         record.resolved = update.resolved
         record.label_source = update.label_source
         record.instrument = update.instrument
