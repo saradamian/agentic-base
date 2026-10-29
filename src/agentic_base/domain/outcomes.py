@@ -415,6 +415,11 @@ class RunRecordCreate(BaseModel):
     total_tool_calls: int = 0
     elapsed_ms: float = 0.0
     extra: dict[str, Any] = Field(default_factory=dict)
+    """What the writer records beside the named fields: a benchmark name, a split, the store's own
+    run id. It is for the work, never for a person: redaction reaches every string in it at write
+    time, and an erasure leaves it, so a writer that puts a person's data here has put it where
+    the service will not take it out. The service's own ``redaction`` and ``erasure`` keys live
+    here too."""
 
     @field_validator("trace_id")
     @classmethod

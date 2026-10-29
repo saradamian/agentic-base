@@ -283,7 +283,7 @@ def safe_fetch_text(
             headers=headers,
         ) as response:
             response.raise_for_status()
-            body = response.read()[:cap]
+            body = _read_up_to(response, cap)
             return FetchResult(
                 url=response.extensions["checked_url"],
                 content_type=response.headers.get("content-type", ""),
@@ -292,6 +292,19 @@ def safe_fetch_text(
     finally:
         if owned:
             client.close()
+
+
+def _read_up_to(response: Any, cap: int) -> bytes:
+    """At most *cap* bytes of the body, read as they arrive. ``read()`` then a slice pulled the
+    whole body into memory first, so the cap bounded what was kept and not what was fetched."""
+    chunks: list[bytes] = []
+    size = 0
+    for chunk in response.iter_bytes():
+        chunks.append(chunk)
+        size += len(chunk)
+        if size >= cap:
+            break
+    return b"".join(chunks)[:cap]
 
 
 def _hostname(url: str) -> str:
