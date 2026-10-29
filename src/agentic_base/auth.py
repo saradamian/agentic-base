@@ -90,8 +90,11 @@ class Access:
                 detail=f"this token may not use tenant {tenant!r}",
             )
 
-    def require_label_source(self, source: LabelSource) -> None:
-        """Refuse a citable outcome from a token not granted its scorer.
+    def require_label_source(
+        self, source: LabelSource, *, replacing: bool = False
+    ) -> None:
+        """Refuse a citable outcome from a token not granted its scorer, or, with *replacing*,
+        refuse to let it overturn one.
 
         Diagnostic sources pass without a grant: the grant guards what may be cited, not what
         may be observed.
@@ -100,10 +103,11 @@ class Access:
             return
         if self.label_sources is None or source in self.label_sources:
             return
+        verb = "replace a label from" if replacing else "assert label_source"
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                f"this token may not assert label_source {source.value!r}: its API_TOKENS "
+                f"this token may not {verb} {source.value!r}: its API_TOKENS "
                 f"entry does not name {source.value!r} under label_sources"
             ),
         )
