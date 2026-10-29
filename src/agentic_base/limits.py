@@ -76,6 +76,12 @@ class Limits(BaseSettings):
     covers providers and deployers of high-risk systems, and a log of tool arguments may need less
     under the GDPR (docs/decisions.md D12)."""
 
+    call_log_redaction: str = "patterns"
+    """What the default call log removes from tool arguments before writing them: ``patterns``
+    (credentials, e-mail addresses, phone, bank, card and citizen service numbers, IP addresses),
+    ``credentials``, or ``off`` for a host whose own observer redacts first. A value that is none
+    of these reads as ``patterns``."""
+
     call_log_error_chars: int = 500
     """How much of a failed call's error text a call record keeps. The client already got the same
     text; the cap keeps a stack trace or an echoed document from filling the log."""

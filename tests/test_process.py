@@ -174,3 +174,11 @@ def test_the_image_can_read_its_own_version() -> None:
         "a tracked file is excluded from the build"
     )
     assert "install -y -qq --no-install-recommends git" in dockerfile
+
+
+def test_security_md_supports_the_released_minor() -> None:
+    """The table said 0.8.x through three minors; a reader took it as the supported line."""
+    citation = yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8"))
+    minor = ".".join(str(citation["version"]).split(".")[:2])
+
+    assert f"| {minor}.x | yes |" in (ROOT / "SECURITY.md").read_text(encoding="utf-8")

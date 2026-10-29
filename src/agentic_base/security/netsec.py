@@ -199,8 +199,10 @@ def open_checked(
     `extensions["checked_url"]` is the URL of the final hop, with the hostname rather than the
     pinned address.
 
-    Raises `URLSafetyError` when any hop fails validation. *client* is an `httpx.Client` that does
-    not follow redirects on its own; the caller owns it, so one client can serve many fetches.
+    Raises `URLSafetyError` when any hop fails validation. *client* is an `httpx.Client`; the
+    caller owns it, so one client can serve many fetches. Each hop is sent with redirects turned
+    off whatever the client's own setting, so a client built with ``follow_redirects=True``
+    cannot carry a request past this check.
     """
     import httpx
 
@@ -211,22 +213,28 @@ def open_checked(
     current = url
     for _ in range(hops + 1):
         validate_url(current, allowed_ports=allowed_ports)
-        addresses = [
-            ip for ip in resolve(_hostname(current)) if not is_disallowed_ip(ip)
-        ]
-        if addresses:
+        host = _hostname(current)
+        if _is_address(host):
+            # An address literal: validate_url already checked it, nothing to pin.
+            request_url, request_headers, extensions = current, dict(headers or {}), {}
+        else:
+            addresses = [ip for ip in resolve(host) if not is_disallowed_ip(ip)]
+            if not addresses:
+                # The lookup that validate_url passed and this one disagree: a name that now
+                # answers with internal addresses only, or none. Handing the name to the client
+                # would let it resolve a third time and connect wherever that lands.
+                raise URLSafetyError(
+                    f"{host} no longer resolves to an address that may be fetched"
+                )
             target = pin_target(current, str(addresses[0]))
             request_url = target.connect_url
             request_headers = {**(headers or {}), "Host": target.host_header}
             extensions = {"sni_hostname": target.sni_hostname}
-        else:
-            # An address literal: validate_url already checked it, nothing to pin.
-            request_url, request_headers, extensions = current, dict(headers or {}), {}
 
         request = client.build_request(
             "GET", request_url, headers=request_headers, extensions=extensions
         )
-        response = client.send(request, stream=True)
+        response = client.send(request, stream=True, follow_redirects=False)
         if response.is_redirect:
             location = response.headers.get("location", "")
             response.close()
@@ -305,6 +313,14 @@ def _read_up_to(response: Any, cap: int) -> bytes:
         if size >= cap:
             break
     return b"".join(chunks)[:cap]
+
+
+def _is_address(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return True
 
 
 def _hostname(url: str) -> str:

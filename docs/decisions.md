@@ -190,6 +190,7 @@ The default stays local and private. It writes one file a month, readable by its
 deletes a month `call_log_retention_days` after the month ends, 183 days unless set otherwise. No
 law makes 183 days a floor for this log. The AI Act's six-month log duty covers providers and
 deployers of high-risk systems, and a log of tool arguments may need less under the GDPR. A line
-keeps the arguments and the length of the result. It does not keep the result. A server whose
-arguments carry personal data redacts them in its own observer. A shared deployment points
-`AP_CALL_LOG` at its own place or turns it off.
+keeps the arguments and the length of the result. It does not keep the result. Since 0.11.1 the
+pattern layer replaces credentials and the identifiers it knows before a line is written; it
+does not find names, so a server whose arguments carry people's names redacts them in its own
+observer. A shared deployment points `AP_CALL_LOG` at its own place or turns it off.
