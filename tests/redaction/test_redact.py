@@ -132,13 +132,15 @@ def test_the_record_names_the_instrument_and_reports_what_it_examined() -> None:
 
     out = redact_run(record, _Upper())
 
+    # Three strings: the system prompt, the message, and the key `kept`, which is examined
+    # like any other string since keys can carry identifiers too.
     assert out.redaction == "upper 1.0 (test)"
     assert out.extra == {
         "kept": 1,
         "redaction": {
-            "examined": 2,
+            "examined": 3,
             "found": {"SECRET": 2},
-            "instruments": {"upper 1.0 (test)": 2},
+            "instruments": {"upper 1.0 (test)": 3},
             "writer": "none",
         },
     }
@@ -270,3 +272,39 @@ def test_a_later_approval_adds_to_the_runs_counts() -> None:
         "instruments": {"upper 1.0 (test)": 3},
         "writer": "none",
     }
+
+
+def test_a_key_that_is_itself_an_identifier_is_redacted_and_keys_stay_distinct() -> (
+    None
+):
+    """`extra` filed under a person's address as the key kept the address: only values were
+    walked. Two keys that redact to the same type must not collapse into one."""
+    record = _record(
+        extra={"secret-one": {"n": 1}, "secret-two": {"n": 2}, "plain": "secret"},
+        messages=[
+            {
+                "role": "assistant",
+                "content": [
+                    {"type": "tool_use", "id": "t1", "input": {"secret-key": "v"}}
+                ],
+            }
+        ],
+    )
+
+    out = redact_run(record, _Upper())
+
+    assert out.extra["<X>-one"] == {"n": 1}
+    assert out.extra["<X>-two"] == {"n": 2}
+    assert out.extra["plain"] == "<X>"
+    assert out.messages[0]["content"][0]["input"] == {"<X>-key": "v"}
+
+
+def test_two_keys_that_redact_alike_are_kept_apart() -> None:
+    class _Same(_Upper):
+        def redact(self, text: str) -> Redacted:
+            return Redacted(text="<X>" if "secret" in text else text, found={})
+
+    out = redact_run(_record(extra={"secret a": 1, "secret b": 2}), _Same())
+
+    assert out.extra["<X>"] == 1
+    assert out.extra["<X>#2"] == 2

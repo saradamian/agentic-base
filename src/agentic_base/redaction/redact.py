@@ -105,11 +105,22 @@ class _Pass:
         return result.text
 
     def data(self, value: Any) -> Any:
-        """Every string inside *value*, whatever its key."""
+        """Every string inside *value*, keys included: a writer that files a person under
+        their address as the key has put the address where a value-only walk never looked."""
         if isinstance(value, str):
             return self.text(value)
         if isinstance(value, dict):
-            return {k: self.data(v) for k, v in value.items()}
+            out: dict[Any, Any] = {}
+            for key, item in value.items():
+                new_key = self.text(key) if isinstance(key, str) else key
+                if new_key in out:
+                    # Two keys that redact to the same type stay two keys.
+                    suffix = 2
+                    while f"{new_key}#{suffix}" in out:
+                        suffix += 1
+                    new_key = f"{new_key}#{suffix}"
+                out[new_key] = self.data(item)
+            return out
         if isinstance(value, list):
             return [self.data(v) for v in value]
         return value
@@ -160,7 +171,8 @@ def redact_run(record: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
     keeps as a value, where no erasure can reach it later. Messages are walked recursively and
     every string is redacted except the structural ones that join a transcript together (roles,
     part types, and the ids that tie a tool call to its result), and those only where the
-    transcript's structure puts them. Keys and structure are kept. The writer's ``redaction``
+    transcript's structure puts them. Structure is kept; a key that is itself an identifier
+    is redacted like a value, and two keys that redact alike stay distinct. The writer's ``redaction``
     claim is stored under ``extra["redaction"]["writer"]`` and does not decide whether the
     redactor runs. ``RedactionUnavailable`` propagates: a record is either redacted as declared
     or not written.
