@@ -58,6 +58,10 @@ class Limits(BaseSettings):
     """A difference whose 95% interval sits wholly inside plus or minus this margin is
     reported as equivalent. Fix it before looking at the results."""
 
+    write_attempts: int = 3
+    """How often the service tries one write before answering 409. Writes to one tenant queue, so
+    a conflict happens only among a new tenant's first writers on PostgreSQL."""
+
     mcp_max_rows: int = 200
     """Rows one MCP call may return. A chat client pays for each of them in context."""
 

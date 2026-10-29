@@ -16,7 +16,10 @@ A run whose personal fields were erased is reported as erased, not as tampered: 
 the erased content are still in the log, the content is not, and the chain stays intact.
 
 A unique constraint on the tenant and the previous hash makes a fork impossible: two writers
-that read the same predecessor cannot both append to it, and the second is told to retry.
+that read the same predecessor cannot both append to it, and the second is told to retry. The
+constraint protects the log, not the run: a writer that read the run before another's commit and
+the log after it chains correctly and still writes back a stale copy. So every write holds the
+tenant's chain, :func:`lock`, before it reads what it will change.
 """
 
 from __future__ import annotations
@@ -25,7 +28,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import JSON, Column, UniqueConstraint
+from sqlalchemy import JSON, Column, UniqueConstraint, update
 from sqlmodel import Field, Session, SQLModel, col, select
 
 from agentic_base.domain.integrity import (
@@ -83,6 +86,26 @@ class ChainHead(SQLModel, table=True):  # type: ignore[call-arg]
     tenant: str = Field(primary_key=True)
     seq: int
     hash: str
+
+
+def lock(session: Session, tenant: str) -> None:
+    """Hold the tenant's chain until the transaction ends. Call it before reading the run.
+
+    A change reads a run, modifies it and writes it back whole, with a snapshot of it in the
+    entry. Without the lock, a writer that read before another committed writes its own copy
+    back: the other's approval is gone and the log, chained to the entry it could see, verifies.
+    With it, the second writer waits and then reads what the first wrote.
+
+    An UPDATE that changes nothing is the one statement that locks on both databases:
+    PostgreSQL locks the head row, SQLite takes its single write lock. A tenant with no head
+    yet has nothing to lock on PostgreSQL; its first writers meet at the unique constraint.
+    """
+    session.exec(
+        update(ChainHead)
+        .where(col(ChainHead.tenant) == tenant)
+        .values(seq=col(ChainHead.seq))
+        .execution_options(synchronize_session=False)
+    )
 
 
 def append(session: Session, record: RunRecord, event: str) -> AuditEntry:

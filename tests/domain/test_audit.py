@@ -1,11 +1,14 @@
 """The audit log the service writes, and what verifying it catches."""
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 
 import pytest
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, select
 
+from agentic_base.auth import Access
 from agentic_base.domain import audit
 from agentic_base.domain.audit import AuditEntry, ChainHead
 from agentic_base.domain.integrity import (
@@ -14,7 +17,13 @@ from agentic_base.domain.integrity import (
     field_digests,
     snapshot,
 )
-from agentic_base.domain.run_record import LabelSource, RunRecord
+from agentic_base.domain.run_record import (
+    Approval,
+    LabelSource,
+    LabelUpdate,
+    RunRecord,
+)
+from agentic_base.routers import runs
 
 
 def _post(client, tenant: str = "hpml", item: str = "task-1") -> str:
@@ -162,6 +171,131 @@ def test_a_write_that_loses_the_race_is_refused_not_written(
     assert response.headers["Retry-After"] == "1"
     monkeypatch.undo()
     assert _integrity(test_client)["runs_checked"] == 1
+
+
+def test_a_conflict_raised_while_the_entry_is_flushed_is_a_409_not_a_500(
+    test_client, monkeypatch
+) -> None:
+    """PostgreSQL raises the constraint at the flush inside `append`, where SQLite waits for
+    the commit; a conflict caught only around the commit was a 500 there."""
+    _post(test_client, item="first")
+
+    def stale(session, record, event):
+        entry = _forged_entry(record, event)
+        session.add(entry)
+        session.flush()
+        return entry
+
+    monkeypatch.setattr(audit, "append", stale)
+    response = test_client.post(
+        "/runs", json={"tenant": "hpml", "code_revision": "abc", "item": "second"}
+    )
+
+    assert response.status_code == 409
+
+
+def test_a_write_that_loses_the_race_once_is_retried_and_recorded(
+    test_client, monkeypatch
+) -> None:
+    _post(test_client, item="first")
+    real_append, calls = audit.append, []
+
+    def stale_once(session, record, event):
+        calls.append(event)
+        if len(calls) == 1:
+            entry = _forged_entry(record, event)
+            session.add(entry)
+            return entry
+        return real_append(session, record, event)
+
+    monkeypatch.setattr(audit, "append", stale_once)
+    response = test_client.post(
+        "/runs", json={"tenant": "hpml", "code_revision": "abc", "item": "second"}
+    )
+    monkeypatch.undo()
+
+    assert response.status_code == 201
+    assert len(calls) == 2
+    verdict = _integrity(test_client)
+    assert verdict["intact"], verdict["summary"]
+    assert verdict["runs_checked"] == 2
+
+
+# --- two writers to one run: the second must change what the first wrote ----------------------
+
+
+def _approval(by: str) -> Approval:
+    return Approval(action="push", decision="approved", by=by, at="2026-10-29")
+
+
+_EVERY_TENANT = Access(tenants=None, label_sources=None)
+
+
+def test_an_approval_from_a_writer_holding_an_older_copy_keeps_the_one_before_it(
+    test_client, engine
+) -> None:
+    """The lost update: the second writer read the run before the first committed, and wrote
+    its own copy back. The log, chained to the entry it could see, verified intact."""
+    run_id = _post(test_client)
+    with Session(engine) as late, Session(engine) as early:
+        # Held, as a request holds what it read: the identity map keeps only weak references.
+        older_copy = late.get(RunRecord, run_id)
+        assert older_copy is not None
+        runs.record_approval(run_id, _approval("carol"), early, _EVERY_TENANT)
+        runs.record_approval(run_id, _approval("dave"), late, _EVERY_TENANT)
+
+    stored = test_client.get(f"/runs/{run_id}").json()
+    assert [approval["by"] for approval in stored["approvals"]] == ["carol", "dave"]
+    assert _integrity(test_client)["intact"]
+
+
+def test_an_approval_after_a_label_it_did_not_see_leaves_the_run_unaltered(
+    test_client, engine
+) -> None:
+    """With an older copy the entry snapshot missed the label the row had, and the run read as
+    altered for good."""
+    run_id = _post(test_client)
+    label = LabelUpdate(resolved=True, label_source=LabelSource.OFFICIAL_HARNESS)
+    with Session(engine) as late, Session(engine) as early:
+        # Held, as a request holds what it read: the identity map keeps only weak references.
+        older_copy = late.get(RunRecord, run_id)
+        assert older_copy is not None
+        runs.label_run(run_id, label, early, _EVERY_TENANT)
+        runs.record_approval(run_id, _approval("carol"), late, _EVERY_TENANT)
+
+    stored = test_client.get(f"/runs/{run_id}").json()
+    assert stored["resolved"] is True
+    assert len(stored["approvals"]) == 1
+    verdict = _integrity(test_client)
+    assert verdict["intact"], verdict["summary"]
+    assert verdict["altered_runs"] == []
+
+
+def test_simultaneous_approvals_are_all_kept_and_the_log_verifies(test_client) -> None:
+    run_id = _post(test_client)
+    writers = 8
+    start = threading.Barrier(writers)
+
+    def approve(index: int) -> int:
+        start.wait()
+        return test_client.post(
+            f"/runs/{run_id}/approvals",
+            json={
+                "action": f"step-{index}",
+                "decision": "approved",
+                "by": f"person-{index}",
+                "at": "2026-10-29",
+            },
+        ).status_code
+
+    with ThreadPoolExecutor(writers) as pool:
+        codes = list(pool.map(approve, range(writers)))
+
+    assert codes == [200] * writers
+    stored = test_client.get(f"/runs/{run_id}").json()
+    assert len(stored["approvals"]) == writers
+    verdict = _integrity(test_client)
+    assert verdict["intact"], verdict["summary"]
 
 
 # --- what an edit short of a whole-chain rewrite looks like, and that each one is named ------

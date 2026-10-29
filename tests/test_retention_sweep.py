@@ -7,15 +7,17 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlmodel import Session, select
 
+from agentic_base.auth import Access
 from agentic_base.domain import audit
 from agentic_base.domain.audit import AuditEntry
-from agentic_base.domain.run_record import RunRecord
+from agentic_base.domain.run_record import Approval, RunRecord
 from agentic_base.retention_sweep import (
     erase_run,
     main,
     parse_policies,
     sweep,
 )
+from agentic_base.routers import runs
 
 NOW = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
 
@@ -123,6 +125,31 @@ def test_an_erasure_on_request_ignores_age_and_happens_once(engine, corpus) -> N
         _get(engine, corpus["recent"]).extra["erasure"]["reason"] == "the person asked"
     )
     assert verdict.intact
+
+
+def test_an_erasure_keeps_an_approval_committed_after_it_first_read_the_run(
+    engine, corpus
+) -> None:
+    """The erasure writes the whole run back; from an older copy, the approval was gone and the
+    log, describing that copy, verified."""
+    run_id = corpus["recent"]
+    with Session(engine) as eraser, Session(engine) as approver:
+        older_copy = eraser.get(RunRecord, run_id)
+        assert older_copy is not None
+        runs.record_approval(
+            run_id,
+            Approval(action="push", decision="approved", by="carol", at="2026-10-29"),
+            approver,
+            Access(tenants=None, label_sources=None),
+        )
+
+        assert erase_run(eraser, run_id, "the person asked", NOW)
+        verdict = audit.verify(eraser, "team-a")
+
+    erased = _get(engine, run_id)
+    assert [approval["decision"] for approval in erased.approvals] == ["approved"]
+    assert erased.approvals[0]["by"] == ""
+    assert verdict.intact, verdict.summary()
 
 
 def test_an_unknown_run_cannot_be_erased(engine) -> None:
