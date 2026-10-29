@@ -141,6 +141,7 @@ def test_an_erasure_keeps_an_approval_committed_after_it_first_read_the_run(
             Approval(action="push", decision="approved", by="carol", at="2026-10-29"),
             approver,
             Access(tenants=None, label_sources=None),
+            None,
         )
 
         assert erase_run(eraser, run_id, "the person asked", NOW)

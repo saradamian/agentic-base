@@ -329,6 +329,66 @@ def test_a_public_run_falls_back_to_patterns_and_says_so(app, test_client) -> No
     assert response.json()["redaction"] == "marker 1.0"
 
 
+def test_an_approval_added_later_is_redacted_and_counted_like_the_runs_own(
+    app, test_client
+) -> None:
+    """The endpoint wrote an approval's note as sent, whatever the server's redaction."""
+    from agentic_base.redaction.configured import get_redactor
+
+    app.dependency_overrides[get_redactor] = _Marker
+    try:
+        created = test_client.post(
+            "/runs",
+            json=_payload(
+                item="redact-5", messages=[{"role": "user", "content": "hi Maria"}]
+            ),
+        ).json()
+        response = test_client.post(
+            f"/runs/{created['run_id']}/approvals",
+            json={
+                "action": "send the reply to Maria",
+                "decision": "approved",
+                "by": "urn:example:bob",
+                "at": "2026-10-29",
+                "note": "Maria asked twice",
+            },
+        )
+    finally:
+        app.dependency_overrides.pop(get_redactor)
+
+    assert response.status_code == 200
+    approval = response.json()["approvals"][0]
+    assert approval["action"] == "send the reply to <PERSON>"
+    assert approval["note"] == "<PERSON> asked twice"
+    assert approval["by"] == "urn:example:bob"
+    counts = response.json()["extra"]["redaction"]
+    assert counts["examined"] == 3
+    assert counts["found"] == {"PERSON": 3}
+    assert test_client.get("/runs/integrity", params={"tenant": "hpml"}).json()[
+        "intact"
+    ]
+
+
+def test_an_approval_is_refused_when_no_name_detector_can_run(app, test_client) -> None:
+    from agentic_base.redaction.configured import get_redactor
+
+    run_id = test_client.post(
+        "/runs", json=_payload(item="redact-6", classification="internal")
+    ).json()["run_id"]
+    app.dependency_overrides[get_redactor] = _Unavailable
+    try:
+        response = test_client.post(
+            f"/runs/{run_id}/approvals",
+            json={"action": "push", "decision": "approved", "by": "b", "at": "now"},
+        )
+    finally:
+        app.dependency_overrides.pop(get_redactor)
+
+    assert response.status_code == 503
+    assert "approval was not recorded" in response.json()["detail"]
+    assert test_client.get(f"/runs/{run_id}").json()["approvals"] == []
+
+
 def test_the_validity_report_carries_the_per_arm_flow_it_rests_on(test_client) -> None:
     """A verdict without its accounting cannot be checked by the reader it is meant to convince."""
     for item in ("t1", "t2"):

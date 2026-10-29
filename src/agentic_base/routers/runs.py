@@ -6,6 +6,7 @@ import tempfile
 from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import StreamingResponse
@@ -31,9 +32,17 @@ from agentic_base.domain.validity import check_comparison, report_as_dict
 from agentic_base.limits import get_limits
 from agentic_base.provenance import to_openlineage, to_process_run_crate, to_prov
 from agentic_base.redaction.configured import get_redactor
-from agentic_base.redaction.redact import RedactionUnavailable, Redactor, redact_run
+from agentic_base.redaction.redact import (
+    RedactionUnavailable,
+    Redactor,
+    add_counts,
+    redact_approval,
+    redact_run,
+)
 
 router = APIRouter(prefix="/runs", tags=["runs"])
+
+_T = TypeVar("_T")
 
 
 def _visible_run(session: Session, run_id: str, access: Access) -> RunRecord:
@@ -143,19 +152,24 @@ class ValidityResponse(BaseModel):
     """The per-arm accounting the verdict rests on, present whatever the verdict."""
 
 
-def _redacted(payload: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
+def _redact_or_refuse(
+    classification: DataClass,
+    redactor: Redactor,
+    apply: Callable[[Redactor], _T],
+    what: str,
+) -> _T:
     """Redact, or refuse the write. A run classified public may be written with patterns alone
     when no detector for names can run, and its record says so; every other run is refused
     with 503, so nothing personal is stored under a redaction that did not happen."""
     try:
-        return redact_run(payload, redactor)
+        return apply(redactor)
     except RedactionUnavailable as exc:
         patterns_only = getattr(redactor, "patterns_only", None)
-        if payload.classification is DataClass.PUBLIC and patterns_only is not None:
-            return redact_run(payload, patterns_only())
+        if classification is DataClass.PUBLIC and patterns_only is not None:
+            return apply(patterns_only())
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"the run was not recorded: {exc}",
+            detail=f"the {what} was not recorded: {exc}",
             headers={"Retry-After": "60"},
         ) from None
 
@@ -181,7 +195,12 @@ def create_run(
     access.require(payload.tenant)
     access.require_label_source(payload.label_source)
     if redactor is not None:
-        payload = _redacted(payload, redactor)
+        payload = _redact_or_refuse(
+            payload.classification,
+            redactor,
+            lambda instrument: redact_run(payload, instrument),
+            "run",
+        )
     claimed_at = None
     if was_erased(payload):
         try:
@@ -406,17 +425,35 @@ def record_approval(
     approval: Approval,
     session: Session = Depends(get_session),
     access: Access = Depends(caller_access),
+    redactor: Redactor | None = Depends(get_redactor),
 ) -> RunRecord:
     """Record that a person approved, refused or overrode an action of this run.
 
     Kept beside the run rather than in a prompt log, because human oversight is a thing an
-    audit asks to see, and the answer has to be who, what and when.
+    audit asks to see, and the answer has to be who, what and when. When redaction is
+    configured, the action and the note are redacted as the run's own approvals were, before
+    the tenant's chain is held, and the run's redaction counts say so.
     """
-    tenant = _visible_run(session, run_id, access).tenant
+    run = _visible_run(session, run_id, access)
+    tenant, classification = run.tenant, run.classification
+    added: dict[str, Any] | None = None
+    if redactor is not None:
+        original = approval
+        approval, added = _redact_or_refuse(
+            classification,
+            redactor,
+            lambda instrument: redact_approval(original, instrument),
+            "approval",
+        )
 
     def change() -> RunRecord:
         record = _current(session, run_id)
         record.approvals = [*record.approvals, approval.model_dump()]
+        counts = record.extra.get("redaction")
+        if added is not None and isinstance(counts, dict):
+            merged = add_counts(counts, added)
+            record.extra = {**record.extra, "redaction": merged}
+            record.redaction = " | ".join(merged["instruments"]) or record.redaction
         return record
 
     return _write(session, tenant, change, "approved")

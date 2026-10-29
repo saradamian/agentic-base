@@ -333,7 +333,8 @@ class RunRecordCreate(BaseModel):
 
     item: str = ""
     """The unit of work: a benchmark task, a merge request, a ticket, a question. What two runs
-    must share to be compared on the same thing. Empty when there is no such unit."""
+    must share to be compared on the same thing. Empty when there is no such unit. The audit log
+    keeps it as written and an erasure cannot remove it, so it names the work, never a person."""
 
     arm: str = ""
     """What is being compared: a benchmark arm, or for a service agent the version, model or

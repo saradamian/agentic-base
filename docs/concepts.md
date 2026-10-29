@@ -31,7 +31,8 @@ when, kept beside the run.
 nothing is stored unredacted.
 
 **Erasure.** Emptying a person's transcript and names on request or after a tenant's retention
-period, while the audit chain still verifies and reports that the erasure happened.
+period, while the audit chain still verifies and reports that the erasure happened. What the chain
+holds as values, the item and arm among them, stays, so those name the work and never a person.
 
 ## The two checks
 
