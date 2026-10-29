@@ -95,7 +95,7 @@ dev = [
   "pytest-asyncio==1.4.0",
   "pytest-cov==7.1.0",
   "pytest-env==1.7.1",
-  "ruff==0.16.10",
+  "ruff==0.17.3",
   "mkdocs-techdocs-core==1.7.1",
   # The MLflow export test needs MLflow, on both ends of the supported range.
   "mlflow>=3.16,<4",
