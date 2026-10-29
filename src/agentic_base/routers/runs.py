@@ -3,7 +3,7 @@
 import enum
 import json
 import tempfile
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -28,6 +28,7 @@ from agentic_base.domain.run_record import (
     to_record,
 )
 from agentic_base.domain.validity import check_comparison, report_as_dict
+from agentic_base.limits import get_limits
 from agentic_base.provenance import to_openlineage, to_process_run_crate, to_prov
 from agentic_base.redaction.configured import get_redactor
 from agentic_base.redaction.redact import RedactionUnavailable, Redactor, redact_run
@@ -48,24 +49,43 @@ def _visible_run(session: Session, run_id: str, access: Access) -> RunRecord:
     return record
 
 
-def _commit_with_entry(session: Session, record: RunRecord, event: str) -> RunRecord:
-    """Write a change and its audit entry together, or neither.
+def _write(
+    session: Session, tenant: str, change: Callable[[], RunRecord], event: str
+) -> RunRecord:
+    """Make a change and write its audit entry together, or neither.
 
-    Two writers that read the same last entry cannot both chain to it. The one that loses is told
-    to retry rather than being written outside the log.
+    The tenant's chain is held before *change* reads the run, so the change is made to what the
+    last writer left, and its entry describes the row as written. Two writers that read the same
+    last entry still cannot both chain to it: the conflict can surface at any flush, so it is
+    caught around all of them, and the write is tried again on fresh state before the caller is
+    told to retry.
     """
-    session.add(record)
-    audit.append(session, record, event)
-    try:
-        session.commit()
-    except IntegrityError:
-        session.rollback()
+    for _ in range(max(1, get_limits().write_attempts)):
+        try:
+            audit.lock(session, tenant)
+            record = change()
+            session.add(record)
+            audit.append(session, record, event)
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+        else:
+            session.refresh(record)
+            return record
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="another write to this tenant landed first; retry",
+        headers={"Retry-After": "1"},
+    )
+
+
+def _current(session: Session, run_id: str) -> RunRecord:
+    """The run as the database holds it now, not as this session first read it."""
+    record = session.get(RunRecord, run_id, populate_existing=True)
+    if record is None:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="another write to this tenant landed first; retry",
-            headers={"Retry-After": "1"},
-        ) from None
-    session.refresh(record)
+            status_code=status.HTTP_404_NOT_FOUND, detail="run not found"
+        )
     return record
 
 
@@ -162,7 +182,7 @@ def create_run(
     access.require_label_source(payload.label_source)
     if redactor is not None:
         payload = _redacted(payload, redactor)
-    record = to_record(payload)
+    claimed_at = None
     if was_erased(payload):
         try:
             claimed_at = accept_claimed_erasure(payload)
@@ -170,8 +190,14 @@ def create_run(
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc)
             ) from None
-        record.erased_at = claimed_at or record.created_at
-    return _commit_with_entry(session, record, "created")
+
+    def change() -> RunRecord:
+        record = to_record(payload)
+        if was_erased(payload):
+            record.erased_at = claimed_at or record.created_at
+        return record
+
+    return _write(session, payload.tenant, change, "created")
 
 
 class _ExportLine(BaseModel):
@@ -386,9 +412,14 @@ def record_approval(
     Kept beside the run rather than in a prompt log, because human oversight is a thing an
     audit asks to see, and the answer has to be who, what and when.
     """
-    record = _visible_run(session, run_id, access)
-    record.approvals = [*record.approvals, approval.model_dump()]
-    return _commit_with_entry(session, record, "approved")
+    tenant = _visible_run(session, run_id, access).tenant
+
+    def change() -> RunRecord:
+        record = _current(session, run_id)
+        record.approvals = [*record.approvals, approval.model_dump()]
+        return record
+
+    return _write(session, tenant, change, "approved")
 
 
 @router.post("/{run_id}/label")
@@ -404,14 +435,19 @@ def label_run(
     cited, and a corpus that permits unattributed labels discovers this only once it is
     expensive to fix. A citable source is only accepted from a token granted that scorer.
     """
-    record = _visible_run(session, run_id, access)
+    tenant = _visible_run(session, run_id, access).tenant
     access.require_label_source(update.label_source)
-    record.resolved = update.resolved
-    record.label_source = update.label_source
-    record.instrument = update.instrument
-    record.degraded = update.degraded
-    record.labelled_at = datetime.now(timezone.utc)
-    return _commit_with_entry(session, record, "labelled")
+
+    def change() -> RunRecord:
+        record = _current(session, run_id)
+        record.resolved = update.resolved
+        record.label_source = update.label_source
+        record.instrument = update.instrument
+        record.degraded = update.degraded
+        record.labelled_at = datetime.now(timezone.utc)
+        return record
+
+    return _write(session, tenant, change, "labelled")
 
 
 @router.get("/validity/report")

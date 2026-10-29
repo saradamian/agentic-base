@@ -107,8 +107,15 @@ def sweep_tenant(
     as ``invalid``, so one such row cannot stop every other transcript in the tenant from
     being erased.
     """
+    if apply:
+        # Before the read: an approval committed between it and the erasure would be lost.
+        audit.lock(session, tenant)
     records = list(
-        session.exec(select(RunRecord).where(RunRecord.tenant == tenant)).all()
+        session.exec(
+            select(RunRecord)
+            .where(RunRecord.tenant == tenant)
+            .execution_options(populate_existing=True)
+        ).all()
     )
     found = plan(records, now, policy)
     already = 0
@@ -161,6 +168,10 @@ def sweep(
 def erase_run(session: Session, run_id: str, reason: str, now: datetime) -> bool:
     """Erase one run's personal fields on request. False when it was already erased."""
     record = session.get(RunRecord, run_id)
+    if record is None:
+        raise LookupError(f"run not found: {run_id}")
+    audit.lock(session, record.tenant)
+    record = session.get(RunRecord, run_id, populate_existing=True)
     if record is None:
         raise LookupError(f"run not found: {run_id}")
     if record.erased_at is not None:
