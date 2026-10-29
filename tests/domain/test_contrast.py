@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from agentic_base.adapters import from_jsonl
+from agentic_base.adapters import LogObservation, from_jsonl
 from agentic_base.domain.contrast import (
     _Z_95,
     contrast_against,
@@ -25,6 +25,7 @@ from agentic_base.domain.contrast import (
     minimum_detectable_effect,
     paired_difference_interval,
 )
+from agentic_base.domain.outcomes import LabelSource
 from agentic_base.domain.validity import INCLUDED, newcombe_interval
 
 EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "results.jsonl"
@@ -367,3 +368,55 @@ def test_the_contrast_serialises_to_strict_json() -> None:
         contrast_arms(runs, baseline="baseline", treatment="missing"),
     ):
         json.dumps(contrast_as_dict(contrast), allow_nan=False)
+
+
+# --- a contrast says when its outcomes could not be cited -----------------------------------
+
+
+def _scored(
+    arm: str, source: LabelSource, outcomes: dict[str, bool]
+) -> list[LogObservation]:
+    return [
+        LogObservation(
+            item=task, arm=arm, channel=INCLUDED, resolved=outcome, label_source=source
+        )
+        for task, outcome in outcomes.items()
+    ]
+
+
+def test_a_contrast_over_diagnostic_outcomes_says_it_is_not_a_result() -> None:
+    """The contrast read outcome values and never asked where they came from, so a model
+    judge's verdicts were contrasted and described exactly like a harness's."""
+    outcomes = {"a": True, "b": False, "c": True}
+    runs = _scored("treatment", LabelSource.MODEL_JUDGE, outcomes) + _scored(
+        "baseline", LabelSource.OFFICIAL_HARNESS, {"a": False, "b": False, "c": True}
+    )
+
+    contrast = contrast_arms(runs, baseline="baseline", treatment="treatment")
+
+    assert (contrast.scored, contrast.uncited, contrast.citable) == (6, 3, False)
+    assert "diagnostic, not a result: 3 of 6 outcomes" in contrast.describe()
+    assert contrast_as_dict(contrast)["citable"] is False
+
+
+def test_a_contrast_over_authoritative_outcomes_is_citable_and_says_nothing_more() -> (
+    None
+):
+    runs = _scored(
+        "treatment", LabelSource.OFFICIAL_HARNESS, {"a": True, "b": False}
+    ) + _scored("baseline", LabelSource.HUMAN, {"a": False, "b": False})
+
+    contrast = contrast_arms(runs, baseline="baseline", treatment="treatment")
+
+    assert contrast.citable and contrast.uncited == 0 and contrast.scored == 4
+    assert "diagnostic" not in contrast.describe()
+
+
+def test_an_observation_that_states_no_source_is_not_judged_by_the_contrast() -> None:
+    """`Run` above carries no label source; the citability summary beside the contrast is
+    what counts such rows, as unattributed."""
+    contrast = contrast_arms(
+        _paired(2, 1, 1, 1), baseline="baseline", treatment="treatment"
+    )
+
+    assert contrast.citable and contrast.uncited == 0
