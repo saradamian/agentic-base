@@ -7,6 +7,9 @@ personal or bulk field, never the value — chained to the tenant's previous ent
 its position in that chain. The tenant's head entry is recorded in ``audit_head`` in the same
 transaction.
 
+Every entry names who made the change: the token's grant, by its name or a digest, or the
+command that ran. The name is in the hash, so it cannot be rewritten afterwards either.
+
 Verification checks four things: that the chain of entries recomputes in sequence, which
 catches an entry edited, forged, reordered or removed; that the recorded head is the last
 entry, which catches a truncated tail; that each run's current fields and digests equal its
@@ -66,6 +69,9 @@ class AuditEntry(SQLModel, table=True):  # type: ignore[call-arg]
     )
     chain_seq: int
     """Position in the tenant's chain, starting at 1. Hashed, so a gap has a place and a name."""
+    actor: str = Field(default="")
+    """Who made the change: the name of the token's grant, a digest of the token, ``anonymous``
+    under ``AUTH=none``, or the command that ran. Empty on an entry written before 0.11."""
     audit_fields: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     digests: dict[str, str] = Field(default_factory=dict, sa_column=Column(JSON))
     """SHA-256 per personal or bulk field. The log covers them without holding them."""
@@ -108,8 +114,10 @@ def lock(session: Session, tenant: str) -> None:
     )
 
 
-def append(session: Session, record: RunRecord, event: str) -> AuditEntry:
-    """Add the entry for a change to *record* and move the tenant's head to it.
+def append(
+    session: Session, record: RunRecord, event: str, actor: str = ""
+) -> AuditEntry:
+    """Add the entry for a change to *record*, by *actor*, and move the tenant's head to it.
 
     The caller commits both in one transaction.
     """
@@ -130,10 +138,13 @@ def append(session: Session, record: RunRecord, event: str) -> AuditEntry:
         event=event,
         at=at,
         chain_seq=chain_seq,
+        actor=actor,
         audit_fields=values,
         digests=digests,
         previous_hash=previous,
-        hash=entry_hash(chain_seq, record.run_id, event, at, values, digests, previous),
+        hash=entry_hash(
+            chain_seq, record.run_id, event, at, values, digests, previous, actor
+        ),
     )
     session.add(entry)
     head = session.get(ChainHead, record.tenant)
@@ -220,6 +231,7 @@ def _recompute(entries: list[AuditEntry]) -> ChainVerdict:
                 entry.audit_fields,
                 entry.digests,
                 previous,
+                entry.actor,
             )
             != entry.hash
         ):

@@ -46,6 +46,7 @@ running service can be one, the other, or both.
 | whether the records have been altered since | `GET /runs/integrity?tenant=...`, which recomputes the audit log the service appends to on every create, label and approval, names the first entry that diverges, and lists runs that differ from their last entry or have none |
 | who the runs acted for and what class of data they touched | `principal`, `classification`, `isolation_tier` on every record |
 | whether a person approved the action | `approvals` on the record |
+| who made each change to a record, and when | `GET /runs/{run_id}/history`: every create, label, approval and erasure, with the writing token's grant name or digest, or the command that ran; the name is in the entry's hash |
 | what was in the affected transcripts | the transcripts, redacted as `redaction` on each record describes |
 | which dependencies were in the affected release | the lock file at that tag, for the library and every extra; the SBOM attested with a release lists the library as installed on Python 3.10 |
 | that the release is the one we published | `gh attestation verify <file> --repo saradamian/agentic-base`, which needs GitHub CLI 2.49 or later |

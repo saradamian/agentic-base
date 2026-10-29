@@ -157,7 +157,7 @@ def test_a_write_that_loses_the_race_is_refused_not_written(
 ) -> None:
     _post(test_client, item="first")
 
-    def stale(session, record, event):
+    def stale(session, record, event, actor=""):
         entry = _forged_entry(record, event)
         session.add(entry)
         return entry
@@ -180,7 +180,7 @@ def test_a_conflict_raised_while_the_entry_is_flushed_is_a_409_not_a_500(
     the commit; a conflict caught only around the commit was a 500 there."""
     _post(test_client, item="first")
 
-    def stale(session, record, event):
+    def stale(session, record, event, actor=""):
         entry = _forged_entry(record, event)
         session.add(entry)
         session.flush()
@@ -200,7 +200,7 @@ def test_a_write_that_loses_the_race_once_is_retried_and_recorded(
     _post(test_client, item="first")
     real_append, calls = audit.append, []
 
-    def stale_once(session, record, event):
+    def stale_once(session, record, event, actor=""):
         calls.append(event)
         if len(calls) == 1:
             entry = _forged_entry(record, event)
@@ -417,6 +417,7 @@ def test_forging_a_mid_chain_entry_takes_more_than_one_recomputed_hash(
             middle.audit_fields,
             middle.digests,
             first.hash,
+            middle.actor,
         )
         session.add(middle)
         session.commit()
@@ -470,3 +471,61 @@ def test_a_deleted_head_reads_as_truncation_not_as_intact(test_client, engine) -
     assert not verdict["intact"]
     assert verdict["head_seq"] is None
     assert "no recorded head" in verdict["summary"]
+
+
+# --- who made each change ---------------------------------------------------------------------
+
+
+def test_the_history_of_a_run_lists_each_change_with_who_made_it(test_client) -> None:
+    run_id = _post(test_client)
+    test_client.post(
+        f"/runs/{run_id}/label",
+        json={"resolved": True, "label_source": LabelSource.OFFICIAL_HARNESS.value},
+    )
+    test_client.post(
+        f"/runs/{run_id}/approvals",
+        json={"action": "push", "decision": "approved", "by": "x", "at": "now"},
+    )
+
+    history = test_client.get(f"/runs/{run_id}/history").json()
+
+    assert [h["event"] for h in history] == ["created", "labelled", "approved"]
+    assert [h["seq"] for h in history] == [1, 2, 3]
+    # AUTH=none: the log says the service was open rather than inventing a caller.
+    assert {h["actor"] for h in history} == {"anonymous"}
+    assert all(h["at"].endswith("+00:00") or h["at"].endswith("Z") for h in history)
+
+
+def test_the_history_of_another_tenants_run_is_not_found(test_client) -> None:
+    assert test_client.get("/runs/nope/history").status_code == 404
+
+
+def test_an_entry_whose_actor_is_rewritten_breaks_the_chain(
+    test_client, engine
+) -> None:
+    """The actor is in the hash: a change cannot be re-attributed afterwards."""
+    _post(test_client, item="a")
+    _post(test_client, item="b")
+    with Session(engine) as session:
+        second = session.exec(select(AuditEntry).where(AuditEntry.seq == 2)).one()
+        second.actor = "someone-else"
+        session.add(second)
+        session.commit()
+
+    verdict = _integrity(test_client)
+
+    assert not verdict["intact"]
+    assert verdict["first_broken_entry"] == 1
+
+
+def test_an_entry_written_before_the_log_named_actors_still_verifies(engine) -> None:
+    """Entries from before 0.11 carry no actor; the hash leaves an empty one out."""
+    record = RunRecord(tenant="hpml", item="a", arm="baseline")
+    with Session(engine) as session:
+        session.add(record)
+        audit.append(session, record, "created")
+        session.commit()
+        assert session.exec(select(AuditEntry)).one().actor == ""
+        verdict = audit.verify(session, "hpml")
+
+    assert verdict.intact

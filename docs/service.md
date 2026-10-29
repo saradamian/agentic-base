@@ -26,7 +26,8 @@ It refuses three things at the write path:
   process is refused. Nothing is stored as received.
 
 Every create, label and approval joins a per-tenant hash chain, and `GET /runs/integrity` reports
-what it verified. A person can be erased on request or on a schedule with the chain still
+what it verified. Each entry names who made the change, and `GET /runs/{run_id}/history` lists
+a run's changes in order: what happened, when, and by which token. A person can be erased on request or on a schedule with the chain still
 verifying. A tenant takes its whole corpus away in one request, in the shape the write path
 accepts.
 
@@ -133,7 +134,9 @@ SQLite by default, so it runs with no infrastructure; PostgreSQL in every deploy
 Every data route requires a bearer token. `API_TOKENS` maps each token to the tenants it may use,
 `["*"]` for all of them. A token may instead map to `{"tenants": [...], "label_sources": [...]}`;
 only the citable sources named there may be asserted through it, and the plain list shape grants
-none, so a writer token records diagnostic outcomes and cannot mint citable results. With no
+none, so a writer token records diagnostic outcomes and cannot mint citable results. The object
+shape may also carry `"name"`, which is how the audit log refers to the token; without one the
+log writes `token:` and twelve hex characters of the token's digest, never the token. With no
 tokens set the service refuses every data request and says what to set. `AUTH=none` turns the
 check off for local development and logs a warning when the service starts that way.
 
