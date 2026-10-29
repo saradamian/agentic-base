@@ -49,12 +49,28 @@ def app(_service_database):
     return get_app()
 
 
+TEST_DATABASE_VARIABLE = "AGENTIC_BASE_TEST_DATABASE_URL"
+"""Set to a PostgreSQL URL, the per-test engine is that database instead of a SQLite file: the
+tables are dropped and created around every test. The CI leg `check-postgres` sets it, because
+the lost-update and conflict paths behave differently there (a constraint fires at the flush,
+not the commit; writers really run at once) and a SQLite-only suite could not have found them."""
+
+
 @pytest.fixture()
 def engine(tmp_path):
-    """A fresh SQLite file per test, created from the current models and disposed afterwards."""
+    """A fresh database per test, created from the current models and disposed afterwards."""
     import agentic_base.domain.audit  # noqa: F401  - registers the audit log
     import agentic_base.domain.run_record  # noqa: F401  - registers the table
 
+    shared = os.environ.get(TEST_DATABASE_VARIABLE)
+    if shared:
+        engine = create_engine(shared)
+        SQLModel.metadata.drop_all(engine)
+        SQLModel.metadata.create_all(engine)
+        yield engine
+        SQLModel.metadata.drop_all(engine)
+        engine.dispose()
+        return
     engine = create_engine(
         f"sqlite:///{tmp_path / 'test.db'}", connect_args={"check_same_thread": False}
     )

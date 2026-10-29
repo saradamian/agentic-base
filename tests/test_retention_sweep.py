@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from agentic_base.auth import Access
@@ -307,13 +308,10 @@ def test_erasure_removes_the_person_everywhere_the_database_holds_them(
         assert erase_run(session, run_id, "the person asked", NOW)
         verdict = audit.verify(session, "team-p")
 
+    # Every table the database has, by inspection rather than sqlite_master, so the same read
+    # runs on PostgreSQL in the check-postgres leg.
+    tables = inspect(engine).get_table_names()
     with engine.connect() as connection:
-        tables = [
-            row[0]
-            for row in connection.exec_driver_sql(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
-        ]
         dump = " ".join(
             str(row)
             for table in tables
