@@ -634,3 +634,68 @@ def test_the_first_call_of_a_month_prunes_the_old_months(
 
     month = datetime.now(UTC).strftime("%Y-%m")
     assert [p.name for p in tmp_path.iterdir()] == [f"{month}.jsonl"]
+
+
+# --- what the default call log writes about an agent's arguments -----------------------------
+
+
+def _one_line(tmp_path, arguments, monkeypatch=None, mode=None):
+    from agentic_base.limits import get_limits
+
+    if mode is not None:
+        monkeypatch.setenv("AP_CALL_LOG_REDACTION", mode)
+    get_limits.cache_clear()
+    try:
+        log = tmp_path / "calls.jsonl"
+        JsonLinesObserver(log, server="t").record("tool", arguments, "r", True, 1.0)
+        return json.loads(log.read_text().splitlines()[-1])
+    finally:
+        get_limits.cache_clear()
+
+
+def test_the_call_log_replaces_credentials_and_identifiers_in_arguments(
+    tmp_path,
+) -> None:
+    """Arguments went to the file as sent; a token in a URL or an address in a `to` field sat in
+    a log kept for six months."""
+    key = "sk-" + "A" * 30
+    line = _one_line(
+        tmp_path,
+        {
+            "url": f"https://api.example.org/?token={key}",
+            "to": "maria@example.org",
+            "nested": [{"q": "a plain question", "n": 3}],
+        },
+    )
+
+    assert line["arguments"]["url"] == "https://api.example.org/?token=<CREDENTIAL>"
+    assert line["arguments"]["to"] == "<EMAIL_ADDRESS>"
+    assert line["arguments"]["nested"] == [{"q": "a plain question", "n": 3}]
+    assert line["redacted"] == {"CREDENTIAL": 1, "EMAIL_ADDRESS": 1}
+
+
+def test_the_call_log_redaction_can_be_narrowed_to_credentials_or_turned_off(
+    tmp_path, monkeypatch
+) -> None:
+    key = "sk-" + "B" * 30
+    arguments = {"key": key, "to": "maria@example.org"}
+
+    narrowed = _one_line(tmp_path, arguments, monkeypatch, "credentials")
+    assert narrowed["arguments"] == {"key": "<CREDENTIAL>", "to": "maria@example.org"}
+    assert narrowed["redacted"] == {"CREDENTIAL": 1}
+
+    off = _one_line(tmp_path, arguments, monkeypatch, "off")
+    assert off["arguments"] == arguments
+    assert "redacted" not in off
+
+    misspelt = _one_line(tmp_path, arguments, monkeypatch, "nope")
+    assert misspelt["arguments"]["to"] == "<EMAIL_ADDRESS>"
+
+
+def test_a_redacted_line_satisfies_the_published_schema(tmp_path) -> None:
+    import jsonschema
+
+    line = _one_line(tmp_path, {"to": "maria@example.org"})
+
+    jsonschema.validate(line, call_log_schema())
+    assert line["redacted"] == {"EMAIL_ADDRESS": 1}

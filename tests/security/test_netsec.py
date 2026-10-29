@@ -333,6 +333,60 @@ def test_a_streamed_fetch_connects_to_the_checked_address_and_keeps_the_host(
     assert request.extensions["sni_hostname"] == "example.com"
 
 
+def test_a_name_whose_second_lookup_is_internal_only_is_refused_not_handed_to_the_client(
+    monkeypatch,
+) -> None:
+    """validate_url resolved the name twice and passed it; the pinning lookup then saw internal
+    addresses only. The empty list used to read as "an address literal, nothing to pin", and the
+    request went out under the hostname for the client to resolve once more."""
+    public, internal = (
+        ipaddress.ip_address("93.184.216.34"),
+        ipaddress.ip_address("10.0.0.5"),
+    )
+    answers = iter([[public], [public], [internal]])
+    monkeypatch.setattr(netsec, "resolve", lambda h: next(answers, []))
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(200, content=b"internal")
+
+    with (
+        pytest.raises(netsec.URLSafetyError, match="no longer resolves"),
+        open_checked("https://example.com/x", client=_client(handler)),
+    ):
+        pass
+
+    assert seen == []
+
+
+def test_a_client_that_follows_redirects_on_its_own_is_still_checked_at_every_hop(
+    monkeypatch,
+) -> None:
+    """The check relied on the caller building the client with follow_redirects=False."""
+    _public(monkeypatch)
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.host)
+        if request.url.host == "169.254.169.254":
+            return httpx.Response(200, content=b"metadata")
+        return httpx.Response(
+            302, headers={"location": "http://169.254.169.254/latest/meta-data"}
+        )
+
+    following = httpx.Client(
+        transport=httpx.MockTransport(handler), follow_redirects=True
+    )
+    with (
+        pytest.raises(netsec.URLSafetyError),
+        open_checked("https://example.com/src.tar.gz", client=following),
+    ):
+        pass
+
+    assert "169.254.169.254" not in seen
+
+
 def test_a_streamed_fetch_refuses_a_redirect_to_an_internal_address_without_requesting_it(
     monkeypatch,
 ) -> None:
