@@ -244,6 +244,30 @@ def test_the_body_is_capped(monkeypatch) -> None:
     assert len(result.content) == 100
 
 
+class _CountingStream(httpx.SyncByteStream):
+    """A body of a hundred kilobyte chunks that counts how many were asked for."""
+
+    def __init__(self) -> None:
+        self.yielded = 0
+
+    def __iter__(self):
+        for _ in range(100):
+            self.yielded += 1
+            yield b"x" * 1000
+
+
+def test_the_cap_bounds_what_is_fetched_and_not_only_what_is_kept(monkeypatch) -> None:
+    """`read()` then a slice pulled the whole body into memory before the cap applied."""
+    _public(monkeypatch)
+    stream = _CountingStream()
+    client = _client(lambda r: httpx.Response(200, stream=stream))
+
+    result = safe_fetch_text("https://example.com/", max_bytes=2500, client=client)
+
+    assert len(result.content) == 2500
+    assert stream.yielded == 3
+
+
 def test_an_unsafe_url_is_refused_before_anything_is_opened() -> None:
     """Validation comes first, so a refused URL never reaches the network layer."""
 
