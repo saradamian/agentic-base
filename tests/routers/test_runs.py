@@ -534,6 +534,21 @@ def test_an_exported_run_says_which_run_it_is_and_when_in_utc(test_client) -> No
     )
 
 
+def test_a_tenant_named_outside_latin_1_can_still_export(test_client) -> None:
+    """HTTP headers carry Latin-1; the filename used to go into one as written, and the export
+    answered 500 for a tenant with an accent in its name."""
+    test_client.post("/runs", json=_payload(tenant="équipe-ñ", item="t1"))
+
+    response, manifest, rows = _export(test_client, "équipe-ñ")
+
+    assert response.status_code == 200
+    assert (manifest["records"], len(rows)) == (1, 1)
+    disposition = response.headers["content-disposition"]
+    assert "filename*=UTF-8''%C3%A9quipe-%C3%B1-runs.ndjson" in disposition
+    assert 'filename="_quipe-_-runs.ndjson"' in disposition
+    assert disposition.isascii()
+
+
 def test_a_tenant_with_nothing_recorded_exports_an_empty_corpus(test_client) -> None:
     response, manifest, records = _export(test_client, "nobody")
 

@@ -21,7 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlmodel import Session, select
 
@@ -78,8 +78,12 @@ class TenantSweep:
         return described
 
 
+SWEEP_ACTOR = "agentic-base-retention sweep"
+ERASE_ACTOR = "agentic-base-retention erase"
+
+
 def _erase_record(
-    session: Session, record: RunRecord, now: datetime, reason: str
+    session: Session, record: RunRecord, now: datetime, reason: str, actor: str
 ) -> None:
     erased = erase(to_payload(record), now, reason)
     record.system_prompt = erased.system_prompt
@@ -89,7 +93,7 @@ def _erase_record(
     record.extra = erased.extra
     record.erased_at = now
     session.add(record)
-    audit.append(session, record, "erased")
+    audit.append(session, record, "erased", actor)
 
 
 def sweep_tenant(
@@ -100,6 +104,7 @@ def sweep_tenant(
     *,
     apply: bool,
     reason: str = "retention policy",
+    actor: str = SWEEP_ACTOR,
 ) -> TenantSweep:
     """Find a tenant's due transcripts and, when *apply*, erase them in one transaction.
 
@@ -129,7 +134,7 @@ def sweep_tenant(
             invalid += 1
         elif apply:
             _erase_record(
-                session, record, now, f"{reason}: kept {policy.keep_days} days"
+                session, record, now, f"{reason}: kept {policy.keep_days} days", actor
             )
             erased += 1
     if apply:
@@ -165,7 +170,13 @@ def sweep(
     return done, skipped
 
 
-def erase_run(session: Session, run_id: str, reason: str, now: datetime) -> bool:
+def erase_run(
+    session: Session,
+    run_id: str,
+    reason: str,
+    now: datetime,
+    actor: str = ERASE_ACTOR,
+) -> bool:
     """Erase one run's personal fields on request. False when it was already erased."""
     record = session.get(RunRecord, run_id)
     if record is None:
@@ -176,7 +187,7 @@ def erase_run(session: Session, run_id: str, reason: str, now: datetime) -> bool
         raise LookupError(f"run not found: {run_id}")
     if record.erased_at is not None:
         return False
-    _erase_record(session, record, now, reason)
+    _erase_record(session, record, now, reason, actor)
     session.commit()
     return True
 
@@ -204,7 +215,7 @@ def main(argv: list[str] | None = None) -> int:
     from agentic_base.db import get_engine, init_db
 
     init_db()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     with Session(get_engine()) as session:
         if args.command == "erase":
             erased = erase_run(session, args.run_id, args.reason, now)

@@ -101,8 +101,8 @@ inside a task container with no route to a database. Neither problem was visible
 repository, because everything here is the service.
 
 So the split is explicit. The library half takes pydantic, pydantic-settings, httpx and PyYAML,
-and nothing else. The service half is an optional extra. The declared Python floor is the
-consumer's floor.
+and nothing else. The service half is an optional extra. The declared Python floor stays at or
+below the consumer's: 3.11 since 0.11.0, against `agentic-env`'s 3.13.
 
 Two consequences worth stating, because they are the parts that get undone later.
 

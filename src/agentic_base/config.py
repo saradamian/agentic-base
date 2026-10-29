@@ -1,6 +1,8 @@
 """Application settings related files."""
 
 from functools import cache
+from typing import Any
+from urllib.parse import urlsplit
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings
@@ -53,10 +55,29 @@ class Settings(BaseSettings):
     """JSON: ``{"tenant": days, "*": days}``, how long each tenant's transcripts are kept. Read by
     ``agentic-base-retention``; a policy under 183 days is refused. Empty means nothing is swept."""
 
+    cors_origins: str = ""
+    """Comma-separated origins a browser page may read this service from. Empty, the default,
+    sends no CORS headers, so a page on another origin cannot read the runs even when the
+    service itself asks for no token; Python clients and the MCP server are unaffected."""
+
     mcp_tenants: str = ""
     """Comma-separated tenants ``agentic-base-mcp`` may serve, ``"*"`` for every tenant, the same
     grant shape as ``api_tokens``. Empty refuses to start, and ``*`` starts with a warning, the
     same rule as ``auth``. See src/agentic_base/mcp/server.py."""
+
+
+def _without_password(url: str) -> str:
+    """The URL with its password, if it carries one, replaced; everything else as written."""
+    password = urlsplit(url).password
+    return url.replace(f":{password}@", ":***@", 1) if password else url
+
+
+def loggable(settings: Settings) -> dict[str, Any]:
+    """The settings as a log may carry them: secrets masked by their type, and the database
+    password, which travels inside a plain URL, masked here."""
+    dumped = settings.model_dump()
+    dumped["database_url"] = _without_password(settings.database_url)
+    return dumped
 
 
 @cache

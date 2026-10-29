@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlmodel import Session, select
@@ -10,16 +10,18 @@ from sqlmodel import Session, select
 from agentic_base.auth import Access
 from agentic_base.domain import audit
 from agentic_base.domain.audit import AuditEntry
+from agentic_base.domain.retention import RetentionPolicy
 from agentic_base.domain.run_record import Approval, RunRecord
 from agentic_base.retention_sweep import (
     erase_run,
     main,
     parse_policies,
     sweep,
+    sweep_tenant,
 )
 from agentic_base.routers import runs
 
-NOW = datetime(2026, 9, 14, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 14, 12, 0, tzinfo=UTC)
 
 
 def _add(session: Session, tenant: str, days_old: int, item: str) -> str:
@@ -323,3 +325,20 @@ def test_erasure_removes_the_person_everywhere_the_database_holds_them(
     assert verdict.intact, verdict.summary()
     assert verdict.erased == [run_id]
     assert "1 erased" in verdict.summary()
+
+
+def test_an_erasure_is_attributed_to_the_sweep_or_the_command(engine, corpus) -> None:
+    with Session(engine) as session:
+        sweep_tenant(session, "team-a", RetentionPolicy(keep_days=365), NOW, apply=True)
+        erase_run(session, corpus["recent"], "the person asked", NOW)
+        actors = {
+            (e.run_id, e.actor)
+            for e in session.exec(
+                select(AuditEntry).where(AuditEntry.event == "erased")
+            )
+        }
+
+    assert actors == {
+        (corpus["old"], "agentic-base-retention sweep"),
+        (corpus["recent"], "agentic-base-retention erase"),
+    }

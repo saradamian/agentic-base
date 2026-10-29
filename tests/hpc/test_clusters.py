@@ -1,14 +1,9 @@
 """Cluster profiles load, and refuse to carry secrets."""
 
-import sys
+import tomllib
 from pathlib import Path
 
 import pytest
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # the consumer floor; see tests/test_portable_surface.py
-    import tomli as tomllib
 
 from agentic_base.hpc import clusters
 from agentic_base.hpc.clusters import ProfileError, available_profiles, load_profile

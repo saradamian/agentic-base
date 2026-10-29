@@ -43,7 +43,7 @@ import hashlib
 import json
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 GENESIS = "0" * 64
@@ -124,8 +124,8 @@ def _canonical(values: dict[str, Any]) -> bytes:
 
 def _plain(value: Any) -> Any:
     if isinstance(value, datetime):
-        aware = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-        return aware.astimezone(timezone.utc).isoformat()
+        aware = value if value.tzinfo else value.replace(tzinfo=UTC)
+        return aware.astimezone(UTC).isoformat()
     if isinstance(value, enum.Enum):
         return value.value
     return value
@@ -185,24 +185,27 @@ def entry_hash(
     fields: Mapping[str, Any],
     digests: Mapping[str, str],
     previous_hash: str = GENESIS,
+    actor: str = "",
 ) -> str:
     """Hash of an audit entry's complete content, chained to its tenant's previous entry.
 
-    Everything the entry stores is covered: its position, which run, which event, when, the
-    audit fields, and the digests of the fields the log does not store. An entry with any of
-    it rewritten no longer matches its recorded hash.
+    Everything the entry stores is covered: its position, which run, which event, when, who
+    made the change, the audit fields, and the digests of the fields the log does not store.
+    An entry with any of it rewritten no longer matches its recorded hash. The actor enters the
+    hash only when the entry has one, so an entry written before the log recorded actors still
+    hashes as it did.
     """
-    return hash_snapshot(
-        {
-            "seq": seq,
-            "run_id": run_id,
-            "event": event,
-            "at": _plain(at),
-            "fields": dict(fields),
-            "digests": dict(digests),
-        },
-        previous_hash,
-    )
+    content: dict[str, Any] = {
+        "seq": seq,
+        "run_id": run_id,
+        "event": event,
+        "at": _plain(at),
+        "fields": dict(fields),
+        "digests": dict(digests),
+    }
+    if actor:
+        content["actor"] = actor
+    return hash_snapshot(content, previous_hash)
 
 
 def content_hash(record: Any, previous_hash: str = GENESIS) -> str:

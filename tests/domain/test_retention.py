@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -18,7 +18,7 @@ from agentic_base.domain.retention import (
     was_erased,
 )
 
-NOW = datetime(2026, 9, 13, tzinfo=timezone.utc)
+NOW = datetime(2026, 9, 13, tzinfo=UTC)
 
 
 @dataclass
@@ -146,3 +146,18 @@ def test_a_claim_with_an_unreadable_time_is_accepted_without_one() -> None:
 
 def test_a_payload_claiming_nothing_claims_nothing() -> None:
     assert accept_claimed_erasure(_payload()) is None
+
+
+def test_erasing_keeps_the_writers_extra_because_it_ties_the_record_to_its_work() -> (
+    None
+):
+    """agentic-env keeps the benchmark, the split and the store's own run id there; a sweep that
+    emptied them would cut every record older than the policy loose from what it measured. The
+    schema holds `extra` to the work, and redaction covers it at write time."""
+    before = _payload(extra={"benchmark": "swe-bench", "source_run_id": "4312"})
+
+    after = erase(before, NOW, "the person asked")
+
+    assert after.extra["benchmark"] == "swe-bench"
+    assert after.extra["source_run_id"] == "4312"
+    assert content_hash(after) == content_hash(before)

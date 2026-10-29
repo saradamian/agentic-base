@@ -15,7 +15,8 @@ harness's or a person's name.
 
 A token that may not see a tenant is told 403 when it names that tenant, and 404 when it asks for
 one of that tenant's runs by id, so the answer does not confirm that a run exists. Tokens are
-compared in constant time and never logged.
+compared in constant time and never logged: the audit log names the token that made a change by
+the ``name`` its grant carries, or by a digest of it.
 
 This is the service's own floor, not the platform's identity: on the Developer Platform the
 gateway authenticates people through the federation, and these tokens identify the callers that
@@ -24,6 +25,7 @@ write runs, one per writer.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import json
 from dataclasses import dataclass
@@ -50,10 +52,21 @@ _bearer = HTTPBearer(auto_error=False, description="A token listed in API_TOKENS
 @dataclass(frozen=True)
 class Grant:
     """What one token is trusted with. ``tenants`` is None for every tenant; ``label_sources``
-    holds the citable scorers this token may assert, empty unless the deployment named them."""
+    holds the citable scorers this token may assert, empty unless the deployment named them;
+    ``name`` is how the audit log refers to the token, a digest of it when none was given."""
 
     tenants: frozenset[str] | None
     label_sources: frozenset[LabelSource] = frozenset()
+    name: str = ""
+
+
+def token_digest(token: str) -> str:
+    """A stable name for a token that never reveals it: ``token:`` and twelve hex of its digest."""
+    return "token:" + hashlib.sha256(token.encode()).hexdigest()[:12]
+
+
+ANONYMOUS = "anonymous"
+"""The actor written when ``AUTH=none``: the service was open, and the log says so."""
 
 
 @dataclass(frozen=True)
@@ -63,6 +76,8 @@ class Access:
 
     tenants: frozenset[str] | None
     label_sources: frozenset[LabelSource] | None = frozenset()
+    actor: str = ANONYMOUS
+    """Who the audit log says made a change through this access: the grant's name."""
 
     def allows(self, tenant: str) -> bool:
         return self.tenants is None or tenant in self.tenants
@@ -75,8 +90,11 @@ class Access:
                 detail=f"this token may not use tenant {tenant!r}",
             )
 
-    def require_label_source(self, source: LabelSource) -> None:
-        """Refuse a citable outcome from a token not granted its scorer.
+    def require_label_source(
+        self, source: LabelSource, *, replacing: bool = False
+    ) -> None:
+        """Refuse a citable outcome from a token not granted its scorer, or, with *replacing*,
+        refuse to let it overturn one.
 
         Diagnostic sources pass without a grant: the grant guards what may be cited, not what
         may be observed.
@@ -85,10 +103,11 @@ class Access:
             return
         if self.label_sources is None or source in self.label_sources:
             return
+        verb = "replace a label from" if replacing else "assert label_source"
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                f"this token may not assert label_source {source.value!r}: its API_TOKENS "
+                f"this token may not {verb} {source.value!r}: its API_TOKENS "
                 f"entry does not name {source.value!r} under label_sources"
             ),
         )
@@ -118,7 +137,11 @@ class AccessPolicy:
                 granted, found = grant, True
         if not found:
             raise _unauthorised("the bearer token is not recognised")
-        return Access(tenants=granted.tenants, label_sources=granted.label_sources)
+        return Access(
+            tenants=granted.tenants,
+            label_sources=granted.label_sources,
+            actor=granted.name or token_digest(token),
+        )
 
 
 def _unauthorised(detail: str) -> HTTPException:
@@ -150,15 +173,19 @@ def parse_tokens(raw: str) -> dict[str, Grant]:
             raise ValueError(
                 "every API token must be a string of at least 16 characters"
             )
+        name = ""
         if isinstance(spec, dict):
-            unknown = sorted(set(spec) - {"tenants", "label_sources"})
+            unknown = sorted(set(spec) - {"tenants", "label_sources", "name"})
             if unknown:
                 raise ValueError(
-                    "an API token grant knows 'tenants' and 'label_sources', "
+                    "an API token grant knows 'tenants', 'label_sources' and 'name', "
                     f"not {', '.join(unknown)}"
                 )
             tenants = spec.get("tenants", [])
             sources = spec.get("label_sources", [])
+            name = spec.get("name", "")
+            if not isinstance(name, str):
+                raise ValueError("a grant's name must be a string")
         else:
             tenants, sources = spec, []
         if not isinstance(tenants, list) or not all(
@@ -172,6 +199,7 @@ def parse_tokens(raw: str) -> dict[str, Grant]:
         grants[token] = Grant(
             tenants=None if ALL_TENANTS in tenants else frozenset(tenants),
             label_sources=frozenset(_citable_source(s) for s in sources),
+            name=name,
         )
     return grants
 

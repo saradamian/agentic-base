@@ -12,7 +12,7 @@ from prometheus_client import start_http_server
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from agentic_base.auth import get_access_policy
-from agentic_base.config import get_settings
+from agentic_base.config import get_settings, loggable
 from agentic_base.db import get_engine, init_db
 from agentic_base.observability.tracing import configure_tracing
 from agentic_base.redaction.configured import get_redactor
@@ -20,6 +20,15 @@ from agentic_base.routers.health import health_api_prefix
 from agentic_base.routers.health import router as health_router
 from agentic_base.routers.runs import router as runs_router
 from agentic_base.utils.logging import LogMiddleware, setup_logging
+
+
+def add_cors(app: FastAPI, origins: str) -> None:
+    """Let a browser page on one of *origins* (comma-separated) read the service. With none
+    named, no CORS header is sent and a page on another origin cannot read the runs, token or
+    no token; this used to be ``allow_origins=["*"]`` unconditionally."""
+    allowed = [origin.strip() for origin in origins.split(",") if origin.strip()]
+    if allowed:
+        app.add_middleware(CORSMiddleware, allow_origins=allowed)
 
 
 def get_app() -> FastAPI:
@@ -45,7 +54,7 @@ def get_app() -> FastAPI:
 
         To understand more, read https://fastapi.tiangolo.com/advanced/events/.
         """
-        await logger.adebug({"settings": settings.model_dump()})
+        await logger.adebug({"settings": loggable(settings)})
         yield
         # Close pooled connections. Python 3.13+ reports a sqlite connection that is
         # garbage-collected open, and under warnings-as-errors that is a failure.
@@ -66,7 +75,7 @@ def get_app() -> FastAPI:
 
     app.add_middleware(LogMiddleware, ignore_prefix=health_api_prefix)
     app.add_middleware(CorrelationIdMiddleware)
-    app.add_middleware(CORSMiddleware, allow_origins=["*"])
+    add_cors(app, settings.cors_origins)
     app.add_middleware(GZipMiddleware)
 
     app.include_router(health_router)

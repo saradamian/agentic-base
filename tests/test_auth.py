@@ -12,7 +12,7 @@ from agentic_base.auth import (
     get_access_policy,
     parse_tokens,
 )
-from agentic_base.config import Settings, get_settings
+from agentic_base.config import Settings, get_settings, loggable
 from agentic_base.domain.outcomes import LabelSource
 from agentic_base.routers.health import router as health_router
 from agentic_base.routers.runs import router as runs_router
@@ -23,7 +23,7 @@ SCORER = "token-for-harness-00001"
 POLICY = AccessPolicy(
     enabled=True,
     tokens={
-        TEAM_A: Grant(tenants=frozenset({"team-a"})),
+        TEAM_A: Grant(tenants=frozenset({"team-a"}), name="team-a-writer"),
         OPERATOR: Grant(tenants=None),
         SCORER: Grant(
             tenants=frozenset({"team-a"}),
@@ -274,7 +274,7 @@ def test_a_wrong_auth_mode_fails_the_start(monkeypatch) -> None:
         ),
         (
             '{"long-enough-token-1": {"tenants": ["team-a"], "scorers": ["human"]}}',
-            "knows 'tenants' and 'label_sources'",
+            "knows 'tenants', 'label_sources' and 'name'",
         ),
     ],
 )
@@ -329,3 +329,129 @@ def test_the_tokens_never_appear_in_the_settings_dump(monkeypatch) -> None:
     monkeypatch.setenv("API_TOKENS", '{"a-very-secret-token-1": ["team-a"]}')
 
     assert "a-very-secret-token-1" not in str(Settings().model_dump())
+
+
+def test_a_grant_may_carry_a_name_and_an_unnamed_token_is_named_by_its_digest() -> None:
+    named, unnamed = "named-token-0000000001", "unnamed-token-000000001"
+    grants = parse_tokens(
+        f'{{"{named}": {{"tenants": ["a"], "name": "swebench-writer"}}, "{unnamed}": ["a"]}}'
+    )
+    policy = AccessPolicy(enabled=True, tokens=grants)
+
+    assert policy.resolve(named).actor == "swebench-writer"
+    digest = policy.resolve(unnamed).actor
+    assert digest.startswith("token:") and len(digest) == len("token:") + 12
+    assert unnamed not in digest and unnamed[:8] not in digest
+
+
+def test_every_change_through_the_service_names_the_token_that_made_it(secured) -> None:
+    run_id = secured.post("/runs", json=_run("team-a"), headers=_bearer(TEAM_A)).json()[
+        "run_id"
+    ]
+    secured.post(
+        f"/runs/{run_id}/label",
+        json={"resolved": True, "label_source": "official_harness"},
+        headers=_bearer(SCORER),
+    )
+    secured.post(
+        f"/runs/{run_id}/approvals",
+        json={"action": "push", "decision": "approved", "by": "p", "at": "now"},
+        headers=_bearer(TEAM_A),
+    )
+
+    history = secured.get(f"/runs/{run_id}/history", headers=_bearer(TEAM_A)).json()
+
+    actors = [h["actor"] for h in history]
+    assert actors[0] == actors[2] == "team-a-writer"
+    assert actors[1].startswith("token:") and SCORER not in actors[1]
+
+
+def test_a_citable_label_is_not_overturned_by_a_token_without_its_grant(
+    secured,
+) -> None:
+    """A diagnostic label needs no grant to be recorded; it used to need none to replace a
+    harness's verdict either, so any writer token could erase a citable result."""
+    run_id = secured.post("/runs", json=_run("team-a"), headers=_bearer(TEAM_A)).json()[
+        "run_id"
+    ]
+    secured.post(
+        f"/runs/{run_id}/label",
+        json={"resolved": True, "label_source": "official_harness"},
+        headers=_bearer(SCORER),
+    )
+
+    response = secured.post(
+        f"/runs/{run_id}/label",
+        json={"resolved": False, "label_source": "user_feedback"},
+        headers=_bearer(TEAM_A),
+    )
+
+    assert response.status_code == 403
+    assert "replace a label from 'official_harness'" in response.json()["detail"]
+    stored = secured.get(f"/runs/{run_id}", headers=_bearer(TEAM_A)).json()
+    assert (stored["resolved"], stored["label_source"]) == (True, "official_harness")
+
+
+def test_a_token_granted_the_scorer_may_overturn_its_label(secured) -> None:
+    run_id = secured.post("/runs", json=_run("team-a"), headers=_bearer(TEAM_A)).json()[
+        "run_id"
+    ]
+    for resolved in (True, False):
+        response = secured.post(
+            f"/runs/{run_id}/label",
+            json={"resolved": resolved, "label_source": "official_harness"},
+            headers=_bearer(SCORER),
+        )
+        assert response.status_code == 200
+
+    assert response.json()["resolved"] is False
+
+
+def test_the_database_password_never_appears_in_the_settings_log(monkeypatch) -> None:
+    """`SecretStr` masks the token fields; the database password travels inside a plain URL.
+    The URL is assembled here so no line of this file reads as an address."""
+    secret = "hunter22" + "secret"
+    monkeypatch.setenv(
+        "DATABASE_URL",
+        "postgresql+psycopg://svc:" + secret + "@db.example.org:5432/app",
+    )
+
+    logged = str(loggable(Settings()))
+
+    assert secret not in logged
+    assert "postgresql+psycopg://svc:***" + "@db.example.org:5432/app" in logged
+
+
+def test_a_page_on_another_origin_cannot_read_the_runs_by_default(test_client) -> None:
+    """`allow_origins=["*"]` was unconditional, so with AUTH=none any web page a developer
+    opened could read every run on a local instance."""
+    response = test_client.get(
+        "/runs/export",
+        params={"tenant": "hpml"},
+        headers={"Origin": "https://evil.example"},
+    )
+
+    assert response.status_code == 200
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_a_configured_origin_may_read_cross_origin() -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from agentic_base.main import add_cors
+
+    app = FastAPI()
+    app.add_api_route("/ping", lambda: {"ok": True})
+    add_cors(app, "https://ui.example, https://other.example")
+
+    with TestClient(app) as client:
+        allowed = client.get(
+            "/ping", headers={"Origin": "https://ui.example"}
+        ).headers.get("access-control-allow-origin")
+        refused = client.get(
+            "/ping", headers={"Origin": "https://evil.example"}
+        ).headers.get("access-control-allow-origin")
+
+    assert allowed == "https://ui.example"
+    assert refused is None

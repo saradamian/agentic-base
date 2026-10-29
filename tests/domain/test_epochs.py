@@ -1,6 +1,6 @@
 """Declaring and enforcing epoch boundaries."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from agentic_base.domain.epochs import (
     Epoch,
@@ -12,7 +12,7 @@ from agentic_base.domain.epochs import (
 )
 from agentic_base.domain.run_record import RunRecord
 
-LANDED = datetime(2026, 9, 1, tzinfo=timezone.utc)
+LANDED = datetime(2026, 9, 1, tzinfo=UTC)
 
 
 def _change() -> MeaningChange:

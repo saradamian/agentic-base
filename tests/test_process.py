@@ -16,15 +16,10 @@ check on permitted failures is `scripts/assert_no_permitted_failures.py`, tested
 from __future__ import annotations
 
 import subprocess
-import sys
+import tomllib
 from pathlib import Path
 
 import yaml
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # the consumer floor; see tests/test_portable_surface.py
-    import tomli as tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 

@@ -31,7 +31,7 @@ import json
 import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from agentic_base.adapters import (
@@ -158,7 +158,7 @@ def _check(args: argparse.Namespace) -> int:
 
 def _since(value: str) -> datetime:
     """``7d``, ``12h`` or a date such as ``2026-10-01``, as the moment it names in UTC."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     try:
         if value.endswith("d"):
             return now - timedelta(days=float(value[:-1]))
@@ -169,7 +169,7 @@ def _since(value: str) -> datetime:
         raise argparse.ArgumentTypeError(
             f"{value!r} is not a number of days (7d), hours (12h) or a date (2026-10-01)"
         ) from None
-    return when if when.tzinfo else when.replace(tzinfo=timezone.utc)
+    return when if when.tzinfo else when.replace(tzinfo=UTC)
 
 
 def _shown(path: Path) -> str:

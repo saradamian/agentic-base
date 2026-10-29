@@ -31,7 +31,7 @@ from __future__ import annotations
 import enum
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import ValidationError
@@ -85,7 +85,7 @@ logger = logging.getLogger(__name__)
 
 
 def _now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _stored_as_value(enum_type: type[enum.Enum]) -> SAEnum:
@@ -118,7 +118,7 @@ class UTCDateTime(TypeDecorator[datetime]):
         self, value: datetime | None, dialect: Any
     ) -> datetime | None:
         if value is not None and value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
+            return value.replace(tzinfo=UTC)
         return value
 
 

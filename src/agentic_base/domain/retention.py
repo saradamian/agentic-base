@@ -51,6 +51,12 @@ inside each approval. The approvals keep their action, decision and time — tha
 yes remains evidence; who no longer does. Everything the chain hashes as a value is left alone,
 and what it hashes as a digest survives erasure by construction, which is what lets an erased
 record stay evidence.
+
+``extra`` is digested too, so it could be emptied; it is not. Writers keep the keys that tie a
+record to its work there (agentic-env: the benchmark, the split, the repository, the store's own
+run id), and a sweep that emptied them would cut every record older than the policy loose from
+what it measured. The schema says ``extra`` is for the work and never for a person, and redaction
+reaches every string in it at write time; that is the whole of the protection it gets.
 """
 
 

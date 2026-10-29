@@ -27,7 +27,7 @@ import json
 import logging
 import os
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import sqlalchemy as sa
@@ -92,8 +92,8 @@ def _canonical_0001(values: dict[str, Any]) -> bytes:
 
 def _plain_0001(value: Any) -> Any:
     if isinstance(value, datetime):
-        aware = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
-        return aware.astimezone(timezone.utc).isoformat()
+        aware = value if value.tzinfo else value.replace(tzinfo=UTC)
+        return aware.astimezone(UTC).isoformat()
     if isinstance(value, enum.Enum):
         return value.value
     return value
@@ -172,9 +172,10 @@ def _failures_under_0001(connection: sa.Connection) -> dict[str, str]:
     return failures
 
 
-# The 0002 scheme, frozen for the same reason: the rewrite below reads runs through the ORM model,
-# which carries every column later migrations add, and snapshots them with the fields this scheme
-# covered. Loading or hashing more would fail on a database that has not had those migrations yet.
+# The 0002 scheme, frozen for the same reason: the rewrite below reads runs and entries through
+# the ORM models, which carry every column later migrations add (0003 on the run, 0004 the actor
+# on the entry), and loads and snapshots only the columns this scheme had. Loading, hashing or
+# inserting more would fail on a database that has not had those migrations yet.
 _RUN_COLUMNS_0002 = (
     "run_id",
     "created_at",
@@ -245,6 +246,32 @@ _AUDIT_FIELDS_0002 = (
     "erased_at",
 )
 _DIGEST_FIELDS_0002 = ("principal", "approvals", "system_prompt", "messages", "extra")
+_ENTRY_COLUMNS_0002 = (
+    "seq",
+    "tenant",
+    "run_id",
+    "event",
+    "at",
+    "chain_seq",
+    "audit_fields",
+    "digests",
+    "previous_hash",
+    "hash",
+)
+# The entry table as this revision leaves it, for the inserts: an ORM insert would name every
+# column the model has today.
+_ENTRIES_0002 = sa.table(
+    "audit_entry",
+    sa.column("tenant", sa.String()),
+    sa.column("run_id", sa.String()),
+    sa.column("event", sa.String()),
+    sa.column("at", agentic_base.domain.run_record.UTCDateTime()),
+    sa.column("chain_seq", sa.Integer()),
+    sa.column("audit_fields", sa.JSON()),
+    sa.column("digests", sa.JSON()),
+    sa.column("previous_hash", sa.String()),
+    sa.column("hash", sa.String()),
+)
 
 
 def _snapshot_0002(run: RunRecord) -> dict[str, Any]:
@@ -370,6 +397,9 @@ def _rewrite_chains(session: Session, *, unverified: set[str]) -> None:
         entries = list(
             session.exec(
                 select(AuditEntry)
+                .options(
+                    load_only(*(getattr(AuditEntry, c) for c in _ENTRY_COLUMNS_0002))
+                )
                 .where(AuditEntry.tenant == tenant)
                 .order_by(col(AuditEntry.seq))
             ).all()
@@ -397,28 +427,31 @@ def _rewrite_chains(session: Session, *, unverified: set[str]) -> None:
         # One entry per already-chained run, so its latest snapshot carries the fields the
         # scheme now covers. A row that never had an entry stays unchained and stays flagged.
         chained = {entry.run_id for entry in entries}
-        at = datetime.now(timezone.utc)
+        session.flush()  # the rewritten rows, before new rows chain to them
+        at = datetime.now(UTC)
         event = "migrated_unverified" if tenant in unverified else "migrated"
         for run in runs:
             if run.run_id not in chained:
                 continue
             position += 1
             fields, digests = _snapshot_0002(run), _digests_0002(run)
-            entry = AuditEntry(
-                tenant=tenant,
-                run_id=run.run_id,
-                event=event,
-                at=at,
-                chain_seq=position,
-                audit_fields=fields,
-                digests=digests,
-                previous_hash=previous,
-                hash=entry_hash(
-                    position, run.run_id, event, at, fields, digests, previous
-                ),
+            new_hash = entry_hash(
+                position, run.run_id, event, at, fields, digests, previous
             )
-            previous = entry.hash
-            session.add(entry)
+            session.exec(
+                _ENTRIES_0002.insert().values(
+                    tenant=tenant,
+                    run_id=run.run_id,
+                    event=event,
+                    at=at,
+                    chain_seq=position,
+                    audit_fields=fields,
+                    digests=digests,
+                    previous_hash=previous,
+                    hash=new_hash,
+                )
+            )
+            previous = new_hash
 
         if position:
             session.add(ChainHead(tenant=tenant, seq=position, hash=previous))
