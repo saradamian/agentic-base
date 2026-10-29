@@ -22,7 +22,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from agentic_base.domain.outcomes import RunRecordCreate
+from agentic_base.domain.outcomes import Approval, RunRecordCreate
 
 
 class RedactionUnavailable(RuntimeError):
@@ -88,61 +88,136 @@ def replace_spans(text: str, spans: Sequence[Span], instrument: str = "") -> Red
     )
 
 
-def redact_run(record: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
-    """Redact every string in the transcript and in ``extra``, and say so on the record.
+class _Pass:
+    """One redactor applied to many strings, and the count of what it examined and found."""
 
-    The system prompt, the messages and ``extra`` are walked recursively; every string value is
-    passed to the redactor, wherever it nests, except values under the structural keys that
-    join parts of a transcript together (roles, part types, and the ids that tie a tool call
-    to its result). Keys and structure are kept. The writer's ``redaction`` claim is stored
-    under ``extra["redaction"]["writer"]`` and does not decide whether the redactor runs.
-    ``RedactionUnavailable`` propagates: a record is either redacted as declared or not written.
-    """
-    found: Counter[str] = Counter()
-    instruments: Counter[str] = Counter()
-    examined = 0
+    def __init__(self, redactor: Redactor) -> None:
+        self.redactor = redactor
+        self.examined = 0
+        self.found: Counter[str] = Counter()
+        self.instruments: Counter[str] = Counter()
 
-    def _text(value: str) -> str:
-        nonlocal examined
-        examined += 1
-        result = redactor.redact(value)
-        found.update(result.found)
-        instruments[result.instrument or redactor.instrument] += 1
+    def text(self, value: str) -> str:
+        self.examined += 1
+        result = self.redactor.redact(value)
+        self.found.update(result.found)
+        self.instruments[result.instrument or self.redactor.instrument] += 1
         return result.text
 
-    def _walk(value: Any, key: str = "") -> Any:
+    def data(self, value: Any) -> Any:
+        """Every string inside *value*, whatever its key."""
         if isinstance(value, str):
-            return value if key in _STRUCTURAL_KEYS else _text(value)
+            return self.text(value)
         if isinstance(value, dict):
-            return {k: _walk(v, k) for k, v in value.items()}
+            return {k: self.data(v) for k, v in value.items()}
         if isinstance(value, list):
-            return [_walk(v, key) for v in value]
+            return [self.data(v) for v in value]
         return value
 
-    system_prompt = _text(record.system_prompt) if record.system_prompt else ""
-    messages = [_walk(message) for message in record.messages]
-    walked_extra = _walk(record.extra)
-    ran = sorted(instruments) or [redactor.instrument]
-    extra = {
-        **walked_extra,
-        "redaction": {
-            "examined": examined,
-            "found": dict(sorted(found.items())),
-            "instruments": dict(sorted(instruments.items())),
-            "writer": record.redaction,
-        },
-    }
+    def part(self, value: Any) -> Any:
+        """A message, or one part of one: its structural keys are kept, everything else is data.
+
+        Only the message itself and the parts listed under its ``content`` and ``tool_calls`` are
+        structure. A tool's input, a part's metadata and ``extra`` are data at every depth, so an
+        ``id`` that holds an e-mail address there is redacted like any other string.
+        """
+        if not isinstance(value, dict):
+            return self.data(value)
+        out: dict[str, Any] = {}
+        for key, item in value.items():
+            if key in _STRUCTURAL_KEYS and isinstance(item, str):
+                out[key] = item
+            elif key in _PART_LISTS and isinstance(item, list):
+                out[key] = [self.part(element) for element in item]
+            else:
+                out[key] = self.data(item)
+        return out
+
+    def approval(self, approval: Approval) -> Approval:
+        """What was approved and the note are redacted. Who decided is kept: recording that
+        person is what an approval is for, and erasure removes it when it must go."""
+        return approval.model_copy(
+            update={
+                "action": self.text(approval.action) if approval.action else "",
+                "note": self.text(approval.note) if approval.note else "",
+            }
+        )
+
+    def summary(self, writer: str) -> dict[str, Any]:
+        return {
+            "examined": self.examined,
+            "found": dict(sorted(self.found.items())),
+            "instruments": dict(sorted(self.instruments.items())),
+            "writer": writer,
+        }
+
+
+def redact_run(record: RunRecordCreate, redactor: Redactor) -> RunRecordCreate:
+    """Redact every free-text field of a run, and say so on the record.
+
+    The system prompt, the messages, ``extra``, each approval's action and note, and
+    ``failure_kind`` pass through the redactor. ``failure_kind`` is free text that the audit log
+    keeps as a value, where no erasure can reach it later. Messages are walked recursively and
+    every string is redacted except the structural ones that join a transcript together (roles,
+    part types, and the ids that tie a tool call to its result), and those only where the
+    transcript's structure puts them. Keys and structure are kept. The writer's ``redaction``
+    claim is stored under ``extra["redaction"]["writer"]`` and does not decide whether the
+    redactor runs. ``RedactionUnavailable`` propagates: a record is either redacted as declared
+    or not written.
+    """
+    run = _Pass(redactor)
+    system_prompt = run.text(record.system_prompt) if record.system_prompt else ""
+    messages = [run.part(message) for message in record.messages]
+    walked_extra = run.data(record.extra)
+    approvals = [run.approval(approval) for approval in record.approvals]
+    failure_kind = run.text(record.failure_kind) if record.failure_kind else ""
+    ran = sorted(run.instruments) or [redactor.instrument]
     return record.model_copy(
         update={
             "system_prompt": system_prompt,
             "messages": messages,
+            "approvals": approvals,
+            "failure_kind": failure_kind,
             "redaction": " | ".join(ran),
-            "extra": extra,
+            "extra": {**walked_extra, "redaction": run.summary(record.redaction)},
         }
     )
 
 
+def redact_approval(
+    approval: Approval, redactor: Redactor
+) -> tuple[Approval, dict[str, Any]]:
+    """An approval added after its run was written, redacted as the run's own were, and what
+    this pass examined and found, for :func:`add_counts`."""
+    one = _Pass(redactor)
+    redacted = one.approval(approval)
+    return redacted, {
+        "examined": one.examined,
+        "found": dict(one.found),
+        "instruments": dict(one.instruments),
+    }
+
+
+def add_counts(counts: dict[str, Any], added: dict[str, Any]) -> dict[str, Any]:
+    """A run's ``extra["redaction"]`` with a later pass's counts added; the writer's claim kept."""
+
+    def _sum(key: str) -> dict[str, int]:
+        total = Counter(counts.get(key, {})) + Counter(added.get(key, {}))
+        return dict(sorted(total.items()))
+
+    return {
+        **counts,
+        "examined": counts.get("examined", 0) + added.get("examined", 0),
+        "found": _sum("found"),
+        "instruments": _sum("instruments"),
+    }
+
+
 #: Keys whose string values hold a transcript together rather than carry its text: the role and
 #: part type that select a code path, and the ids that join a tool call to its result. Redacting
-#: these would break the joins; everything else, names included, is treated as text.
+#: these would break the joins. They are kept only in a message and in the parts under
+#: :data:`_PART_LISTS`; anywhere else the same key is data.
 _STRUCTURAL_KEYS = frozenset({"role", "type", "id", "tool_call_id", "tool_use_id"})
+
+#: The lists inside a message whose elements are themselves parts of the transcript.
+_PART_LISTS = frozenset({"content", "tool_calls"})

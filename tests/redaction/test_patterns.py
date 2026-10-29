@@ -50,6 +50,19 @@ _WILLMA = "77696c6c6d61" + "-0123abcd-0aec-4df0-93f0-" + "0123456789ab"
         ),
         ("Authorization: Bearer " + "t" * 32, "Authorization: Bearer <CREDENTIAL>"),
         ('password = "hunter22secret"', 'password = "<CREDENTIAL>"'),
+        ("password=hunter22secret", "password=<CREDENTIAL>"),
+        ("password: hunter22secret", "password: <CREDENTIAL>"),
+        ("PGPASSWORD=hunter22secret psql", "PGPASSWORD=<CREDENTIAL> psql"),
+        ("export OPENAI_API_KEY=k3y" + "x" * 20, "export OPENAI_API_KEY=<CREDENTIAL>"),
+        (
+            "aws_secret_access_key = " + "wJalr/K7" * 5,
+            "aws_secret_access_key = <CREDENTIAL>",
+        ),
+        ("GET /feed?token=a1b2c3d4e5&page=2", "GET /feed?token=<CREDENTIAL>&page=2"),
+        (
+            'password = "correct horse battery staple"',
+            'password = "<CREDENTIAL>"',
+        ),
     ],
 )
 def test_each_identifier_is_replaced_by_its_type(text, expected) -> None:
@@ -73,6 +86,10 @@ def test_a_private_key_block_is_removed_whole() -> None:
         "max_model_len 262144, epoch 1777386525123, Python 3.10.12, version 1.2.3",
         "commit 1fcf13e85f4eef5394e1fcd406cf2ca9ea82351d at 12:30:45",
         "token = self.token and the session_id is 42",
+        "Client(token=self.token, password=password)",
+        'password = os.environ["DB_PASSWORD"]',
+        "export TOKEN=${GITLAB_TOKEN}",
+        "max_tokens: 4096000000, prompt_tokens=1234",
     ],
 )
 def test_numbers_hashes_and_versions_in_an_agent_transcript_are_left_alone(

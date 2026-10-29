@@ -241,8 +241,8 @@ def test_an_approval_from_a_writer_holding_an_older_copy_keeps_the_one_before_it
         # Held, as a request holds what it read: the identity map keeps only weak references.
         older_copy = late.get(RunRecord, run_id)
         assert older_copy is not None
-        runs.record_approval(run_id, _approval("carol"), early, _EVERY_TENANT)
-        runs.record_approval(run_id, _approval("dave"), late, _EVERY_TENANT)
+        runs.record_approval(run_id, _approval("carol"), early, _EVERY_TENANT, None)
+        runs.record_approval(run_id, _approval("dave"), late, _EVERY_TENANT, None)
 
     stored = test_client.get(f"/runs/{run_id}").json()
     assert [approval["by"] for approval in stored["approvals"]] == ["carol", "dave"]
@@ -261,7 +261,7 @@ def test_an_approval_after_a_label_it_did_not_see_leaves_the_run_unaltered(
         older_copy = late.get(RunRecord, run_id)
         assert older_copy is not None
         runs.label_run(run_id, label, early, _EVERY_TENANT)
-        runs.record_approval(run_id, _approval("carol"), late, _EVERY_TENANT)
+        runs.record_approval(run_id, _approval("carol"), late, _EVERY_TENANT, None)
 
     stored = test_client.get(f"/runs/{run_id}").json()
     assert stored["resolved"] is True

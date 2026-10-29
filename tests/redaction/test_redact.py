@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from agentic_base.domain.outcomes import RunRecordCreate
+from agentic_base.domain.outcomes import Approval, RunRecordCreate, RunStatus
 from agentic_base.redaction import Redacted, Redactor, redact_run
+from agentic_base.redaction.redact import add_counts, redact_approval
 
 
 class _Upper:
@@ -188,3 +189,84 @@ def test_the_writers_claim_is_kept_and_does_not_stop_the_redactor() -> None:
     assert out.redaction == "upper 1.0 (test)"
     assert out.extra["redaction"]["writer"] == "their tool 2.0"
     assert redactor.seen == ["secret"]
+
+
+def test_an_id_or_type_outside_the_transcript_structure_is_redacted() -> None:
+    """The keys that join a transcript are kept only where the transcript puts them. A tool's
+    `id` argument or an `id` in `extra` was kept verbatim at any depth."""
+    record = _record(
+        messages=[
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "tool_use",
+                        "id": "t1",
+                        "input": {"id": "secret@example.org", "type": "secret"},
+                    }
+                ],
+            },
+            {"role": "tool", "tool_call_id": "t1", "metadata": {"id": "secret"}},
+        ],
+        extra={"user": {"id": "secret"}, "api": {"type": "secret"}},
+    )
+
+    out = redact_run(record, _Upper())
+
+    part = out.messages[0]["content"][0]
+    assert (part["type"], part["id"]) == ("tool_use", "t1")
+    assert part["input"] == {"id": "<X>@example.org", "type": "<X>"}
+    assert out.messages[1]["tool_call_id"] == "t1"
+    assert out.messages[1]["metadata"] == {"id": "<X>"}
+    assert out.extra["user"] == {"id": "<X>"}
+    assert out.extra["api"] == {"type": "<X>"}
+
+
+def test_an_approvals_action_and_note_are_redacted_and_who_decided_is_kept() -> None:
+    record = _record(
+        approvals=[
+            Approval(
+                action="mail the secret",
+                decision="approved",
+                by="urn:example:secret-keeper",
+                at="2026-10-29",
+                note="a secret note",
+            )
+        ]
+    )
+
+    out = redact_run(record, _Upper())
+
+    approval = out.approvals[0]
+    assert (approval.action, approval.note) == ("mail the <X>", "a <X> note")
+    assert approval.by == "urn:example:secret-keeper"
+    assert out.extra["redaction"]["examined"] == 2
+
+
+def test_a_failure_kind_is_redacted_because_the_log_keeps_it_as_a_value() -> None:
+    """The audit log holds failure_kind as written; an erasure cannot reach it afterwards."""
+    record = _record(status=RunStatus.FAILED, failure_kind="no mailbox for secret")
+
+    out = redact_run(record, _Upper())
+
+    assert out.failure_kind == "no mailbox for <X>"
+
+
+def test_a_later_approval_adds_to_the_runs_counts() -> None:
+    out = redact_run(
+        _record(messages=[{"role": "user", "content": "secret"}]), _Upper()
+    )
+    approval = Approval(
+        action="push", decision="approved", by="b", at="now", note="secret"
+    )
+
+    redacted, added = redact_approval(approval, _Upper())
+    counts = add_counts(out.extra["redaction"], added)
+
+    assert redacted.note == "<X>"
+    assert counts == {
+        "examined": 3,
+        "found": {"SECRET": 2},
+        "instruments": {"upper 1.0 (test)": 3},
+        "writer": "none",
+    }

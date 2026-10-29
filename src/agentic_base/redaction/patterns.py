@@ -86,6 +86,19 @@ def ip_is_valid(candidate: str) -> bool:
     return True
 
 
+def could_not_be_code(value: str) -> bool:
+    """Whether a bare value after a secret's name can be taken for the secret.
+
+    An agent reads source, and `token = self.token` or `password=password` is code, not a leak.
+    A value counts when it has no brackets, does not start with `$`, and has a digit or a
+    character no identifier has. A bare secret that is one lowercase word is missed; quoted, it
+    is not.
+    """
+    if value.startswith("$") or any(c in value for c in "()[]{}"):
+        return False
+    return any(c.isdigit() or not (c.isalnum() or c in "._-") for c in value)
+
+
 @dataclass(frozen=True)
 class _Rule:
     entity: str
@@ -110,15 +123,23 @@ _CREDENTIAL_PATTERNS = (
     r"\b[0-9a-f]{12}-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
 )
 
+#: The name of a secret and its separator: `password=`, `PGPASSWORD=`, `"api_key": `,
+#: `aws_secret_access_key = `. The name may carry a prefix; it must end in one of these words.
+_SECRET_NAME = (
+    r"(?i)\b[\w-]*?(?:password|passwd|pwd|secret|secret[_-]?key|api[_-]?key|access[_-]?key"
+    r"|auth[_-]?token|token)[\"']?\s*[:=]\s*"
+)
+
 _RULES: tuple[_Rule, ...] = (
     *(_Rule(CREDENTIAL, re.compile(p)) for p in _CREDENTIAL_PATTERNS),
     _Rule(CREDENTIAL, re.compile(r"(?i)\bbearer\s+([A-Za-z0-9._~+/=-]{20,})"), group=1),
+    # A quoted value runs to its closing quote, spaces included: a passphrase has them.
+    _Rule(CREDENTIAL, re.compile(_SECRET_NAME + r'"([^"\n]{8,})"'), group=1),
+    _Rule(CREDENTIAL, re.compile(_SECRET_NAME + r"'([^'\n]{8,})'"), group=1),
     _Rule(
         CREDENTIAL,
-        re.compile(
-            r"(?i)\b(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?key|auth[_-]?token|token)"
-            r"[\"']?\s*[:=]\s*[\"']([^\"'\s]{8,})[\"']"
-        ),
+        re.compile(_SECRET_NAME + r"([^\s\"'`,;&]{8,})"),
+        could_not_be_code,
         group=1,
     ),
     _Rule(

@@ -29,10 +29,25 @@ redaction off.
 
 What is walked: the system prompt, every string in the messages however deeply it nests —
 content and text parts, participant and tool names, tool-call arguments and inputs, metadata —
-and every string in `extra`. What is not: identifiers used for joining. The tenant, item, arm,
-run id and principal stay as written, because they are how runs are paired, exported and looked
-up, and inside a transcript the roles, part types and the ids that tie a tool call to its
-result stay for the same reason.
+every string in `extra`, each approval's action and note, whether it arrives with the run or
+later through `POST /runs/{run_id}/approvals`, and `failure_kind`, which the audit log keeps as a
+value where no erasure can reach it afterwards. What is not: identifiers used for joining. The
+tenant, item, arm, run id, principal and an approval's `by` stay as written, because they are
+how runs are paired, exported, looked up and held to account. Inside a transcript the roles,
+part types and the ids that tie a tool call to its result stay for the same reason, but only
+where the transcript puts them: on a message, and on the parts under its `content` and
+`tool_calls`. The same key inside a tool's input or in `extra` is redacted like any other
+string.
+
+A credential that carries no shape of its own is found by its name: `password=`,
+`PGPASSWORD=`, `"api_key": "…"`, `aws_secret_access_key = …`. A quoted value is taken to its
+closing quote, spaces included. A bare value is taken when it cannot be code, so
+`token = self.token` and `password=password` in a transcript of an agent reading source stay;
+a bare secret that is one lowercase word without a digit is the case this misses.
+
+The item, arm and the other fields the audit log holds as values are kept verbatim there, and an
+erasure leaves them, because removing them would break the chain. They must name the work, not
+a person.
 
 Settings: `REDACTION` is `none`, `patterns` or `names`; the `REDACTION_LLM_*` and
 `REDACTION_GLINER_*` settings configure the two detectors; `REDACTION_ALLOW_LIST` exempts the
