@@ -11,7 +11,7 @@
     "server_version": { "type": "string" },
     "tool": { "type": "string" },
     "arguments": { "type": "object", "description": "The arguments the server received, with every credential and identifier the pattern layer finds replaced by its entity type." },
-    "redacted": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 1 }, "description": "What the pattern layer replaced in the arguments, counted per entity type. Absent when nothing was." },
+    "redacted": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 1 }, "description": "What the pattern layer replaced in the arguments and the error text, counted per entity type. Absent when nothing was." },
     "success": { "type": "boolean" },
     "elapsed_ms": { "type": "number", "minimum": 0 },
     "result_chars": { "type": "integer", "minimum": 0, "description": "The length of the result. The result itself is not kept." },
