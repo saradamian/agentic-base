@@ -699,3 +699,28 @@ def test_a_redacted_line_satisfies_the_published_schema(tmp_path) -> None:
 
     jsonschema.validate(line, call_log_schema())
     assert line["redacted"] == {"EMAIL_ADDRESS": 1}
+
+
+def test_the_call_log_redacts_the_error_text_by_the_same_pass(tmp_path) -> None:
+    """A server's error quotes what it refused: the address, or a URL with a token in it. The
+    arguments were redacted and the error beside them was not."""
+    from agentic_base.limits import get_limits
+
+    key = "sk-" + "C" * 30
+    get_limits.cache_clear()
+    log = tmp_path / "calls.jsonl"
+    JsonLinesObserver(log, server="t").record(
+        "fetch",
+        {"url": f"https://api.example.org/?token={key}"},
+        "",
+        False,
+        1.0,
+        error=f"401 for https://api.example.org/?token={key} from 192.0.2.10",
+    )
+    line = json.loads(log.read_text().splitlines()[-1])
+
+    assert (
+        line["error"]
+        == "401 for https://api.example.org/?token=<CREDENTIAL> from <IP_ADDRESS>"
+    )
+    assert line["redacted"] == {"CREDENTIAL": 2, "IP_ADDRESS": 1}

@@ -161,10 +161,10 @@ class JsonLinesObserver:
     name and version, the caller's `_meta` keys (an agent's run id among them), the trace and span
     ids, and, for a failed call, the error text the client got, cut at `call_log_error_chars`.
 
-    Every string in the arguments passes through the pattern layer of the redaction package
-    before it is written: credentials, e-mail addresses, phone numbers, bank and card numbers,
-    citizen service numbers and IP addresses become their entity type, and the line counts what
-    it replaced under ``redacted``. `call_log_redaction` narrows that to credentials or turns it
+    Every string in the arguments, and the error text of a failed call, passes through the
+    pattern layer of the redaction package before it is written: credentials, e-mail addresses,
+    phone numbers, bank and card numbers, citizen service numbers and IP addresses become their
+    entity type, and the line counts what it replaced under ``redacted``. `call_log_redaction` narrows that to credentials or turns it
     off for a host that redacts in its own observer first. Names are not found by patterns; a
     host that handles personal data still wraps this.
 
@@ -203,6 +203,11 @@ class JsonLinesObserver:
     ) -> None:
         now = datetime.now(UTC)
         arguments, redacted = redact_arguments(arguments)
+        if isinstance(extra.get("error"), str):
+            # The error text the client got is free text from the server, and it can quote the
+            # arguments; it is redacted by the same pass, under the same counts.
+            extra["error"], more = _redacted(extra["error"])
+            redacted = dict(sorted((Counter(redacted) + Counter(more)).items()))
         entry = {
             "time": now.isoformat(timespec="milliseconds"),
             "server": self._server,
@@ -242,34 +247,39 @@ def redact_arguments(
     tokens only) or ``off``. Anything else reads as ``patterns``: a misspelt setting must not
     write the log unredacted.
     """
+    return _redacted(arguments)
+
+
+def _redacted(value: Any) -> tuple[Any, dict[str, int]]:
+    """*value* with every string in it passed through the pattern layer, and what was replaced."""
     from agentic_base.limits import get_limits
     from agentic_base.redaction.patterns import CREDENTIAL, PatternDetector
     from agentic_base.redaction.redact import replace_spans
 
     mode = get_limits().call_log_redaction
     if mode == "off":
-        return arguments, {}
+        return value, {}
     only = {CREDENTIAL} if mode == "credentials" else None
     detector = PatternDetector()
     found: Counter[str] = Counter()
 
-    def walk(value: Any) -> Any:
-        if isinstance(value, str):
+    def walk(item: Any) -> Any:
+        if isinstance(item, str):
             spans = [
-                s for s in detector.detect(value) if only is None or s.entity in only
+                s for s in detector.detect(item) if only is None or s.entity in only
             ]
             if not spans:
-                return value
-            done = replace_spans(value, spans)
+                return item
+            done = replace_spans(item, spans)
             found.update(done.found)
             return done.text
-        if isinstance(value, dict):
-            return {key: walk(item) for key, item in value.items()}
-        if isinstance(value, list):
-            return [walk(item) for item in value]
-        return value
+        if isinstance(item, dict):
+            return {key: walk(inner) for key, inner in item.items()}
+        if isinstance(item, list):
+            return [walk(inner) for inner in item]
+        return item
 
-    return walk(arguments), dict(sorted(found.items()))
+    return walk(value), dict(sorted(found.items()))
 
 
 def prune_call_log(
