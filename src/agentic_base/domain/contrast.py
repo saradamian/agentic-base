@@ -36,6 +36,7 @@ from dataclasses import dataclass, replace
 from statistics import NormalDist
 from typing import Any, Protocol
 
+from agentic_base.domain.outcomes import LabelAuthority, authority_of
 from agentic_base.domain.validity import INCLUDED, wilson_interval
 from agentic_base.limits import get_limits
 
@@ -227,6 +228,18 @@ class Contrast:
     holm_significant: bool | None = None
     """Set when several arms are contrasted against one baseline. A single contrast leaves it
     None."""
+    scored: int = 0
+    """Outcomes the contrast read, over both arms."""
+    uncited: int = 0
+    """Of those, the outcomes whose source is known and has no authority, or whose scorer was
+    degraded. A contrast with any is a diagnostic, not a result: `is_citable` is the rule, and
+    the contrast applies it to every observation that states its source rather than leaving
+    that to the caller."""
+
+    @property
+    def citable(self) -> bool:
+        """Whether every outcome this contrast read may be reported as a result."""
+        return self.uncited == 0
 
     @property
     def reading(self) -> str:
@@ -272,6 +285,11 @@ class Contrast:
                 else "; not significant after Holm"
             )
         lines.append("  " + reading)
+        if not self.citable:
+            lines.append(
+                f"  diagnostic, not a result: {self.uncited} of {self.scored} outcomes come "
+                "from a source without authority or a degraded scorer"
+            )
         if self.excluded == 0 and self.tasks == pairs:
             lines.append("  no run was excluded, so this is the whole result")
             return "\n".join(lines)
@@ -341,8 +359,12 @@ def contrast_arms(
             declined=f"{repeated} task(s) have more than one run in an arm; keep one run per task and arm",
             margin=margin,
         )
+    outcomes_read = outcomes_uncited = 0
     for obs in runs:
         by_arm[obs.arm][obs.item] = obs.resolved if obs.channel == INCLUDED else None
+        if obs.channel == INCLUDED and obs.resolved is not None:
+            outcomes_read += 1
+            outcomes_uncited += not _citable(obs)
     shared = set(by_arm[baseline]) & set(by_arm[treatment])
     if not shared or not all(obs.item for obs in runs):
         return Contrast(
@@ -401,6 +423,24 @@ def contrast_arms(
             (resolved_t - (resolved_b + unknown_b)) / n,
             ((resolved_t + unknown_t) - resolved_b) / n,
         ),
+        scored=outcomes_read,
+        uncited=outcomes_uncited,
+    )
+
+
+def _citable(obs: Any) -> bool:
+    """`is_citable` over an observation that may not carry a label source at all.
+
+    The protocol asks for an outcome, not its provenance. An observation that says where its
+    outcome came from (`LogObservation` does) is held to the rule here. One that cannot say is
+    not judged by the contrast: the citability summary printed beside it counts such rows as
+    unattributed, which is the reader's warning for that case.
+    """
+    source = getattr(obs, "label_source", None)
+    if source is None:
+        return True
+    return authority_of(source) is LabelAuthority.AUTHORITATIVE and not getattr(
+        obs, "degraded", False
     )
 
 
@@ -452,5 +492,8 @@ def contrast_as_dict(contrast: Contrast) -> dict[str, Any]:
         "bounds": list(contrast.bounds),
         "sign_established": None if contrast.declined else contrast.sign_established,
         "holm_significant": contrast.holm_significant,
+        "scored": contrast.scored,
+        "uncited": contrast.uncited,
+        "citable": contrast.citable,
         "description": contrast.describe(),
     }
