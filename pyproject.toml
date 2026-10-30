@@ -253,6 +253,11 @@ filterwarnings = [
   # export then "succeeds" with nothing stored (the exporter now refuses a no-op span). Scoped to
   # the one message family; remove when mlflow's own models stop tripping its own inference.
   "ignore:.*type hint is inferred as AnyType:UserWarning",
+  # SQLAlchemy 2.1 deprecates the `noload` loader strategy, and MLflow 3.17's own tracking-store
+  # models still declare it. The warning fires while MLflow's mappers configure, so under
+  # warnings-as-errors every MLflow export test failed at mapper set-up before it ran. Scoped to
+  # that one message; nothing in this repository uses `noload`. Remove when MLflow drops it.
+  "ignore:The ``noload`` loader strategy is deprecated:DeprecationWarning",
 ]
 env = [
   "METRICS_PORT=0", # Don't start metrics server during tests
