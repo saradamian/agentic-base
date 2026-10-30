@@ -260,6 +260,10 @@ env = [
   "AUTH=none",
 ]
 strict = true # enable strictness options https://docs.pytest.org/en/stable/explanation/goodpractices.html#using-pytest-s-strict-mode
+# pytest-asyncio's default loop scope, stated: left unset it warns at configure time, and under
+# warnings-as-errors pytest 9.2 turns that into an INTERNALERROR before a test runs. "function"
+# is the value it has defaulted to, so nothing changes for the async tests.
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 branch = true
