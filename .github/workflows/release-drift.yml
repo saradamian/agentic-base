@@ -38,7 +38,10 @@ jobs:
           if [ "$commits" = "0" ]; then
             echo "main is $tag; nothing unreleased"; echo "unreleased=0" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          first=$(git log --reverse --format=%ct "$tag..origin/main" | head -1)
+          # The oldest is the last line git log prints. `tail` reads to the end; `head -1` closed
+          # the pipe after one line and git died of SIGPIPE, which pipefail turned into exit 141:
+          # the job failed on its own shell, not on drift, the day main was 13 commits ahead.
+          first=$(git log --format=%ct "$tag..origin/main" | tail -n 1)
           days=$(( ( $(date +%s) - first ) / 86400 ))
           echo "main is $commits commit(s) ahead of $tag; the oldest is $days day(s) old (limit $MAX_DAYS)"
           {
