@@ -69,7 +69,7 @@ service = [
   "opentelemetry-exporter-otlp-proto-http==1.45.2",
   # The two span vocabularies, pinned: the GenAI one has no stable schema URL to pin instead.
   "opentelemetry-semantic-conventions==0.66b2",
-  "openinference-semantic-conventions==0.1.42",
+  "openinference-semantic-conventions==0.1.43",
   "structlog==26.1.0",
   "sqlmodel==0.0.48",
   "alembic==1.20.1",
