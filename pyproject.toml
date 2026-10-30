@@ -64,12 +64,12 @@ service = [
   "prometheus-fastapi-instrumentator==8.1.0",
   "uvicorn==0.54.0",
   # Tracing: the vocabulary in observability/conventions.py is worthless if no span is opened.
-  "opentelemetry-sdk==1.45.1",
-  "opentelemetry-instrumentation-fastapi==0.66b1",
-  "opentelemetry-exporter-otlp-proto-http==1.45.1",
+  "opentelemetry-sdk==1.45.2",
+  "opentelemetry-instrumentation-fastapi==0.66b2",
+  "opentelemetry-exporter-otlp-proto-http==1.45.2",
   # The two span vocabularies, pinned: the GenAI one has no stable schema URL to pin instead.
-  "opentelemetry-semantic-conventions==0.66b1",
-  "openinference-semantic-conventions==0.1.42",
+  "opentelemetry-semantic-conventions==0.66b2",
+  "openinference-semantic-conventions==0.1.43",
   "structlog==26.1.0",
   "sqlmodel==0.0.48",
   "alembic==1.20.1",
@@ -91,7 +91,7 @@ dev = [
   "coverage==7.17.0",
   "mypy==2.4.1",
   "mypy-extensions==1.1.0",
-  "pytest==9.1.1",
+  "pytest==9.2.0",
   "pytest-asyncio==1.4.1",
   "pytest-cov==7.1.0",
   "pytest-env==1.8.3",
@@ -265,6 +265,10 @@ env = [
   "AUTH=none",
 ]
 strict = true # enable strictness options https://docs.pytest.org/en/stable/explanation/goodpractices.html#using-pytest-s-strict-mode
+# pytest-asyncio's default loop scope, stated: left unset it warns at configure time, and under
+# warnings-as-errors pytest 9.2 turns that into an INTERNALERROR before a test runs. "function"
+# is the value it has defaulted to, so nothing changes for the async tests.
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.coverage.run]
 branch = true
