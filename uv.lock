@@ -9,8 +9,8 @@ resolution-markers = [
     "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'emscripten'",
     "python_full_version < '3.12' and sys_platform == 'win32'",
     "python_full_version < '3.12' and sys_platform == 'emscripten'",
@@ -777,8 +777,8 @@ resolution-markers = [
     "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'emscripten'",
 ]
 dependencies = [
@@ -3022,8 +3022,8 @@ resolution-markers = [
     "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'emscripten'",
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/95/b0/c7453d0b6e2073c3264468b106ee1563750cecc910965e67357e3698c83e/numpy-2.5.4.tar.gz", hash = "sha256:9a94cf751c9ad8ebaa835bcd3d40dacf8534ad086b88c38029b65123c7999d2a", size = 20866315, upload-time = "2026-10-10T20:05:31.422Z" }
@@ -3097,11 +3097,11 @@ wheels = [
 
 [[package]]
 name = "openinference-semantic-conventions"
-version = "0.1.43"
+version = "0.1.46"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/7e/dc/b3def81b3e243571ac4a96d41f44945f3c2c999c2a9c822b272ed4667e47/openinference_semantic_conventions-0.1.43.tar.gz", hash = "sha256:c12b213e8cbaa74c8fbf021d2959e244aceb39b5cefeb2c2cd8316235f2a905b", size = 16212, upload-time = "2026-10-29T22:13:22.01Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d7/1e/833656e31c3cb7658243f3e272d846943704e0dca09a8b84aded6c2fc3d8/openinference_semantic_conventions-0.1.46.tar.gz", hash = "sha256:ccf4e92216819df1fdae25d4f76a406618269c53d7765ce78faa061755d70659", size = 16257, upload-time = "2026-11-16T23:48:02.589Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9f/11/02848572db2e9986f271853175cba2026d8ae46359d69d90deb19027f49f/openinference_semantic_conventions-0.1.43-py3-none-any.whl", hash = "sha256:058cf01935df390775605a87df07840dbd80ac1a92800a329c169b0d633f64ce", size = 12974, upload-time = "2026-10-29T22:13:20.246Z" },
+    { url = "https://files.pythonhosted.org/packages/57/20/cd62283e007e15962498abe98e128f21cfe6c0cca62232225affa6528904/openinference_semantic_conventions-0.1.46-py3-none-any.whl", hash = "sha256:115fba2b424c5aa9433ca83cd373164436c0872dc2fd721ecb43f0222290da36", size = 12999, upload-time = "2026-11-16T23:48:01.478Z" },
 ]
 
 [[package]]
@@ -4794,8 +4794,8 @@ resolution-markers = [
     "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.13.*' and sys_platform != 'emscripten'",
+    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.12.*' and sys_platform != 'emscripten'",
 ]
 dependencies = [
@@ -5124,7 +5124,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp", marker = "extra == 'service'", specifier = ">=2.2,<3" },
     { name = "mlflow", marker = "extra == 'mlflow'", specifier = ">=3.16,<4" },
-    { name = "openinference-semantic-conventions", marker = "extra == 'service'", specifier = "==0.1.43" },
+    { name = "openinference-semantic-conventions", marker = "extra == 'service'", specifier = "==0.1.46" },
     { name = "openlineage-python", marker = "extra == 'provenance'", specifier = ">=1.53,<2" },
     { name = "openlineage-python", marker = "extra == 'service'", specifier = ">=1.53,<2" },
     { name = "opentelemetry-exporter-otlp-proto-http", marker = "extra == 'service'", specifier = "==1.45.2" },
